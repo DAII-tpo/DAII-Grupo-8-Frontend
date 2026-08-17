@@ -1,0 +1,32 @@
+@import "tailwindcss";
+@import "@heroui/styles";
+
+:root {
+  --citypass-night-blue: #14213d;
+  --citypass-urban-blue: #2f5ca6;
+  --citypass-sky-blue: #bfd8ed;
+  --citypass-urban-green: #4f8a72;
+  --citypass-concrete: #e8e4dc;
+  --citypass-warm-white: #f8f9f7;
+  --citypass-graphite: #303438;
+  --citypass-medium-gray: #68717d;
+  --citypass-amber: #d99838;
+  --citypass-emergency-red: #c8544d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  color: var(--citypass-graphite);
+  background: var(--citypass-warm-white);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}

@@ -1,0 +1,15 @@
+.container {
+  border: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 60%, white);
+  background: white;
+}
+
+.title {
+  color: var(--citypass-night-blue);
+  font-size: 1.75rem;
+  line-height: 1.2;
+}
+
+.description {
+  color: var(--citypass-medium-gray);
+  font-size: 1rem;
+}

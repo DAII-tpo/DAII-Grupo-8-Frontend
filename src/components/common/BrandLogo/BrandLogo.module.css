@@ -1,0 +1,30 @@
+.logoWrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.logo {
+  display: block;
+  width: 176px;
+  max-width: 100%;
+  height: auto;
+}
+
+.moduleLabel {
+  color: var(--citypass-medium-gray);
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (max-width: 48em) {
+  .moduleLabel {
+    display: none;
+  }
+
+  .logo {
+    width: 148px;
+  }
+}

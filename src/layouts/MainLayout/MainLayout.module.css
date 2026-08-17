@@ -1,0 +1,95 @@
+.shell {
+  background: var(--citypass-warm-white);
+}
+
+.header {
+  border-bottom: 0;
+  background: color-mix(in srgb, var(--citypass-sky-blue) 72%, white);
+}
+
+.headerContent {
+  height: 100%;
+  padding: 0 1.5rem;
+}
+
+.navbar {
+  border-right: 0;
+  border-radius: 0 0.75rem 0 0;
+  background: var(--citypass-night-blue);
+}
+
+.navigation {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1rem 0.75rem;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 44px;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  color: white;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.navItem:hover,
+.navItemActive {
+  background: color-mix(in srgb, var(--citypass-urban-blue) 82%, white);
+}
+
+.navIcon {
+  display: grid;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 999px;
+  color: white;
+  background: color-mix(in srgb, var(--citypass-urban-green) 84%, black);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.navLabel {
+  overflow: hidden;
+  color: white;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.main {
+  min-height: calc(100vh - 116px);
+  background: var(--citypass-warm-white);
+}
+
+.footer {
+  display: grid;
+  place-items: center;
+  border-top: 0;
+  background: var(--citypass-night-blue);
+}
+
+.footerText {
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+@media (max-width: 48em) {
+  .headerContent {
+    padding: 0 1rem;
+  }
+
+  .navbar {
+    border-radius: 0;
+  }
+}
