@@ -1,0 +1,207 @@
+.title {
+  color: var(--citypass-night-blue);
+  font-size: 1.8rem;
+  line-height: 1.2;
+}
+
+.subtitle {
+  color: var(--citypass-medium-gray);
+  font-size: 0.95rem;
+}
+
+.statusBadge {
+  color: white;
+  background: var(--citypass-urban-green);
+}
+
+.tabsList {
+  border-bottom: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 70%, white);
+}
+
+.mapLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 292px;
+  gap: 1rem;
+}
+
+.mapPanel,
+.stationCard,
+.nearbyCard,
+.areaCard {
+  border: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 58%, white);
+  background: white;
+}
+
+.mapPanel {
+  position: relative;
+  min-height: 520px;
+  overflow: hidden;
+}
+
+.search {
+  position: absolute;
+  z-index: 2;
+  top: 1rem;
+  left: 1rem;
+  width: min(320px, calc(100% - 2rem));
+}
+
+.mapCanvas {
+  position: relative;
+  width: 100%;
+  height: 520px;
+  overflow: hidden;
+  background:
+    linear-gradient(
+      130deg,
+      transparent 0 44%,
+      color-mix(in srgb, var(--citypass-sky-blue) 45%, white) 44% 47%,
+      transparent 47% 100%
+    ),
+    linear-gradient(
+      35deg,
+      transparent 0 55%,
+      color-mix(in srgb, var(--citypass-urban-green) 12%, transparent) 55% 60%,
+      transparent 60% 100%
+    ),
+    #eef4f7;
+}
+
+.mapGrid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.82;
+  background-image:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.92) 10px, transparent 10px),
+    linear-gradient(rgba(255, 255, 255, 0.9) 10px, transparent 10px),
+    linear-gradient(35deg, transparent 48%, rgba(255, 255, 255, 0.9) 49% 51%, transparent 52%),
+    linear-gradient(125deg, transparent 48%, rgba(255, 255, 255, 0.84) 49% 51%, transparent 52%);
+  background-size:
+    76px 76px,
+    76px 76px,
+    160px 160px,
+    220px 220px;
+}
+
+.stationMarker {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 48px;
+  height: 34px;
+  padding: 0 0.45rem;
+  border: 3px solid white;
+  border-radius: 999px;
+  color: white;
+  background: var(--citypass-urban-green);
+  box-shadow: 0 6px 14px rgba(20, 33, 61, 0.22);
+  transform: translate(-50%, -50%);
+}
+
+.stationCount {
+  min-width: 1rem;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+}
+
+.markerNumber {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.cardTitle {
+  color: var(--citypass-night-blue);
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.greenIcon {
+  color: var(--citypass-urban-green);
+}
+
+.blueIcon {
+  color: var(--citypass-urban-blue);
+}
+
+.metric {
+  color: var(--citypass-urban-green);
+  font-size: 1.85rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.metricLabel,
+.distance,
+.nearbyDetail,
+.nearbyDistance,
+.areaValue {
+  color: var(--citypass-medium-gray);
+  font-size: 0.84rem;
+}
+
+.primaryAction,
+.secondaryAction {
+  min-height: 40px;
+  border: 0;
+  border-radius: 0.35rem;
+  color: white;
+  font-weight: 700;
+  cursor: default;
+}
+
+.primaryAction {
+  background: var(--citypass-urban-blue);
+}
+
+.secondaryAction {
+  background: var(--citypass-urban-green);
+}
+
+.nearbyItem {
+  min-height: 46px;
+}
+
+.nearbyIcon,
+.areaIcon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--citypass-urban-green);
+}
+
+.nearbyName,
+.areaTitle {
+  color: var(--citypass-night-blue);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.areaCard {
+  min-height: 76px;
+}
+
+.areaIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--citypass-sky-blue) 42%, white);
+}
+
+@media (max-width: 62em) {
+  .mapLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .mapPanel,
+  .mapCanvas {
+    min-height: 420px;
+    height: 420px;
+  }
+}

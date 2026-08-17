@@ -1,44 +1,79 @@
-import { AppShell, Burger, Group, Text, Tooltip, UnstyledButton } from '@mantine/core';
+import {
+  ActionIcon,
+  AppShell,
+  Group,
+  Text,
+  Tooltip,
+  UnstyledButton,
+} from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import {
+  BarChart3,
+  Bike,
+  CalendarDays,
+  Home,
+  LogOut,
+  Menu,
+  MessageSquare,
+  Settings,
+  Siren,
+  Trees,
+  Trash2,
+  User,
+  X,
+} from 'lucide-react';
+import type { ComponentType } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
+import { useAuth } from '../../app/providers/authContext';
 import { BrandLogo } from '../../components/common/BrandLogo';
 
 import classes from './MainLayout.module.css';
 
 type NavigationItem = {
+  icon: ComponentType<{ size?: number; strokeWidth?: number }>;
   label: string;
   path: string;
-  shortLabel: string;
+  action?: 'logout';
 };
 
-const navigationItems: NavigationItem[] = [
-  { label: 'Home', path: '/movilidad', shortLabel: 'H' },
-  { label: 'Mapa', path: '/movilidad/mapa', shortLabel: 'M' },
-  { label: 'Estaciones', path: '/movilidad/estaciones', shortLabel: 'E' },
-  { label: 'Bicicletas', path: '/movilidad/bicicletas', shortLabel: 'B' },
-  { label: 'Viaje activo', path: '/movilidad/viaje-activo', shortLabel: 'V' },
-  { label: 'Historial', path: '/movilidad/historial', shortLabel: 'HI' },
-  { label: 'Reportes', path: '/movilidad/reportes', shortLabel: 'R' },
+const moduleNavigationItems: NavigationItem[] = [
+  { icon: Home, label: 'Inicio', path: '/' },
+  { icon: Bike, label: 'Movilidad', path: '/movilidad' },
+  { icon: Trash2, label: 'Residuos', path: '/residuos' },
+  { icon: MessageSquare, label: 'Reclamos', path: '/reclamos' },
+  { icon: Siren, label: 'Emergencias', path: '/emergencias' },
+  { icon: Trees, label: 'Espacios Públicos', path: '/espacios-publicos' },
   {
-    label: 'Administracion',
-    path: '/movilidad/administracion',
-    shortLabel: 'A',
+    icon: CalendarDays,
+    label: 'Cultura y Eventos',
+    path: '/cultura-eventos',
   },
+  { icon: BarChart3, label: 'Analítica', path: '/analitica' },
+];
+
+const accountNavigationItems: NavigationItem[] = [
+  { icon: User, label: 'Mi Cuenta', path: '/mi-cuenta' },
+  { icon: Settings, label: 'Configuración', path: '/configuracion' },
+  { icon: LogOut, label: 'Cerrar Sesión', path: '/login', action: 'logout' },
 ];
 
 export function MainLayout() {
   const [mobileOpened, { toggle: toggleMobile }] = useDisclosure(false);
-  const [sidebarCollapsed, { toggle: toggleSidebar }] = useDisclosure(false);
+  const [sidebarOpened, { toggle: toggleSidebar }] = useDisclosure(false);
+  const { logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  const menuIcon = sidebarOpened ? <X size={28} /> : <Menu size={32} />;
+  const mobileMenuIcon = mobileOpened ? <X size={28} /> : <Menu size={32} />;
 
   return (
     <AppShell
       header={{ height: 72 }}
       navbar={{
-        width: sidebarCollapsed ? 88 : 256,
+        width: 248,
         breakpoint: 'sm',
-        collapsed: { mobile: !mobileOpened },
+        collapsed: { desktop: !sidebarOpened, mobile: !mobileOpened },
       }}
       footer={{ height: 44 }}
       padding="lg"
@@ -51,62 +86,66 @@ export function MainLayout() {
       }}
     >
       <AppShell.Header>
-        <Group className={classes.headerContent} justify="space-between">
+        <Group className={classes.headerContent} gap="md">
+          <Tooltip label={sidebarOpened ? 'Ocultar menu' : 'Mostrar menu'}>
+            <ActionIcon
+              aria-label="Alternar menu lateral"
+              className={classes.menuButton}
+              variant="filled"
+              visibleFrom="sm"
+              onClick={toggleSidebar}
+            >
+              {menuIcon}
+            </ActionIcon>
+          </Tooltip>
+          <ActionIcon
+            aria-label="Abrir menu lateral"
+            className={classes.menuButton}
+            variant="filled"
+            hiddenFrom="sm"
+            onClick={toggleMobile}
+          >
+            {mobileMenuIcon}
+          </ActionIcon>
           <BrandLogo />
-          <Group gap="sm">
-            <Tooltip label={sidebarCollapsed ? 'Expandir menu' : 'Colapsar menu'}>
-              <Burger
-                aria-label="Alternar menu lateral"
-                color="var(--citypass-night-blue)"
-                opened={!sidebarCollapsed}
-                visibleFrom="sm"
-                onClick={toggleSidebar}
-              />
-            </Tooltip>
-            <Burger
-              aria-label="Abrir menu lateral"
-              color="var(--citypass-night-blue)"
-              hiddenFrom="sm"
-              opened={mobileOpened}
-              onClick={toggleMobile}
-            />
-          </Group>
         </Group>
       </AppShell.Header>
 
       <AppShell.Navbar>
-        <nav className={classes.navigation} aria-label="Menu de Movilidad">
-          {navigationItems.map((item) => {
-            const isActive =
-              item.path === '/movilidad'
-                ? location.pathname === item.path
-                : location.pathname.startsWith(item.path);
-
-            return (
-              <Tooltip
+        <nav className={classes.navigation} aria-label="Menu principal CityPass+">
+          <div className={classes.navSection}>
+            {moduleNavigationItems.map((item) => (
+              <NavigationLink
                 key={item.path}
-                label={item.label}
-                disabled={!sidebarCollapsed}
-                position="right"
-              >
-                <UnstyledButton
-                  component={NavLink}
-                  to={item.path}
-                  className={`${classes.navItem} ${isActive ? classes.navItemActive : ''}`}
-                  onClick={() => {
-                    if (mobileOpened) {
-                      toggleMobile();
-                    }
-                  }}
-                >
-                  <span className={classes.navIcon}>{item.shortLabel}</span>
-                  {!sidebarCollapsed && (
-                    <Text className={classes.navLabel}>{item.label}</Text>
-                  )}
-                </UnstyledButton>
-              </Tooltip>
-            );
-          })}
+                item={item}
+                pathname={location.pathname}
+                onNavigate={() => {
+                  if (item.action === 'logout') {
+                    logout();
+                    navigate('/login', { replace: true });
+                  }
+
+                  if (mobileOpened) {
+                    toggleMobile();
+                  }
+                }}
+              />
+            ))}
+          </div>
+          <div className={classes.accountSection}>
+            {accountNavigationItems.map((item) => (
+              <NavigationLink
+                key={item.path}
+                item={item}
+                pathname={location.pathname}
+                onNavigate={() => {
+                  if (mobileOpened) {
+                    toggleMobile();
+                  }
+                }}
+              />
+            ))}
+          </div>
         </nav>
       </AppShell.Navbar>
 
@@ -120,5 +159,36 @@ export function MainLayout() {
         </Text>
       </AppShell.Footer>
     </AppShell>
+  );
+}
+
+type NavigationLinkProps = {
+  item: NavigationItem;
+  onNavigate: () => void;
+  pathname: string;
+};
+
+function NavigationLink({ item, onNavigate, pathname }: NavigationLinkProps) {
+  const Icon = item.icon;
+  const isActive =
+    item.path === '/'
+      ? pathname === item.path
+      : item.path === '/movilidad'
+        ? pathname === item.path
+          || pathname.startsWith('/movilidad/')
+        : pathname.startsWith(item.path);
+
+  return (
+    <Tooltip label={item.label} disabled position="right">
+      <UnstyledButton
+        component={NavLink}
+        to={item.path}
+        className={`${classes.navItem} ${isActive ? classes.navItemActive : ''}`}
+        onClick={onNavigate}
+      >
+        <Icon size={18} strokeWidth={2} />
+        <Text className={classes.navLabel}>{item.label}</Text>
+      </UnstyledButton>
+    </Tooltip>
   );
 }

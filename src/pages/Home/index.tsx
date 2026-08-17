@@ -3,8 +3,8 @@ import { PlaceholderPage } from '../../components/common/PlaceholderPage';
 export function HomePage() {
   return (
     <PlaceholderPage
-      title="Movilidad Urbana"
-      description="Frontend base configurado correctamente. Selecciona una seccion desde el menu lateral."
+      title="Inicio"
+      description="Pantalla inicial base de CityPass+. Selecciona un modulo desde el menu lateral."
     />
   );
 }

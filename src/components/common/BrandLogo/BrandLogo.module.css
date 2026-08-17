@@ -12,6 +12,12 @@
   height: auto;
 }
 
+.compact .logo {
+  width: 126px;
+  object-fit: contain;
+  object-position: left center;
+}
+
 .moduleLabel {
   color: var(--citypass-medium-gray);
   font-size: 0.875rem;

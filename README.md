@@ -29,6 +29,15 @@ VITE_API_BASE_URL=http://localhost:8080
 npm run dev
 ```
 
+## Login demo temporal
+
+Hasta integrar el Login Federado, el frontend usa credenciales hardcodeadas solo para esta etapa:
+
+```text
+Usuario: demo@citypass.com
+Clave: citypass123
+```
+
 ## Validaciones
 
 ```bash
