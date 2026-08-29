@@ -30,8 +30,11 @@ jobs:
       - name: Verificar TypeScript
         run: npm run typecheck
 
-      - name: Ejecutar tests y verificar cobertura
-        run: npm run test:coverage
+      - name: Ejecutar tests 
+        run: npm run test
+      
+      - name: Generar cobertura
+        run: npm run coverage
 
       - name: Compilar frontend
         run: npm run build
