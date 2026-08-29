@@ -58,3 +58,5 @@ npm run build
 - `/movilidad/historial`
 - `/movilidad/reportes`
 - `/movilidad/administracion`
+
+****Vite busca todas los archivos .test o .spec, pueden estar en la carpta de test o en otro lado 
