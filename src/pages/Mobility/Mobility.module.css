@@ -187,6 +187,21 @@
   min-height: 76px;
 }
 
+.areaCardLink {
+  display: block;
+  border-radius: 0.5rem;
+}
+
+.areaCardLink:hover .areaCard,
+.areaCardActive .areaCard {
+  border-color: var(--citypass-urban-blue);
+}
+
+.areaCardLink:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--citypass-urban-blue) 42%, white);
+  outline-offset: 2px;
+}
+
 .areaIcon {
   width: 40px;
   height: 40px;
