@@ -22,12 +22,14 @@ import {
   Settings,
 } from 'lucide-react';
 import type { ComponentType, ReactNode } from 'react';
+import { NavLink } from 'react-router-dom';
 
 import classes from './Mobility.module.css';
 
 type MobilityArea = {
   icon: ComponentType<{ size?: number; strokeWidth?: number }>;
   label: string;
+  path?: string;
   value: string;
 };
 
@@ -47,7 +49,12 @@ const mapMarkers = [
 
 const mobilityAreas: MobilityArea[] = [
   { icon: Bike, label: 'Bicicletas', value: '12 disponibles' },
-  { icon: ParkingCircle, label: 'Estaciones', value: '6 cercanas' },
+  {
+    icon: ParkingCircle,
+    label: 'Estaciones',
+    path: '/movilidad/estaciones',
+    value: '6 cercanas',
+  },
   { icon: Route, label: 'Viaje activo', value: 'Sin viaje iniciado' },
   { icon: History, label: 'Historial', value: 'Preparado' },
   { icon: ClipboardList, label: 'Reportes', value: 'Preparado' },
@@ -77,7 +84,14 @@ export function MobilityPage() {
       <Tabs defaultValue="bicicletas" classNames={{ list: classes.tabsList }}>
         <Tabs.List>
           <Tabs.Tab value="bicicletas">Bicicletas</Tabs.Tab>
-          <Tabs.Tab value="estacionamientos">Estacionamientos</Tabs.Tab>
+          <Tabs.Tab
+            renderRoot={(props) => (
+              <NavLink {...props} to="/movilidad/estaciones" />
+            )}
+            value="estaciones"
+          >
+            Estaciones
+          </Tabs.Tab>
           <Tabs.Tab value="rutas">Rutas</Tabs.Tab>
           <Tabs.Tab value="transporte">Transporte Publico</Tabs.Tab>
         </Tabs.List>
@@ -180,25 +194,47 @@ export function MobilityPage() {
       </section>
 
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="sm">
-        {mobilityAreas.map((area) => {
-          const Icon = area.icon;
-
-          return (
-            <Paper key={area.label} className={classes.areaCard} radius="md" p="md">
-              <Group gap="sm" wrap="nowrap">
-                <div className={classes.areaIcon}>
-                  <Icon size={20} />
-                </div>
-                <div>
-                  <Text className={classes.areaTitle}>{area.label}</Text>
-                  <Text className={classes.areaValue}>{area.value}</Text>
-                </div>
-              </Group>
-            </Paper>
-          );
-        })}
+        {mobilityAreas.map((area) => (
+          <MobilityAreaCard key={area.label} area={area} />
+        ))}
       </SimpleGrid>
     </Stack>
+  );
+}
+
+type MobilityAreaCardProps = {
+  area: MobilityArea;
+};
+
+function MobilityAreaCard({ area }: MobilityAreaCardProps) {
+  const Icon = area.icon;
+  const content = (
+    <Paper className={classes.areaCard} radius="md" p="md">
+      <Group gap="sm" wrap="nowrap">
+        <div className={classes.areaIcon}>
+          <Icon size={20} />
+        </div>
+        <div>
+          <Text className={classes.areaTitle}>{area.label}</Text>
+          <Text className={classes.areaValue}>{area.value}</Text>
+        </div>
+      </Group>
+    </Paper>
+  );
+
+  if (!area.path) {
+    return content;
+  }
+
+  return (
+    <NavLink
+      to={area.path}
+      className={({ isActive }) =>
+        `${classes.areaCardLink} ${isActive ? classes.areaCardActive : ''}`
+      }
+    >
+      {content}
+    </NavLink>
   );
 }
 

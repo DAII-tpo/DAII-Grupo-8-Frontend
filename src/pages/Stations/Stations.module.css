@@ -1,0 +1,61 @@
+.title,
+.emptyTitle {
+  color: var(--citypass-night-blue);
+}
+
+.title {
+  font-size: 1.8rem;
+  line-height: 1.2;
+}
+
+.subtitle {
+  margin-top: 0.25rem;
+  color: var(--citypass-medium-gray);
+}
+
+.statePanel,
+.tablePanel {
+  border: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 58%, white);
+  background: white;
+}
+
+.statePanel {
+  display: grid;
+  min-height: 220px;
+  place-items: center;
+}
+
+.emptyIcon {
+  color: var(--citypass-urban-green);
+}
+
+.emptyTitle {
+  font-size: 1.1rem;
+}
+
+.table :global(th) {
+  color: var(--citypass-night-blue);
+  font-weight: 700;
+}
+
+.table :global(td) {
+  color: var(--citypass-graphite);
+}
+
+.statusACTIVE,
+.statusINACTIVE,
+.statusMAINTENANCE {
+  color: white;
+}
+
+.statusACTIVE {
+  background: var(--citypass-urban-green);
+}
+
+.statusINACTIVE {
+  background: var(--citypass-medium-gray);
+}
+
+.statusMAINTENANCE {
+  background: var(--citypass-amber);
+}
