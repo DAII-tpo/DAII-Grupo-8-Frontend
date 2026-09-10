@@ -16,6 +16,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { stationService } from '../../services/stations/stationService';
 import type { Station, StationStatus } from '../../types/station';
+import type { StationAvailability } from '../../types/stationAvailability';
 
 import classes from './Stations.module.css';
 
@@ -29,6 +30,10 @@ export function StationsPage() {
   const [stations, setStations] = useState<Station[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [selectedStationId, setSelectedStationId] = useState<number | null>(null);
+  const [availability, setAvailability] = useState<StationAvailability | null>(null);
+  const [isAvailabilityLoading, setIsAvailabilityLoading] = useState(false);
+  const [hasAvailabilityError, setHasAvailabilityError] = useState(false);
 
   const loadStations = useCallback(async () => {
     try {
@@ -51,6 +56,21 @@ export function StationsPage() {
     void loadStations();
   };
 
+  const selectStation = async (stationId: number) => {
+    setSelectedStationId(stationId);
+    setAvailability(null);
+    setHasAvailabilityError(false);
+    setIsAvailabilityLoading(true);
+
+    try {
+      setAvailability(await stationService.getAvailability(stationId));
+    } catch {
+      setHasAvailabilityError(true);
+    } finally {
+      setIsAvailabilityLoading(false);
+    }
+  };
+
   return (
     <Stack gap="lg">
       <div>
@@ -66,7 +86,19 @@ export function StationsPage() {
       {hasError ? <ErrorState onRetry={retry} /> : null}
       {!isLoading && !hasError && stations.length === 0 ? <EmptyState /> : null}
       {!isLoading && !hasError && stations.length > 0 ? (
-        <StationsTable stations={stations} />
+        <>
+          <StationsTable
+            onSelectStation={selectStation}
+            selectedStationId={selectedStationId}
+            stations={stations}
+          />
+          <AvailabilityPanel
+            availability={availability}
+            hasError={hasAvailabilityError}
+            isLoading={isAvailabilityLoading}
+            selectedStationId={selectedStationId}
+          />
+        </>
       ) : null}
     </Stack>
   );
@@ -117,12 +149,14 @@ function EmptyState() {
 }
 
 type StationsTableProps = {
+  onSelectStation: (stationId: number) => void;
+  selectedStationId: number | null;
   stations: Station[];
 };
 
-function StationsTable({ stations }: StationsTableProps) {
+function StationsTable({ onSelectStation, selectedStationId, stations }: StationsTableProps) {
   const rows = stations.map((station) => (
-    <Table.Tr key={station.id}>
+    <Table.Tr className={station.id === selectedStationId ? classes.selectedRow : undefined} key={station.id}>
       <Table.Td>
         <Text fw={700}>{station.name}</Text>
       </Table.Td>
@@ -133,6 +167,16 @@ function StationsTable({ stations }: StationsTableProps) {
       <Table.Td>{station.capacity}</Table.Td>
       <Table.Td>
         <Badge className={classes[`status${station.status}`]}>{statusLabels[station.status]}</Badge>
+      </Table.Td>
+      <Table.Td>
+        <Button
+          aria-label={`Consultar disponibilidad de ${station.name}`}
+          onClick={() => void onSelectStation(station.id)}
+          size="compact-sm"
+          variant="light"
+        >
+          Ver disponibilidad
+        </Button>
       </Table.Td>
     </Table.Tr>
   ));
@@ -146,7 +190,7 @@ function StationsTable({ stations }: StationsTableProps) {
         </Badge>
       </Group>
       <ScrollArea>
-        <Table className={classes.table} highlightOnHover miw={760} verticalSpacing="sm">
+        <Table className={classes.table} highlightOnHover miw={880} verticalSpacing="sm">
           <Table.Thead>
             <Table.Tr>
               <Table.Th>Nombre</Table.Th>
@@ -154,11 +198,95 @@ function StationsTable({ stations }: StationsTableProps) {
               <Table.Th>Coordenadas</Table.Th>
               <Table.Th>Capacidad</Table.Th>
               <Table.Th>Estado</Table.Th>
+              <Table.Th aria-label="Disponibilidad" />
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>{rows}</Table.Tbody>
         </Table>
       </ScrollArea>
     </Paper>
+  );
+}
+
+type AvailabilityPanelProps = {
+  availability: StationAvailability | null;
+  hasError: boolean;
+  isLoading: boolean;
+  selectedStationId: number | null;
+};
+
+function AvailabilityPanel({ availability, hasError, isLoading, selectedStationId }: AvailabilityPanelProps) {
+  return (
+    <Paper className={classes.availabilityPanel} radius="md" p="md">
+      <Title className={classes.availabilityTitle} order={2}>
+        Disponibilidad de bicicletas
+      </Title>
+
+      {selectedStationId === null ? (
+        <Text c="dimmed" mt="xs">
+          Seleccioná una estación para consultar su disponibilidad actual.
+        </Text>
+      ) : null}
+      {isLoading ? (
+        <Group gap="sm" mt="md">
+          <Loader color="citypassUrbanBlue" size="sm" />
+          <Text c="dimmed">Consultando disponibilidad...</Text>
+        </Group>
+      ) : null}
+      {hasError ? (
+        <Alert color="red" icon={<AlertCircle size={18} />} mt="md" title="No se pudo consultar la disponibilidad">
+          La estación seleccionada no está disponible o ocurrió un error al consultar el backend.
+        </Alert>
+      ) : null}
+      {availability ? <AvailabilityDetails availability={availability} /> : null}
+    </Paper>
+  );
+}
+
+type AvailabilityDetailsProps = {
+  availability: StationAvailability;
+};
+
+function AvailabilityDetails({ availability }: AvailabilityDetailsProps) {
+  return (
+    <Stack gap="md" mt="md">
+      <Group justify="space-between" wrap="wrap">
+        <div>
+          <Text fw={700}>{availability.stationName}</Text>
+          <Text c="dimmed" size="sm">
+            Última actualización: {availability.checkedAt}
+          </Text>
+        </div>
+        <Badge className={classes[`status${availability.status}`]}>{statusLabels[availability.status]}</Badge>
+      </Group>
+
+      <div className={classes.availabilityMetrics}>
+        <AvailabilityMetric label="Capacidad" value={availability.capacity} />
+        <AvailabilityMetric label="Bicicletas disponibles" value={availability.availableBikes} />
+        <AvailabilityMetric label="Espacios libres" value={availability.availableSlots} />
+      </div>
+
+      {availability.availableBikes === 0 ? (
+        <Alert color="orange" title="No hay bicicletas disponibles">
+          Esta estación no cuenta con bicicletas disponibles en este momento.
+        </Alert>
+      ) : null}
+    </Stack>
+  );
+}
+
+type AvailabilityMetricProps = {
+  label: string;
+  value: number;
+};
+
+function AvailabilityMetric({ label, value }: AvailabilityMetricProps) {
+  return (
+    <div className={classes.availabilityMetric}>
+      <Text className={classes.metricValue}>{value}</Text>
+      <Text c="dimmed" size="sm">
+        {label}
+      </Text>
+    </div>
   );
 }

@@ -32,4 +32,22 @@ describe('stationService', () => {
     await expect(stationService.getAll()).resolves.toEqual(stations);
     expect(get).toHaveBeenCalledWith('/api/v1/stations');
   });
+
+  it('obtiene la disponibilidad de una estación desde el endpoint del backend', async () => {
+    const get = vi.mocked(httpClient.get);
+    const availability = {
+      stationId: 1,
+      stationName: 'Estacion Centro',
+      status: 'ACTIVE' as const,
+      capacity: 20,
+      availableBikes: 7,
+      availableSlots: 13,
+      checkedAt: '2026-09-08T14:30:00Z',
+    };
+
+    get.mockResolvedValueOnce({ data: availability });
+
+    await expect(stationService.getAvailability(1)).resolves.toEqual(availability);
+    expect(get).toHaveBeenCalledWith('/api/v1/stations/1/availability');
+  });
 });
