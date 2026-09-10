@@ -14,7 +14,8 @@
 }
 
 .statePanel,
-.tablePanel {
+.tablePanel,
+.availabilityPanel {
   border: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 58%, white);
   background: white;
 }
@@ -40,6 +41,38 @@
 
 .table :global(td) {
   color: var(--citypass-graphite);
+}
+
+.selectedRow :global(td) {
+  background: color-mix(in srgb, var(--citypass-sky-blue) 24%, white);
+}
+
+.availabilityTitle {
+  color: var(--citypass-night-blue);
+  font-size: 1.1rem;
+}
+
+.availabilityMetrics {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.availabilityMetric {
+  border-left: 3px solid var(--citypass-urban-green);
+  padding-left: 0.75rem;
+}
+
+.metricValue {
+  color: var(--citypass-night-blue);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+@media (max-width: 36rem) {
+  .availabilityMetrics {
+    grid-template-columns: 1fr;
+  }
 }
 
 .statusACTIVE,
