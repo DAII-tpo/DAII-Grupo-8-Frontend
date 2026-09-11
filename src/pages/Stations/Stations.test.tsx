@@ -1,5 +1,6 @@
 import { MantineProvider } from '@mantine/core';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { stationService } from '../../services/stations/stationService';
@@ -33,13 +34,48 @@ afterEach(() => {
 
 function renderPage() {
   return render(
-    <MantineProvider theme={mantineTheme}>
-      <StationsPage />
-    </MantineProvider>,
+    <MemoryRouter initialEntries={['/movilidad/estaciones']}>
+      <MantineProvider theme={mantineTheme}>
+        <Routes>
+          <Route path="/movilidad" element={<CurrentPath />} />
+          <Route path="/movilidad/estaciones" element={<StationsPage />} />
+          <Route path="/movilidad/mapa" element={<CurrentPath />} />
+        </Routes>
+      </MantineProvider>
+    </MemoryRouter>,
   );
 }
 
+function CurrentPath() {
+  const location = useLocation();
+  return <output data-testid="current-path">{location.pathname}</output>;
+}
+
 describe('StationsPage', () => {
+  it('permite volver a Inicio desde la navegación interna', () => {
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([]);
+
+    renderPage();
+
+    expect(screen.getByRole('tab', { name: 'Estaciones' })).toHaveAttribute('data-active', 'true');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Inicio' }));
+
+    expect(screen.getByTestId('current-path')).toHaveTextContent('/movilidad');
+  });
+
+  it('permite navegar al mapa desde la navegación interna', () => {
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([]);
+
+    renderPage();
+
+    expect(screen.getByRole('tab', { name: 'Estaciones' })).toHaveAttribute('data-active', 'true');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Mapa' }));
+
+    expect(screen.getByTestId('current-path')).toHaveTextContent('/movilidad/mapa');
+  });
+
   it('muestra el estado vacío cuando la API no devuelve estaciones', async () => {
     vi.mocked(stationService.getAll).mockResolvedValueOnce([]);
 

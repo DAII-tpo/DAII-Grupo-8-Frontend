@@ -50,4 +50,28 @@ describe('stationService', () => {
     await expect(stationService.getAvailability(1)).resolves.toEqual(availability);
     expect(get).toHaveBeenCalledWith('/api/v1/stations/1/availability');
   });
+
+  it('obtiene estaciones cercanas con las coordenadas indicadas', async () => {
+    const get = vi.mocked(httpClient.get);
+    const stations = [
+      {
+        stationId: 1,
+        stationName: 'Estacion Centro',
+        address: 'Av. Corrientes 100',
+        latitude: -34.6037,
+        longitude: -58.3816,
+        distanceMeters: 320,
+        capacity: 20,
+        availableBikes: 7,
+        availableSlots: 13,
+      },
+    ];
+
+    get.mockResolvedValueOnce({ data: stations });
+
+    await expect(stationService.getNearby({ lat: -34.6037, lng: -58.3816 })).resolves.toEqual(stations);
+    expect(get).toHaveBeenCalledWith('/api/v1/stations/nearby', {
+      params: { lat: -34.6037, lng: -58.3816 },
+    });
+  });
 });
