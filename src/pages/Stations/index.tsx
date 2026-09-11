@@ -15,6 +15,7 @@ import { AlertCircle, MapPin, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { stationService } from '../../services/stations/stationService';
+import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
 import type { Station, StationStatus } from '../../types/station';
 import type { StationAvailability } from '../../types/stationAvailability';
 
@@ -75,12 +76,11 @@ export function StationsPage() {
     <Stack gap="lg">
       <div>
         <Title className={classes.title} order={1}>
-          Directorio de estaciones
+          Estaciones
         </Title>
-        <Text className={classes.subtitle}>
-          Estaciones registradas en Movilidad Urbana Inteligente.
-        </Text>
       </div>
+
+      <MobilityNavigation />
 
       {isLoading ? <LoadingState /> : null}
       {hasError ? <ErrorState onRetry={retry} /> : null}

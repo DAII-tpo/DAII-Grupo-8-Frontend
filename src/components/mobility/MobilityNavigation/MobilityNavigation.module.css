@@ -1,0 +1,9 @@
+.tabsList {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  border-bottom: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 70%, white);
+}
+
+.tabsList :global(.mantine-Tabs-tab) {
+  flex: 0 0 auto;
+}

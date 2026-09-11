@@ -1,0 +1,136 @@
+.title,
+.detailsTitle,
+.emptyTitle {
+  color: var(--citypass-night-blue);
+}
+
+.title {
+  font-size: 1.8rem;
+  line-height: 1.2;
+}
+
+.subtitle {
+  margin-top: 0.25rem;
+  color: var(--citypass-medium-gray);
+}
+
+.statePanel,
+.mapPanel,
+.detailsPanel {
+  border: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 58%, white);
+  background: white;
+}
+
+.statePanel {
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+}
+
+.mapLayout {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) minmax(17rem, 0.36fr);
+}
+
+.mapPanel {
+  min-height: 32rem;
+  overflow: hidden;
+}
+
+.map {
+  height: 32rem;
+  width: 100%;
+}
+
+.emptyMap {
+  display: grid;
+  min-height: 32rem;
+  place-items: center;
+  align-content: center;
+  gap: 0.75rem;
+  color: var(--citypass-urban-green);
+  padding: 1rem;
+  text-align: center;
+}
+
+.detailsPanel {
+  align-self: start;
+}
+
+.nearbyPanel {
+  border: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 58%, white);
+  background: white;
+}
+
+.detailsTitle,
+.emptyTitle,
+.nearbyTitle {
+  font-size: 1.1rem;
+}
+
+.metrics {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.metric {
+  border-left: 3px solid var(--citypass-urban-green);
+  padding-left: 0.75rem;
+}
+
+.metricValue {
+  color: var(--citypass-night-blue);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.emptyIcon {
+  color: var(--citypass-urban-green);
+}
+
+.nearbyStation {
+  border-radius: 0.35rem;
+  padding: 0.5rem;
+}
+
+.nearbyStation:hover {
+  background: color-mix(in srgb, var(--citypass-sky-blue) 24%, white);
+}
+
+.nearbyStation:focus-visible {
+  outline: 2px solid var(--citypass-urban-blue);
+  outline-offset: 2px;
+}
+
+.nearbyName {
+  color: var(--citypass-night-blue);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.nearbyDistance {
+  color: var(--citypass-medium-gray);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 62rem) {
+  .mapLayout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 36rem) {
+  .mapPanel,
+  .map,
+  .emptyMap {
+    min-height: 24rem;
+    height: 24rem;
+  }
+
+  .metrics {
+    grid-template-columns: 1fr;
+  }
+}
