@@ -17,9 +17,9 @@ type MobilityArea = {
 
 const mobilityAreas: MobilityArea[] = [
   { icon: MapPin, label: 'Mapa', path: '/movilidad/mapa', value: 'Ver mapa' },
-  { icon: Bike, label: 'Bicicletas', value: 'Preparado' },
+  { icon: Bike, label: 'Bicicletas y viajes', path: '/movilidad/bicicletas', value: 'Consultar o iniciar' },
   { icon: ParkingCircle, label: 'Estaciones', path: '/movilidad/estaciones', value: 'Ver directorio' },
-  { icon: Route, label: 'Viaje activo', value: 'Sin viaje iniciado' },
+  { icon: Route, label: 'Viaje activo', path: '/movilidad/bicicletas', value: 'Consultar estado' },
   { icon: History, label: 'Historial', value: 'Preparado' },
   { icon: ClipboardList, label: 'Reportes', value: 'Preparado' },
   { icon: Settings, label: 'Administracion', value: 'Preparado' },

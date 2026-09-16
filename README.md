@@ -2,7 +2,7 @@
 
 Frontend base del modulo Movilidad Urbana Inteligente de CityPass+.
 
-Este proyecto deja preparada una estructura inicial con React, TypeScript, Vite, Mantine, HeroUI, React Router y Axios. El alcance actual corresponde al ticket MOV-005: estructura, routing, layout base, variables de entorno y cliente HTTP. No incluye autenticacion real, mapas, endpoints ni logica de negocio.
+Frontend del módulo Movilidad Urbana Inteligente, construido con React, TypeScript, Vite, Mantine, HeroUI, React Router y Axios.
 
 ## Requisitos
 
@@ -21,7 +21,10 @@ Crear un archivo `.env` tomando como referencia `.env.example`:
 
 ```env
 VITE_API_BASE_URL=http://localhost:8080
+VITE_DEMO_USER_ID=ID_DE_UN_USUARIO_EXISTENTE
 ```
+
+`VITE_DEMO_USER_ID` se utiliza temporalmente para enviar el header `X-User-Id` al consultar o iniciar viajes. Debe corresponder a un usuario existente en el backend y será reemplazado por la identidad provista por Login Federado.
 
 ## Ejecucion local
 
@@ -43,6 +46,8 @@ Clave: citypass123
 ```bash
 npm run lint
 npm run typecheck
+npm run test
+npm run coverage
 npm run build
 ```
 
@@ -58,5 +63,3 @@ npm run build
 - `/movilidad/historial`
 - `/movilidad/reportes`
 - `/movilidad/administracion`
-
-****Vite busca todas los archivos .test o .spec, pueden estar en la carpta de test o en otro lado 
