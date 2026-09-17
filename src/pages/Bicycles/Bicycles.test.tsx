@@ -11,8 +11,8 @@ import { BicyclesPage } from './index';
 
 vi.mock('../../config/currentUser', () => ({ currentUserId: 7 }));
 vi.mock('../../services/bikes/bikeService', () => ({ bikeService: { getAvailable: vi.fn() } }));
-vi.mock('../../services/stations/stationService', () => ({ stationService: { getAll: vi.fn() } }));
-vi.mock('../../services/trips/tripService', () => ({ tripService: { getActive: vi.fn(), start: vi.fn() } }));
+vi.mock('../../services/stations/stationService', () => ({ stationService: { getAll: vi.fn(), getAvailability: vi.fn() } }));
+vi.mock('../../services/trips/tripService', () => ({ tripService: { end: vi.fn(), getActive: vi.fn(), start: vi.fn() } }));
 
 const station = {
   id: 2,
@@ -54,6 +54,25 @@ const activeTrip = {
   durationSeconds: null,
 };
 
+const stationAvailability = {
+  stationId: 2,
+  stationName: 'Estacion Centro',
+  status: 'ACTIVE' as const,
+  capacity: 20,
+  availableBikes: 5,
+  availableSlots: 15,
+  checkedAt: '2026-09-17T10:00:00Z',
+};
+
+const completedTrip = {
+  ...activeTrip,
+  status: 'COMPLETED' as const,
+  destinationStationId: 2,
+  destinationStationName: 'Estacion Centro',
+  endedAt: '2026-09-17T14:30:00Z',
+  durationSeconds: 1800,
+};
+
 function CurrentPath() {
   const location = useLocation();
   return <output data-testid="current-path">{location.pathname}</output>;
@@ -75,6 +94,11 @@ function renderPage() {
 
 function mockNoActiveTrip() {
   vi.mocked(tripService.getActive).mockResolvedValueOnce(null);
+  vi.mocked(stationService.getAll).mockResolvedValueOnce([station]);
+}
+
+function mockActiveTrip() {
+  vi.mocked(tripService.getActive).mockResolvedValueOnce(activeTrip);
   vi.mocked(stationService.getAll).mockResolvedValueOnce([station]);
 }
 
@@ -102,14 +126,131 @@ describe('BicyclesPage', () => {
   });
 
   it('muestra el viaje activo y no permite iniciar otro', async () => {
-    vi.mocked(tripService.getActive).mockResolvedValueOnce(activeTrip);
+    mockActiveTrip();
 
     renderPage();
 
     expect(await screen.findByText('Tenés un viaje activo')).toBeInTheDocument();
     expect(screen.getByText('BIKE-001')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Iniciar viaje' })).not.toBeInTheDocument();
-    expect(stationService.getAll).not.toHaveBeenCalled();
+    expect(await screen.findByRole('combobox', { name: 'Estación destino' })).toBeInTheDocument();
+  });
+
+  it('consulta la disponibilidad al seleccionar una estación destino', async () => {
+    mockActiveTrip();
+    vi.mocked(stationService.getAvailability).mockResolvedValueOnce(stationAvailability);
+
+    renderPage();
+
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Estación destino' }), { target: { value: '2' } });
+
+    expect(await screen.findByText('Espacios libres')).toBeInTheDocument();
+    expect(screen.getByText('15')).toBeInTheDocument();
+    expect(stationService.getAvailability).toHaveBeenCalledWith(2);
+    expect(screen.getByRole('button', { name: 'Confirmar devolución' })).toBeEnabled();
+  });
+
+  it('deshabilita la confirmación cuando la estación destino no tiene espacios', async () => {
+    mockActiveTrip();
+    vi.mocked(stationService.getAvailability).mockResolvedValueOnce({
+      ...stationAvailability,
+      availableSlots: 0,
+    });
+
+    renderPage();
+
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Estación destino' }), { target: { value: '2' } });
+
+    expect(await screen.findByText('No hay espacios disponibles')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Confirmar devolución' })).toBeDisabled();
+  });
+
+  it('muestra un error si no puede consultar la disponibilidad del destino', async () => {
+    mockActiveTrip();
+    vi.mocked(stationService.getAvailability).mockRejectedValueOnce(httpError(404));
+
+    renderPage();
+
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Estación destino' }), { target: { value: '2' } });
+
+    expect(await screen.findByText('La estación seleccionada ya no está disponible.')).toBeInTheDocument();
+  });
+
+  it('no permite finalizar el viaje sin seleccionar una estación destino', async () => {
+    mockActiveTrip();
+
+    renderPage();
+
+    await screen.findByRole('combobox', { name: 'Estación destino' });
+    expect(screen.queryByRole('button', { name: 'Confirmar devolución' })).not.toBeInTheDocument();
+  });
+
+  it('finaliza el viaje y muestra los datos reales de la devolución', async () => {
+    mockActiveTrip();
+    vi.mocked(stationService.getAvailability).mockResolvedValueOnce(stationAvailability);
+    vi.mocked(tripService.end).mockResolvedValueOnce(completedTrip);
+
+    renderPage();
+
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Estación destino' }), { target: { value: '2' } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirmar devolución' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Finalizar viaje' }));
+
+    expect(await screen.findByText('Viaje finalizado')).toBeInTheDocument();
+    expect(tripService.end).toHaveBeenCalledWith(7, 3, { destinationStationId: 2 });
+    expect(screen.getAllByText('Estacion Centro')).toHaveLength(2);
+    expect(screen.getByText('30 min 0 s')).toBeInTheDocument();
+  });
+
+  it('muestra el estado de carga mientras finaliza el viaje', async () => {
+    mockActiveTrip();
+    vi.mocked(stationService.getAvailability).mockResolvedValueOnce(stationAvailability);
+    let resolveEnd: (trip: typeof completedTrip) => void;
+    const endPromise = new Promise<typeof completedTrip>((resolve) => {
+      resolveEnd = resolve;
+    });
+    vi.mocked(tripService.end).mockReturnValueOnce(endPromise);
+
+    renderPage();
+
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Estación destino' }), { target: { value: '2' } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirmar devolución' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Finalizar viaje' }));
+
+    expect(screen.getByRole('button', { name: 'Finalizar viaje' })).toBeDisabled();
+
+    resolveEnd!(completedTrip);
+    expect(await screen.findByText('Viaje finalizado')).toBeInTheDocument();
+  });
+
+  it('mantiene el viaje activo cuando el backend rechaza la devolución', async () => {
+    mockActiveTrip();
+    vi.mocked(stationService.getAvailability).mockResolvedValueOnce(stationAvailability);
+    vi.mocked(tripService.end).mockRejectedValueOnce(httpError(409));
+
+    renderPage();
+
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Estación destino' }), { target: { value: '2' } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirmar devolución' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Finalizar viaje' }));
+
+    expect(await screen.findByText('La devolución no puede completarse. Verificá que la estación esté activa y tenga espacios disponibles.')).toBeInTheDocument();
+    expect(screen.getByText('Tenés un viaje activo')).toBeInTheDocument();
+  });
+
+  it('mantiene el viaje activo cuando el viaje o la estación ya no existen', async () => {
+    mockActiveTrip();
+    vi.mocked(stationService.getAvailability).mockResolvedValueOnce(stationAvailability);
+    vi.mocked(tripService.end).mockRejectedValueOnce(httpError(404));
+
+    renderPage();
+
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Estación destino' }), { target: { value: '2' } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirmar devolución' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Finalizar viaje' }));
+
+    expect(await screen.findByText('El viaje, la estación o los datos asociados ya no están disponibles.')).toBeInTheDocument();
+    expect(screen.getByText('Tenés un viaje activo')).toBeInTheDocument();
   });
 
   it('muestra un error si no puede cargar las estaciones', async () => {
@@ -168,6 +309,7 @@ describe('BicyclesPage', () => {
     mockNoActiveTrip();
     vi.mocked(bikeService.getAvailable).mockResolvedValueOnce([bike]);
     vi.mocked(tripService.start).mockResolvedValueOnce(activeTrip);
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([station]);
 
     renderPage();
 

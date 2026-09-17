@@ -41,4 +41,22 @@ describe('tripService', () => {
       headers: { 'X-User-Id': 7 },
     });
   });
+
+  it('finaliza un viaje en la estación destino seleccionada', async () => {
+    const completedTrip = {
+      ...trip,
+      status: 'COMPLETED' as const,
+      destinationStationId: 4,
+      destinationStationName: 'Estacion Norte',
+      endedAt: '2026-09-15T14:30:00Z',
+      durationSeconds: 1800,
+    };
+    const post = vi.mocked(httpClient.post);
+    post.mockResolvedValueOnce({ data: completedTrip });
+
+    await expect(tripService.end(7, 3, { destinationStationId: 4 })).resolves.toEqual(completedTrip);
+    expect(post).toHaveBeenCalledWith('/api/v1/trips/3/end', { destinationStationId: 4 }, {
+      headers: { 'X-User-Id': 7 },
+    });
+  });
 });
