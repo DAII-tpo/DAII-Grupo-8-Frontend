@@ -1,11 +1,8 @@
 import type { TripEndRequest, TripResponse, TripStartRequest } from '../../types/trip';
 import { httpClient } from '../http/httpClient';
+import { userHeaders } from '../http/userHeaders';
 
 const tripsPath = '/api/v1/trips';
-
-function userHeaders(userId: number) {
-  return { 'X-User-Id': userId };
-}
 
 export const tripService = {
   async getActive(userId: number): Promise<TripResponse | null> {

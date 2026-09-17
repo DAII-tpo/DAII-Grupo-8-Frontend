@@ -1,0 +1,34 @@
+.title,
+.sectionTitle {
+  color: var(--citypass-night-blue);
+}
+
+.title {
+  font-size: 1.8rem;
+  line-height: 1.2;
+}
+
+.sectionTitle {
+  font-size: 1.15rem;
+}
+
+.statePanel,
+.formPanel,
+.successPanel {
+  border: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 58%, white);
+  background: white;
+}
+
+.statePanel {
+  display: grid;
+  min-height: 220px;
+  place-items: center;
+}
+
+.successPanel {
+  border-color: color-mix(in srgb, var(--citypass-urban-green) 45%, white);
+}
+
+.successIcon {
+  color: var(--citypass-urban-green);
+}
