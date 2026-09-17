@@ -23,6 +23,7 @@ import { stationService } from '../../services/stations/stationService';
 import { tripService } from '../../services/trips/tripService';
 import type { BikeResponse } from '../../types/bike';
 import type { Station } from '../../types/station';
+import type { StationAvailability } from '../../types/stationAvailability';
 import type { TripResponse } from '../../types/trip';
 
 import classes from './Bicycles.module.css';
@@ -56,6 +57,7 @@ type TripManagerProps = {
 
 function TripManager({ userId }: TripManagerProps) {
   const [activeTrip, setActiveTrip] = useState<TripResponse | null>(null);
+  const [completedTrip, setCompletedTrip] = useState<TripResponse | null>(null);
   const [isLoadingActiveTrip, setIsLoadingActiveTrip] = useState(true);
   const [activeTripError, setActiveTripError] = useState<string | null>(null);
 
@@ -93,8 +95,15 @@ function TripManager({ userId }: TripManagerProps) {
     );
   }
 
+  if (completedTrip) {
+    return <CompletedTripPanel onStartAnother={() => {
+      setCompletedTrip(null);
+      void loadActiveTrip();
+    }} trip={completedTrip} />;
+  }
+
   if (activeTrip) {
-    return <ActiveTripPanel trip={activeTrip} />;
+    return <ActiveTripPanel onTripCompleted={setCompletedTrip} trip={activeTrip} userId={userId} />;
   }
 
   return <StartTripFlow userId={userId} onTripStarted={setActiveTrip} />;
@@ -269,17 +278,87 @@ function StartTripFlow({ onTripStarted, userId }: StartTripFlowProps) {
 }
 
 type ActiveTripPanelProps = {
+  onTripCompleted: (trip: TripResponse) => void;
   trip: TripResponse;
+  userId: number;
 };
 
-function ActiveTripPanel({ trip }: ActiveTripPanelProps) {
+function ActiveTripPanel({ onTripCompleted, trip, userId }: ActiveTripPanelProps) {
+  const [stations, setStations] = useState<Station[]>([]);
+  const [isLoadingStations, setIsLoadingStations] = useState(true);
+  const [stationsError, setStationsError] = useState(false);
+  const [selectedStationId, setSelectedStationId] = useState<number | null>(null);
+  const [availability, setAvailability] = useState<StationAvailability | null>(null);
+  const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [isEndingTrip, setIsEndingTrip] = useState(false);
+  const [endTripError, setEndTripError] = useState<string | null>(null);
+
+  const loadStations = useCallback(async () => {
+    setIsLoadingStations(true);
+    setStationsError(false);
+
+    try {
+      setStations(await stationService.getAll());
+    } catch {
+      setStationsError(true);
+    } finally {
+      setIsLoadingStations(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void Promise.resolve().then(loadStations);
+  }, [loadStations]);
+
+  const selectDestination = async (value: string) => {
+    const stationId = Number(value);
+    const isValidStationId = Number.isSafeInteger(stationId) && stationId > 0;
+    setSelectedStationId(isValidStationId ? stationId : null);
+    setAvailability(null);
+    setAvailabilityError(null);
+    setIsConfirming(false);
+    setEndTripError(null);
+
+    if (!isValidStationId) {
+      return;
+    }
+
+    setIsLoadingAvailability(true);
+    try {
+      setAvailability(await stationService.getAvailability(stationId));
+    } catch (error) {
+      setAvailabilityError(availabilityErrorMessage(error));
+    } finally {
+      setIsLoadingAvailability(false);
+    }
+  };
+
+  const endTrip = async () => {
+    if (selectedStationId === null || availability?.availableSlots === 0) {
+      return;
+    }
+
+    setIsEndingTrip(true);
+    setEndTripError(null);
+
+    try {
+      onTripCompleted(await tripService.end(userId, trip.id, { destinationStationId: selectedStationId }));
+    } catch (error) {
+      setEndTripError(endTripErrorMessage(error));
+    } finally {
+      setIsEndingTrip(false);
+    }
+  };
+
   return (
     <Paper className={classes.activeTripPanel} radius="md" p="lg">
       <Stack gap="md">
         <Group justify="space-between" wrap="wrap">
           <div>
             <Title className={classes.sectionTitle} order={2}>Tenés un viaje activo</Title>
-            <Text c="dimmed" size="sm">La finalización del viaje estará disponible en una próxima etapa.</Text>
+            <Text c="dimmed" size="sm">Seleccioná la estación en la que vas a devolver la bicicleta.</Text>
           </div>
           <Badge color="citypassUrbanGreen" variant="filled">{trip.status}</Badge>
         </Group>
@@ -288,6 +367,114 @@ function ActiveTripPanel({ trip }: ActiveTripPanelProps) {
           <TripMetric label="Estación de origen" value={trip.originStationName} />
           <TripMetric label="Inicio" value={formatDateTime(trip.startedAt)} />
         </SimpleGrid>
+
+        {isLoadingStations ? <LoadingPanel message="Cargando estaciones destino..." /> : null}
+        {stationsError ? (
+          <Alert color="red" icon={<AlertCircle size={18} />} title="No se pudieron cargar las estaciones">
+            <Stack gap="sm">
+              <Text size="sm">Verificá que el backend esté disponible e intentá nuevamente.</Text>
+              <Button leftSection={<RefreshCw size={16} />} variant="light" onClick={() => void loadStations()}>
+                Reintentar
+              </Button>
+            </Stack>
+          </Alert>
+        ) : null}
+        {!isLoadingStations && !stationsError && stations.length === 0 ? (
+          <Alert color="orange" icon={<AlertCircle size={18} />} title="No hay estaciones destino disponibles">
+            No hay estaciones disponibles para devolver la bicicleta en este momento.
+          </Alert>
+        ) : null}
+        {!isLoadingStations && !stationsError && stations.length > 0 ? (
+          <Stack gap="md">
+            <NativeSelect
+              aria-label="Estación destino"
+              onChange={(event) => void selectDestination(event.currentTarget.value)}
+              value={selectedStationId?.toString() ?? ''}
+            >
+              <option value="">Seleccioná una estación destino</option>
+              {stations.map((station) => (
+                <option key={station.id} value={station.id}>
+                  {station.name}{station.address ? ` - ${station.address}` : ''}
+                </option>
+              ))}
+            </NativeSelect>
+
+            {selectedStationId === null ? <Text c="dimmed" size="sm">Seleccioná una estación para consultar sus espacios disponibles.</Text> : null}
+            {isLoadingAvailability ? <LoadingPanel message="Consultando espacios disponibles..." /> : null}
+            {availabilityError ? <Alert color="red" icon={<AlertCircle size={18} />} title="No se pudo consultar la disponibilidad">{availabilityError}</Alert> : null}
+            {availability ? <DestinationAvailability availability={availability} /> : null}
+            {availability?.availableSlots === 0 ? (
+              <Alert color="orange" icon={<AlertCircle size={18} />} title="No hay espacios disponibles">
+                Esta estación no cuenta con anclajes libres para devolver la bicicleta.
+              </Alert>
+            ) : null}
+            {availability && !isConfirming ? (
+              <Button disabled={availability.availableSlots === 0} onClick={() => setIsConfirming(true)}>
+                Confirmar devolución
+              </Button>
+            ) : null}
+            {isConfirming && availability && availability.availableSlots > 0 ? (
+              <Paper className={classes.confirmationPanel} radius="sm" p="md">
+                <Stack gap="sm">
+                  <Text fw={700}>Confirmá la devolución en {availability.stationName}</Text>
+                  <Text c="dimmed" size="sm">Espacios disponibles: {availability.availableSlots}</Text>
+                  {endTripError ? <Alert color="red" icon={<AlertCircle size={18} />} title="No se pudo finalizar el viaje">{endTripError}</Alert> : null}
+                  <Group>
+                    <Button variant="default" onClick={() => setIsConfirming(false)}>Cancelar</Button>
+                    <Button color="citypassUrbanGreen" loading={isEndingTrip} onClick={() => void endTrip()}>
+                      Finalizar viaje
+                    </Button>
+                  </Group>
+                </Stack>
+              </Paper>
+            ) : null}
+          </Stack>
+        ) : null}
+      </Stack>
+    </Paper>
+  );
+}
+
+function DestinationAvailability({ availability }: { availability: StationAvailability }) {
+  return (
+    <Paper className={classes.availabilityPanel} radius="sm" p="md">
+      <Stack gap="sm">
+        <Text fw={700}>{availability.stationName}</Text>
+        <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
+          <TripMetric label="Capacidad" value={availability.capacity.toString()} />
+          <TripMetric label="Bicicletas disponibles" value={availability.availableBikes.toString()} />
+          <TripMetric label="Espacios libres" value={availability.availableSlots.toString()} />
+        </SimpleGrid>
+      </Stack>
+    </Paper>
+  );
+}
+
+type CompletedTripPanelProps = {
+  onStartAnother: () => void;
+  trip: TripResponse;
+};
+
+function CompletedTripPanel({ onStartAnother, trip }: CompletedTripPanelProps) {
+  return (
+    <Paper className={classes.completedTripPanel} radius="md" p="lg">
+      <Stack gap="md">
+        <Group justify="space-between" wrap="wrap">
+          <div>
+            <Title className={classes.sectionTitle} order={2}>Viaje finalizado</Title>
+            <Text c="dimmed" size="sm">La bicicleta fue devuelta correctamente.</Text>
+          </div>
+          <Badge color="citypassUrbanGreen" variant="filled">{trip.status}</Badge>
+        </Group>
+        <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
+          <TripMetric label="Bicicleta" value={trip.bikeCode} />
+          <TripMetric label="Origen" value={trip.originStationName} />
+          <TripMetric label="Destino" value={trip.destinationStationName ?? 'Sin información'} />
+          <TripMetric label="Inicio" value={formatDateTime(trip.startedAt)} />
+          <TripMetric label="Fin" value={trip.endedAt ? formatDateTime(trip.endedAt) : 'Sin información'} />
+          <TripMetric label="Duración" value={formatDuration(trip.durationSeconds)} />
+        </SimpleGrid>
+        <Button variant="light" onClick={onStartAnother}>Iniciar otro viaje</Button>
       </Stack>
     </Paper>
   );
@@ -349,6 +536,26 @@ function startTripErrorMessage(error: unknown) {
   return 'No fue posible iniciar el viaje. Intentá nuevamente.';
 }
 
+function availabilityErrorMessage(error: unknown) {
+  return statusOf(error) === 404
+    ? 'La estación seleccionada ya no está disponible.'
+    : 'No fue posible consultar los espacios disponibles. Intentá nuevamente.';
+}
+
+function endTripErrorMessage(error: unknown) {
+  const status = statusOf(error);
+  if (status === 400) {
+    return 'La solicitud de devolución no es válida.';
+  }
+  if (status === 404) {
+    return 'El viaje, la estación o los datos asociados ya no están disponibles.';
+  }
+  if (status === 409) {
+    return 'La devolución no puede completarse. Verificá que la estación esté activa y tenga espacios disponibles.';
+  }
+  return 'No fue posible finalizar el viaje. Intentá nuevamente.';
+}
+
 function statusOf(error: unknown) {
   return isAxiosError(error) ? error.response?.status : undefined;
 }
@@ -358,4 +565,14 @@ function formatDateTime(value: string) {
     dateStyle: 'short',
     timeStyle: 'short',
   }).format(new Date(value));
+}
+
+function formatDuration(durationSeconds: number | null) {
+  if (durationSeconds === null) {
+    return 'Sin información';
+  }
+
+  const minutes = Math.floor(durationSeconds / 60);
+  const seconds = durationSeconds % 60;
+  return `${minutes} min ${seconds} s`;
 }

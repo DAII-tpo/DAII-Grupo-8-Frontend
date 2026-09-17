@@ -20,6 +20,9 @@
 
 .selectionPanel,
 .activeTripPanel,
+.completedTripPanel,
+.availabilityPanel,
+.confirmationPanel,
 .statePanel {
   border: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 58%, white);
   background: white;
@@ -41,6 +44,11 @@
 
 .bikeOption {
   border: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 58%, white);
+}
+
+.confirmationPanel {
+  border-color: color-mix(in srgb, var(--citypass-urban-green) 45%, white);
+  background: color-mix(in srgb, var(--citypass-sky-blue) 25%, white);
 }
 
 .tripMetric {

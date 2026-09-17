@@ -4,6 +4,10 @@ export type TripStartRequest = {
   bikeId: number;
 };
 
+export type TripEndRequest = {
+  destinationStationId: number;
+};
+
 export type TripResponse = {
   id: number;
   status: TripStatus;
