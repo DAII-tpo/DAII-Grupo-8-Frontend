@@ -1,0 +1,59 @@
+.title,
+.sectionTitle,
+.emptyTitle {
+  color: var(--citypass-night-blue);
+}
+
+.title {
+  font-size: 1.8rem;
+  line-height: 1.2;
+}
+
+.subtitle {
+  margin-top: 0.25rem;
+  color: var(--citypass-medium-gray);
+}
+
+.sectionTitle {
+  font-size: 1.1rem;
+}
+
+.selectionPanel,
+.activeTripPanel,
+.statePanel {
+  border: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 58%, white);
+  background: white;
+}
+
+.statePanel {
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+}
+
+.emptyIcon {
+  color: var(--citypass-urban-green);
+}
+
+.emptyTitle {
+  font-size: 1.1rem;
+}
+
+.bikeOption {
+  border: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 58%, white);
+}
+
+.tripMetric {
+  border-left: 3px solid var(--citypass-urban-green);
+  padding-left: 0.75rem;
+}
+
+.metricLabel {
+  color: var(--citypass-medium-gray);
+  font-size: 0.8rem;
+}
+
+.metricValue {
+  color: var(--citypass-night-blue);
+  font-weight: 700;
+}
