@@ -59,4 +59,16 @@ describe('tripService', () => {
       headers: { 'X-User-Id': 7 },
     });
   });
+
+  it('consulta el historial paginado con el usuario configurado', async () => {
+    const get = vi.mocked(httpClient.get);
+    const history = { content: [], page: 1, size: 10, totalElements: 0, totalPages: 0, last: true };
+    get.mockResolvedValueOnce({ data: history });
+
+    await expect(tripService.getHistory(7, 1, 10)).resolves.toEqual(history);
+    expect(get).toHaveBeenCalledWith('/api/v1/trips/history', {
+      headers: { 'X-User-Id': 7 },
+      params: { page: 1, size: 10 },
+    });
+  });
 });
