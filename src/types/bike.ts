@@ -12,3 +12,14 @@ export type BikeResponse = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type BikeCreateRequest = {
+  code: string;
+  stationId: number | null;
+  status?: Exclude<BikeStatus, 'IN_USE'>;
+  model: string | null;
+  purchaseDate: string | null;
+};
+
+export type BikeStatusChangeRequest = { status: BikeStatus; reason: string | null };
+export type BikeTransferRequest = { stationId: number };

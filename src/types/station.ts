@@ -12,3 +12,12 @@ export type Station = {
   updatedAt: string;
   deletedAt: string | null;
 };
+
+export type StationRequest = {
+  name: string;
+  address: string | null;
+  latitude: number;
+  longitude: number;
+  capacity: number;
+  status?: StationStatus;
+};
