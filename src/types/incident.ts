@@ -25,3 +25,23 @@ export type IncidentTypeResponse = {
   name: string;
   description: string;
 };
+
+export type AdminIncidentResponse = {
+  id: number;
+  bikeId: number;
+  bikeCode: string;
+  reportedByUserId: number;
+  reportedByUserEmail: string;
+  incidentTypeId: number;
+  incidentTypeCode: string;
+  incidentTypeName: string;
+  description: string;
+  status: IncidentStatus;
+  reportedAt: string;
+  resolvedAt: string | null;
+  resolvedByUserId: number | null;
+};
+
+export type IncidentStatusUpdateRequest = {
+  status: IncidentStatus;
+};
