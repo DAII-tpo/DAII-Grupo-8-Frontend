@@ -5,7 +5,7 @@ import { stationService } from './stationService';
 
 vi.mock('../http/httpClient', () => ({
   httpClient: {
-    get: vi.fn(),
+    get: vi.fn(), patch: vi.fn(), post: vi.fn(),
   },
 }));
 
@@ -73,5 +73,14 @@ describe('stationService', () => {
     expect(get).toHaveBeenCalledWith('/api/v1/stations/nearby', {
       params: { lat: -34.6037, lng: -58.3816 },
     });
+  });
+
+  it('crea y actualiza una estación con el body completo', async () => {
+    const request = { name: 'Nueva', address: null, latitude: -34.6, longitude: -58.4, capacity: 10, status: 'ACTIVE' as const };
+    const post = vi.mocked(httpClient.post); const patch = vi.mocked(httpClient.patch);
+    post.mockResolvedValueOnce({ data: request }); patch.mockResolvedValueOnce({ data: { ...request, status: 'INACTIVE' } });
+    await stationService.create(request); await stationService.update(2, request);
+    expect(post).toHaveBeenCalledWith('/api/v1/stations', request);
+    expect(patch).toHaveBeenCalledWith('/api/v1/stations/2', request);
   });
 });

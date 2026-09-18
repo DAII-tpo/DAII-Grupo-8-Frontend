@@ -1,6 +1,7 @@
 import { httpClient } from '../http/httpClient';
 import type { NearbyStation } from '../../types/nearbyStation';
 import type { Station } from '../../types/station';
+import type { StationRequest } from '../../types/station';
 import type { StationAvailability } from '../../types/stationAvailability';
 
 const stationsPath = '/api/v1/stations';
@@ -32,6 +33,16 @@ export const stationService = {
         ...(limit === undefined ? {} : { limit }),
       },
     });
+    return response.data;
+  },
+
+  async create(request: StationRequest): Promise<Station> {
+    const response = await httpClient.post<Station>(stationsPath, request);
+    return response.data;
+  },
+
+  async update(stationId: number, request: StationRequest): Promise<Station> {
+    const response = await httpClient.patch<Station>(`${stationsPath}/${stationId}`, request);
     return response.data;
   },
 };

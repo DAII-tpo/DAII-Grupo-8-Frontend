@@ -11,6 +11,8 @@ import { AdministrationPage } from './index';
 vi.mock('../../config/currentUser', () => ({ currentUserId: 7 }));
 vi.mock('../../services/incidents/incidentService', () => ({ incidentService: { getAll: vi.fn(), updateStatus: vi.fn() } }));
 vi.mock('../../services/maintenance/maintenanceService', () => ({ maintenanceService: { getAll: vi.fn(), create: vi.fn(), complete: vi.fn() } }));
+vi.mock('./StationManagement', () => ({ StationManagement: () => <div>Gestión de estaciones</div> }));
+vi.mock('./BikeManagement', () => ({ BikeManagement: () => <div>Gestión de bicicletas</div> }));
 
 const incident = {
   id: 8,
@@ -143,5 +145,18 @@ describe('AdministrationPage', () => {
 
     expect(await screen.findByText('La operación no puede realizarse con el estado actual.')).toBeInTheDocument();
     expect(screen.getByText('Rueda desinflada')).toBeInTheDocument();
+  });
+
+  it('mantiene accesibles las tabs de incidencias, mantenimiento, estaciones y bicicletas', async () => {
+    mockData();
+    renderPage();
+
+    await screen.findByText('Rueda desinflada');
+    expect(screen.getByRole('tab', { name: 'Incidencias' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Mantenimiento' })).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('tab', { name: 'Estaciones' })[1]);
+    expect(screen.getByText('Gestión de estaciones')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Bicicletas' }));
+    expect(screen.getByText('Gestión de bicicletas')).toBeInTheDocument();
   });
 });

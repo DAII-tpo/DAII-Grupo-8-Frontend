@@ -7,6 +7,8 @@ import { MobilityNavigation } from '../../components/mobility/MobilityNavigation
 import { currentUserId } from '../../config/currentUser';
 import { incidentService } from '../../services/incidents/incidentService';
 import { maintenanceService } from '../../services/maintenance/maintenanceService';
+import { BikeManagement } from './BikeManagement';
+import { StationManagement } from './StationManagement';
 import type { AdminIncidentResponse, IncidentStatus } from '../../types/incident';
 import type { MaintenanceResponse } from '../../types/maintenance';
 
@@ -130,10 +132,12 @@ export function AdministrationPage() {
         <>
           {actionError ? <Alert color="red" icon={<AlertCircle size={18} />} title="No se pudo completar la operación">{actionError}</Alert> : null}
           {actionSuccess ? <Alert color="green" icon={<CheckCircle2 size={18} />} title="Operación realizada">{actionSuccess}</Alert> : null}
-          <Tabs defaultValue="incidents">
+          <Tabs defaultValue="incidents" keepMounted={false}>
             <Tabs.List>
               <Tabs.Tab value="incidents">Incidencias</Tabs.Tab>
               <Tabs.Tab value="maintenance">Mantenimiento</Tabs.Tab>
+              <Tabs.Tab value="stations">Estaciones</Tabs.Tab>
+              <Tabs.Tab value="bikes">Bicicletas</Tabs.Tab>
             </Tabs.List>
             <Tabs.Panel pt="md" value="incidents">
               <IncidentsPanel incidents={incidents} onUpdate={updateIncident} pendingAction={pendingAction} />
@@ -147,6 +151,8 @@ export function AdministrationPage() {
                 pendingAction={pendingAction}
               />
             </Tabs.Panel>
+            <Tabs.Panel pt="md" value="stations"><StationManagement /></Tabs.Panel>
+            <Tabs.Panel pt="md" value="bikes"><BikeManagement /></Tabs.Panel>
           </Tabs>
         </>
       ) : null}
