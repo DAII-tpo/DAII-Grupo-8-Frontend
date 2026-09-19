@@ -1,7 +1,8 @@
 import 'leaflet/dist/leaflet.css';
 
 import { Alert, Badge, Group, Loader, Paper, Stack, Text, Title, UnstyledButton } from '@mantine/core';
-import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from 'react-leaflet';
+import { divIcon } from 'leaflet';
+import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet';
 import { AlertCircle, Bike, MapPin, Navigation } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -26,6 +27,15 @@ type MapStation = {
   name: string;
 };
 
+function createStationIcon(isSelected: boolean) {
+  return divIcon({
+    className: classes.stationMarkerHost,
+    html: `<span class="${classes.stationMarker}${isSelected ? ` ${classes.stationMarkerSelected}` : ''}" aria-hidden="true"><svg viewBox="0 0 24 24" role="img"><circle cx="6" cy="17" r="3.25"/><circle cx="18" cy="17" r="3.25"/><path d="m6 17 4-7 3 7m-7 0h7l4-7m-8 0h4m-5-3h3"/></svg></span>`,
+    iconAnchor: [22, 22],
+    iconSize: [44, 44],
+  });
+}
+
 function toNearbyMapStation(station: NearbyStation): MapStation {
   return {
     address: station.address,
@@ -40,7 +50,7 @@ function toNearbyMapStation(station: NearbyStation): MapStation {
   };
 }
 
-function toFallbackMapStation(station: Station): MapStation {
+function toRegisteredMapStation(station: Station): MapStation {
   return {
     address: station.address,
     availableBikes: null,
@@ -65,7 +75,6 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
   const [geolocationError, setGeolocationError] = useState<string | null>(null);
   const [isBackendLoading, setIsBackendLoading] = useState(false);
   const [backendError, setBackendError] = useState(false);
-  const [isFallback, setIsFallback] = useState(false);
   const [selectedStation, setSelectedStation] = useState<MapStation | null>(null);
   const [selectedAvailability, setSelectedAvailability] = useState<StationAvailability | null>(null);
   const [isAvailabilityLoading, setIsAvailabilityLoading] = useState(false);
@@ -73,13 +82,12 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
 
   useEffect(() => {
     const loadFallbackStations = async () => {
-      setIsFallback(true);
       setIsBackendLoading(true);
       setBackendError(false);
 
       try {
         const fallbackStations = await stationService.getAll();
-        setStations(fallbackStations.map(toFallbackMapStation));
+        setStations(fallbackStations.map(toRegisteredMapStation));
       } catch {
         setBackendError(true);
       } finally {
@@ -92,8 +100,17 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
       setBackendError(false);
 
       try {
-        const nearbyStations = await stationService.getNearby({ lat: location[0], lng: location[1] });
-        setStations(nearbyStations.map(toNearbyMapStation));
+        const [registeredStations, nearbyStations] = await Promise.all([
+          stationService.getAll(),
+          stationService.getNearby({ lat: location[0], lng: location[1] }),
+        ]);
+        const nearbyById = new Map(
+          nearbyStations.map((station) => [station.stationId, toNearbyMapStation(station)]),
+        );
+
+        setStations(registeredStations.map(
+          (station) => nearbyById.get(station.id) ?? toRegisteredMapStation(station),
+        ));
       } catch {
         setBackendError(true);
       } finally {
@@ -145,7 +162,11 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
     }
   };
 
-  const mapCenter = userLocation ?? (stations[0] ? [stations[0].latitude, stations[0].longitude] : null);
+  const firstStationCenter: Coordinates | null = stations[0]
+    ? [stations[0].latitude, stations[0].longitude]
+    : null;
+  const mapCenter = userLocation ?? firstStationCenter;
+  const nearbyStations = stations.filter((station) => station.distanceMeters !== null);
 
   return (
     <Stack gap="lg">
@@ -179,15 +200,14 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
                   </CircleMarker>
                 ) : null}
                 {stations.map((station) => (
-                  <CircleMarker
-                    center={[station.latitude, station.longitude]}
+                  <Marker
                     eventHandlers={{ click: () => void selectStation(station) }}
+                    icon={createStationIcon(selectedStation?.id === station.id)}
                     key={station.id}
-                    pathOptions={{ color: '#4F8A72', fillColor: '#4F8A72', fillOpacity: 0.9 }}
-                    radius={9}
+                    position={[station.latitude, station.longitude]}
                   >
                     <Tooltip direction="top">{station.name}</Tooltip>
-                  </CircleMarker>
+                  </Marker>
                 ))}
               </MapContainer>
             ) : (
@@ -200,10 +220,9 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
             availability={selectedAvailability}
             hasAvailabilityError={hasAvailabilityError}
             isAvailabilityLoading={isAvailabilityLoading}
-            isFallback={isFallback}
             station={selectedStation}
           />
-          {!isFallback ? <NearbyStations stations={stations} onSelectStation={selectStation} /> : null}
+          {userLocation ? <NearbyStations stations={nearbyStations} onSelectStation={selectStation} /> : null}
           </Stack>
         </div>
       ) : null}
@@ -246,11 +265,10 @@ type StationDetailsProps = {
   availability: StationAvailability | null;
   hasAvailabilityError: boolean;
   isAvailabilityLoading: boolean;
-  isFallback: boolean;
   station: MapStation | null;
 };
 
-function StationDetails({ availability, hasAvailabilityError, isAvailabilityLoading, isFallback, station }: StationDetailsProps) {
+function StationDetails({ availability, hasAvailabilityError, isAvailabilityLoading, station }: StationDetailsProps) {
   if (!station) {
     return (
       <Paper className={classes.detailsPanel} radius="md" p="lg">
@@ -283,7 +301,7 @@ function StationDetails({ availability, hasAvailabilityError, isAvailabilityLoad
         {isAvailabilityLoading ? <Group gap="sm"><Loader color="citypassUrbanBlue" size="sm" /><Text c="dimmed" size="sm">Consultando disponibilidad...</Text></Group> : null}
         {hasAvailabilityError ? <Alert color="red" title="No se pudo consultar la disponibilidad">La estación seleccionada no está disponible o ocurrió un error al consultar el backend.</Alert> : null}
         {availableBikes === 0 ? <Alert color="orange" icon={<Bike size={18} />} title="No hay bicicletas disponibles">Esta estación no cuenta con bicicletas disponibles en este momento.</Alert> : null}
-        {isFallback ? <Badge variant="light" color="citypassUrbanBlue">Estación registrada</Badge> : null}
+        {station.distanceMeters === null ? <Badge variant="light" color="citypassUrbanBlue">Estación registrada</Badge> : null}
       </Stack>
     </Paper>
   );

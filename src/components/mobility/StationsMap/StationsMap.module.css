@@ -29,17 +29,28 @@
 
 .mapLayout {
   display: grid;
+  width: 100%;
+  min-width: 0;
   gap: 1rem;
-  grid-template-columns: minmax(0, 1fr) minmax(17rem, 0.36fr);
+  grid-template-columns: minmax(0, 2.25fr) minmax(17.5rem, 0.75fr);
+  align-items: start;
 }
 
 .mapPanel {
-  min-height: 32rem;
-  overflow: hidden;
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+  min-width: 0;
+  min-height: clamp(30rem, 66vh, 44rem);
+  overflow: clip;
+  border-radius: 0.75rem;
+  box-shadow: 0 12px 32px rgba(20, 36, 48, 0.08);
 }
 
 .map {
-  height: 32rem;
+  display: block;
+  height: clamp(30rem, 66vh, 44rem);
+  max-width: 100%;
   width: 100%;
 }
 
@@ -56,11 +67,15 @@
 
 .detailsPanel {
   align-self: start;
+  border-radius: 0.75rem;
+  box-shadow: 0 8px 24px rgba(20, 36, 48, 0.06);
 }
 
 .nearbyPanel {
   border: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 58%, white);
   background: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 8px 24px rgba(20, 36, 48, 0.06);
 }
 
 .detailsTitle,
@@ -76,6 +91,7 @@
 }
 
 .metric {
+  border-radius: 0.2rem;
   border-left: 3px solid var(--citypass-urban-green);
   padding-left: 0.75rem;
 }
@@ -116,6 +132,42 @@
   white-space: nowrap;
 }
 
+.stationMarkerHost {
+  background: transparent;
+  border: 0;
+}
+
+.stationMarker {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 3px solid white;
+  border-radius: 50% 50% 50% 12%;
+  color: white;
+  background: var(--citypass-urban-blue);
+  box-shadow: 0 5px 14px rgb(20 36 48 / 35%);
+  transform: rotate(-45deg);
+  transition: transform 150ms ease, background-color 150ms ease;
+}
+
+.stationMarker svg {
+  width: 23px;
+  height: 23px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+  transform: rotate(45deg);
+}
+
+.stationMarker:hover,
+.stationMarkerSelected {
+  background: var(--citypass-urban-green);
+  transform: rotate(-45deg) scale(1.12);
+}
+
 @media (max-width: 62rem) {
   .mapLayout {
     grid-template-columns: 1fr;
@@ -126,8 +178,8 @@
   .mapPanel,
   .map,
   .emptyMap {
-    min-height: 24rem;
-    height: 24rem;
+    min-height: 25rem;
+    height: 25rem;
   }
 
   .metrics {

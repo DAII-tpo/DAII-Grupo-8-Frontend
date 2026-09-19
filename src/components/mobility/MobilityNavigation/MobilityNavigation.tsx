@@ -1,6 +1,8 @@
 import { Tabs } from '@mantine/core';
 import { NavLink, useLocation } from 'react-router-dom';
 
+import { env } from '../../../config/env';
+
 import classes from './MobilityNavigation.module.css';
 
 const navigationItems = [
@@ -13,14 +15,23 @@ const navigationItems = [
   { label: 'Administracion', path: '/movilidad/administracion', value: 'administracion' },
 ];
 
-export function MobilityNavigation() {
+type MobilityNavigationProps = {
+  showAdministration?: boolean;
+};
+
+export function MobilityNavigation({
+  showAdministration = env.demoUserRole === 'ADMIN',
+}: MobilityNavigationProps = {}) {
   const { pathname } = useLocation();
-  const activeItem = navigationItems.find((item) => item.path === pathname);
+  const visibleItems = navigationItems.filter(
+    (item) => item.value !== 'administracion' || showAdministration,
+  );
+  const activeItem = visibleItems.find((item) => item.path === pathname);
 
   return (
     <Tabs classNames={{ list: classes.tabsList }} value={activeItem?.value ?? null}>
       <Tabs.List>
-        {navigationItems.map((item) => (
+        {visibleItems.map((item) => (
           <Tabs.Tab
             key={item.value}
             renderRoot={(props) => <NavLink {...props} end to={item.path} />}

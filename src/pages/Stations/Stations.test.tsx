@@ -30,6 +30,7 @@ const station = {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  Object.defineProperty(navigator, 'geolocation', { configurable: true, value: undefined });
 });
 
 function renderPage() {
@@ -94,6 +95,46 @@ describe('StationsPage', () => {
 
     expect(await screen.findByText('Estacion Centro')).toBeInTheDocument();
     expect(screen.getByText('Activa')).toBeInTheDocument();
+  });
+
+  it('permite buscar estaciones por nombre o dirección', async () => {
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([
+      station,
+      { ...station, id: 2, name: 'Estacion Parque', address: 'Av. Santa Fe 500' },
+    ]);
+
+    renderPage();
+
+    await screen.findByText('Estacion Centro');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Buscar estaciones' }), {
+      target: { value: 'Santa Fe' },
+    });
+
+    expect(screen.getByText('Estacion Parque')).toBeInTheDocument();
+    expect(screen.queryByText('Estacion Centro')).not.toBeInTheDocument();
+    expect(screen.getByText('1 de 2')).toBeInTheDocument();
+  });
+
+  it('ordena las estaciones desde la más cercana cuando hay ubicación', async () => {
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        getCurrentPosition: (success: PositionCallback) => success({
+          coords: { latitude: -34.6037, longitude: -58.3816 },
+        } as GeolocationPosition),
+      },
+    });
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([
+      { ...station, id: 2, name: 'Estacion Lejana', latitude: -34.7, longitude: -58.5 },
+      station,
+    ]);
+
+    renderPage();
+
+    expect(await screen.findByText('0 m')).toBeInTheDocument();
+    const stationButtons = screen.getAllByRole('button', { name: /Consultar disponibilidad de/ });
+    expect(stationButtons[0]).toHaveAccessibleName('Consultar disponibilidad de Estacion Centro');
+    expect(screen.getByText('Ordenadas desde la más cercana.')).toBeInTheDocument();
   });
 
   it('muestra un error si falla la consulta', async () => {

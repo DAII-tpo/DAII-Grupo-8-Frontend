@@ -1,0 +1,7 @@
+.statusBadge {
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, var(--citypass-urban-green) 32%, white);
+  color: var(--citypass-urban-green);
+  background: color-mix(in srgb, var(--citypass-urban-green) 10%, white);
+  text-transform: none;
+}

@@ -12,6 +12,9 @@ vi.mock('react-leaflet', () => ({
     <button onClick={eventHandlers?.click} type="button">{children}</button>
   ),
   MapContainer: ({ children }: { children: React.ReactNode }) => <div data-testid="map">{children}</div>,
+  Marker: ({ children, eventHandlers }: { children: React.ReactNode; eventHandlers?: { click?: () => void } }) => (
+    <button onClick={eventHandlers?.click} type="button">{children}</button>
+  ),
   TileLayer: () => null,
   Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useMap: () => ({ setView: vi.fn() }),
@@ -122,11 +125,16 @@ describe('MapPage', () => {
   it('consulta estaciones cercanas con la ubicación obtenida y permite seleccionarlas', async () => {
     mockLocationSuccess();
     vi.mocked(stationService.getNearby).mockResolvedValueOnce([nearbyStation]);
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([
+      { ...station, id: 1, name: 'Estacion Centro', address: 'Av. Corrientes 100' },
+      station,
+    ]);
 
     renderPage();
 
     expect(await screen.findByTestId('map')).toBeInTheDocument();
     expect(stationService.getNearby).toHaveBeenCalledWith({ lat: -34.6037, lng: -58.3816 });
+    expect(screen.getByRole('button', { name: 'Estacion Parque' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Estacion Centro' }));
 
@@ -134,14 +142,16 @@ describe('MapPage', () => {
     expect(screen.getAllByText('320 m')).toHaveLength(2);
   });
 
-  it('muestra un estado vacío cuando no hay estaciones cercanas', async () => {
+  it('muestra todas las estaciones cuando no hay estaciones cercanas', async () => {
     mockLocationSuccess();
     vi.mocked(stationService.getNearby).mockResolvedValueOnce([]);
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([station]);
 
     renderPage();
 
-    expect(await screen.findByText('No se encontraron estaciones activas dentro del radio de búsqueda.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Estacion Centro' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Estacion Parque' })).toBeInTheDocument();
+    expect(stationService.getAll).toHaveBeenCalledOnce();
+    expect(screen.getByText('No se encontraron estaciones activas dentro del radio de búsqueda.')).toBeInTheDocument();
   });
 
   it('usa estaciones registradas sin llamar nearby cuando la geolocalización es denegada', async () => {

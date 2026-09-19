@@ -1,6 +1,7 @@
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
 
 import { PlaceholderPage } from '../../components/common/PlaceholderPage';
+import { env } from '../../config/env';
 import { AuthLayout } from '../../layouts/AuthLayout/AuthLayout';
 import { MainLayout } from '../../layouts/MainLayout/MainLayout';
 import { ActiveTripPage } from '../../pages/ActiveTrip';
@@ -37,7 +38,10 @@ export const router = createBrowserRouter([
       { path: 'movilidad/viaje-activo', element: <ActiveTripPage /> },
       { path: 'movilidad/historial', element: <HistoryPage /> },
       { path: 'movilidad/reportes', element: <ReportsPage /> },
-      { path: 'movilidad/administracion', element: <AdministrationPage /> },
+      {
+        path: 'movilidad/administracion',
+        element: env.demoUserRole === 'ADMIN' ? <AdministrationPage /> : <Navigate to="/movilidad" replace />,
+      },
       { path: 'residuos', element: <PlaceholderPage title="Residuos" /> },
       { path: 'reclamos', element: <PlaceholderPage title="Reclamos" /> },
       { path: 'emergencias', element: <PlaceholderPage title="Emergencias" /> },

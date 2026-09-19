@@ -12,6 +12,9 @@ vi.mock('react-leaflet', () => ({
     <button onClick={eventHandlers?.click} type="button">{children}</button>
   ),
   MapContainer: ({ children }: { children: React.ReactNode }) => <div data-testid="map">{children}</div>,
+  Marker: ({ children, eventHandlers }: { children: React.ReactNode; eventHandlers?: { click?: () => void } }) => (
+    <button onClick={eventHandlers?.click} type="button">{children}</button>
+  ),
   TileLayer: () => null,
   Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useMap: () => ({ setView: vi.fn() }),
@@ -40,6 +43,19 @@ const nearbyStation = {
   capacity: 20,
   availableBikes: 7,
   availableSlots: 13,
+};
+
+const station = {
+  id: 2,
+  name: 'Estacion Parque',
+  address: 'Av. Santa Fe 500',
+  latitude: -34.59,
+  longitude: -58.39,
+  capacity: 18,
+  status: 'ACTIVE' as const,
+  createdAt: '2026-09-01T12:00:00Z',
+  updatedAt: '2026-09-01T12:00:00Z',
+  deletedAt: null,
 };
 
 function CurrentPath() {
@@ -83,11 +99,16 @@ describe('MobilityPage', () => {
   it('integra el mapa real, las estaciones cercanas y la selección de una estación', async () => {
     mockLocationSuccess();
     vi.mocked(stationService.getNearby).mockResolvedValueOnce([nearbyStation]);
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([
+      { ...station, id: 1, name: 'Estacion Centro', address: 'Av. Corrientes 100' },
+      station,
+    ]);
 
     renderMobilityPage();
 
     expect(await screen.findByTestId('map')).toBeInTheDocument();
     expect(stationService.getNearby).toHaveBeenCalledWith({ lat: -34.6037, lng: -58.3816 });
+    expect(screen.getByRole('button', { name: 'Estacion Parque' })).toBeInTheDocument();
     expect(screen.getByText('Estaciones cercanas')).toBeInTheDocument();
     expect(screen.queryByText('Estacion Plaza Norte')).not.toBeInTheDocument();
     expect(screen.queryByText('Reservar bicicleta')).not.toBeInTheDocument();
@@ -98,13 +119,15 @@ describe('MobilityPage', () => {
     expect(screen.getAllByText('320 m')).toHaveLength(2);
   });
 
-  it('muestra el estado vacío real si nearby no devuelve estaciones', async () => {
+  it('muestra las estaciones registradas si nearby no devuelve estaciones', async () => {
     mockLocationSuccess();
     vi.mocked(stationService.getNearby).mockResolvedValueOnce([]);
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([station]);
 
     renderMobilityPage();
 
-    expect(await screen.findByText('No se encontraron estaciones activas dentro del radio de búsqueda.')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Estacion Parque' })).toBeInTheDocument();
+    expect(stationService.getAll).toHaveBeenCalledOnce();
   });
 
   it('marca Inicio como activo y mantiene la navegación al mapa', () => {

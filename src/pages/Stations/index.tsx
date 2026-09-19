@@ -9,13 +9,17 @@ import {
   Stack,
   Table,
   Text,
+  TextInput,
   Title,
 } from '@mantine/core';
-import { AlertCircle, MapPin, RefreshCw } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { AlertCircle, MapPin, Search } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
 import { stationService } from '../../services/stations/stationService';
+import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
+import pageClasses from '../../styles/mobilityPage.module.css';
 import type { Station, StationStatus } from '../../types/station';
 import type { StationAvailability } from '../../types/stationAvailability';
 
@@ -29,6 +33,8 @@ const statusLabels: Record<StationStatus, string> = {
 
 export function StationsPage() {
   const [stations, setStations] = useState<Station[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [selectedStationId, setSelectedStationId] = useState<number | null>(null);
@@ -50,6 +56,36 @@ export function StationsPage() {
   useEffect(() => {
     void Promise.resolve().then(loadStations);
   }, [loadStations]);
+
+  useEffect(() => {
+    navigator.geolocation?.getCurrentPosition((position) => {
+      setUserLocation([position.coords.latitude, position.coords.longitude]);
+    });
+  }, []);
+
+  const visibleStations = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLocaleLowerCase('es');
+
+    return stations
+      .map((station) => ({
+        ...station,
+        distanceMeters: userLocation
+          ? calculateDistanceMeters(userLocation, [station.latitude, station.longitude])
+          : null,
+      }))
+      .filter((station) => (
+        normalizedQuery === ''
+        || station.name.toLocaleLowerCase('es').includes(normalizedQuery)
+        || station.address.toLocaleLowerCase('es').includes(normalizedQuery)
+      ))
+      .sort((first, second) => {
+        if (first.distanceMeters !== null && second.distanceMeters !== null) {
+          return first.distanceMeters - second.distanceMeters;
+        }
+
+        return first.name.localeCompare(second.name, 'es');
+      });
+  }, [searchQuery, stations, userLocation]);
 
   const retry = () => {
     setHasError(false);
@@ -73,24 +109,27 @@ export function StationsPage() {
   };
 
   return (
-    <Stack gap="lg">
-      <div>
-        <Title className={classes.title} order={1}>
-          Estaciones
-        </Title>
-      </div>
+    <Stack className={pageClasses.page} gap="lg">
+      <MobilityPageHeader
+        title="Estaciones"
+        subtitle="Consultá el estado, la ubicación y la disponibilidad de cada estación."
+      />
 
       <MobilityNavigation />
 
       {isLoading ? <LoadingState /> : null}
-      {hasError ? <ErrorState onRetry={retry} /> : null}
+      {hasError ? <RetryErrorAlert message="Verificá que el backend esté disponible e intentá nuevamente." onRetry={retry} title="No se pudieron cargar las estaciones" /> : null}
       {!isLoading && !hasError && stations.length === 0 ? <EmptyState /> : null}
       {!isLoading && !hasError && stations.length > 0 ? (
         <>
           <StationsTable
             onSelectStation={selectStation}
+            onSearchChange={setSearchQuery}
+            searchQuery={searchQuery}
             selectedStationId={selectedStationId}
-            stations={stations}
+            stations={visibleStations}
+            totalStations={stations.length}
+            userLocationAvailable={userLocation !== null}
           />
           <AvailabilityPanel
             availability={availability}
@@ -115,23 +154,6 @@ function LoadingState() {
   );
 }
 
-type ErrorStateProps = {
-  onRetry: () => void;
-};
-
-function ErrorState({ onRetry }: ErrorStateProps) {
-  return (
-    <Alert color="red" icon={<AlertCircle size={18} />} title="No se pudieron cargar las estaciones">
-      <Group justify="space-between" align="center" mt="xs">
-        <Text size="sm">Verificá que el backend esté disponible e intentá nuevamente.</Text>
-        <Button leftSection={<RefreshCw size={16} />} variant="light" onClick={onRetry}>
-          Reintentar
-        </Button>
-      </Group>
-    </Alert>
-  );
-}
-
 function EmptyState() {
   return (
     <Paper className={classes.statePanel} radius="md" p="xl">
@@ -150,20 +172,22 @@ function EmptyState() {
 
 type StationsTableProps = {
   onSelectStation: (stationId: number) => void;
+  onSearchChange: (query: string) => void;
+  searchQuery: string;
   selectedStationId: number | null;
-  stations: Station[];
+  stations: Array<Station & { distanceMeters: number | null }>;
+  totalStations: number;
+  userLocationAvailable: boolean;
 };
 
-function StationsTable({ onSelectStation, selectedStationId, stations }: StationsTableProps) {
+function StationsTable({ onSearchChange, onSelectStation, searchQuery, selectedStationId, stations, totalStations, userLocationAvailable }: StationsTableProps) {
   const rows = stations.map((station) => (
     <Table.Tr className={station.id === selectedStationId ? classes.selectedRow : undefined} key={station.id}>
       <Table.Td>
         <Text fw={700}>{station.name}</Text>
       </Table.Td>
       <Table.Td>{station.address || 'Sin dirección informada'}</Table.Td>
-      <Table.Td>
-        {station.latitude}, {station.longitude}
-      </Table.Td>
+      <Table.Td>{formatDistance(station.distanceMeters)}</Table.Td>
       <Table.Td>{station.capacity}</Table.Td>
       <Table.Td>
         <Badge className={classes[`status${station.status}`]}>{statusLabels[station.status]}</Badge>
@@ -183,19 +207,32 @@ function StationsTable({ onSelectStation, selectedStationId, stations }: Station
 
   return (
     <Paper className={classes.tablePanel} radius="md" p="md">
-      <Group justify="space-between" mb="md">
-        <Text fw={700}>Estaciones</Text>
-        <Badge variant="light" color="citypassUrbanBlue">
-          {stations.length}
-        </Badge>
-      </Group>
+      <div className={classes.tableToolbar}>
+        <div>
+          <Group gap="xs">
+            <Text fw={700}>Estaciones</Text>
+            <Badge variant="light" color="citypassUrbanBlue">{stations.length} de {totalStations}</Badge>
+          </Group>
+          <Text c="dimmed" size="xs" mt={4}>
+            {userLocationAvailable ? 'Ordenadas desde la más cercana.' : 'Permití el acceso a tu ubicación para ordenarlas por cercanía.'}
+          </Text>
+        </div>
+        <TextInput
+          aria-label="Buscar estaciones"
+          className={classes.searchInput}
+          leftSection={<Search size={16} />}
+          onChange={(event) => onSearchChange(event.currentTarget.value)}
+          placeholder="Buscar por nombre o dirección"
+          value={searchQuery}
+        />
+      </div>
       <ScrollArea>
         <Table className={classes.table} highlightOnHover miw={880} verticalSpacing="sm">
           <Table.Thead>
             <Table.Tr>
               <Table.Th>Nombre</Table.Th>
               <Table.Th>Dirección</Table.Th>
-              <Table.Th>Coordenadas</Table.Th>
+              <Table.Th>Cercanía</Table.Th>
               <Table.Th>Capacidad</Table.Th>
               <Table.Th>Estado</Table.Th>
               <Table.Th aria-label="Disponibilidad" />
@@ -204,8 +241,34 @@ function StationsTable({ onSelectStation, selectedStationId, stations }: Station
           <Table.Tbody>{rows}</Table.Tbody>
         </Table>
       </ScrollArea>
+      {stations.length === 0 ? (
+        <Stack align="center" className={classes.noResults} gap="xs">
+          <Search size={24} />
+          <Text fw={700}>No encontramos estaciones</Text>
+          <Text c="dimmed" size="sm">Probá buscar con otro nombre o dirección.</Text>
+        </Stack>
+      ) : null}
     </Paper>
   );
+}
+
+function calculateDistanceMeters(origin: [number, number], destination: [number, number]) {
+  const earthRadiusMeters = 6_371_000;
+  const toRadians = (degrees: number) => degrees * Math.PI / 180;
+  const latitudeDelta = toRadians(destination[0] - origin[0]);
+  const longitudeDelta = toRadians(destination[1] - origin[1]);
+  const originLatitude = toRadians(origin[0]);
+  const destinationLatitude = toRadians(destination[0]);
+  const haversine = Math.sin(latitudeDelta / 2) ** 2
+    + Math.cos(originLatitude) * Math.cos(destinationLatitude) * Math.sin(longitudeDelta / 2) ** 2;
+
+  return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+}
+
+function formatDistance(distanceMeters: number | null) {
+  if (distanceMeters === null) return '—';
+  if (distanceMeters < 1_000) return `${Math.round(distanceMeters)} m`;
+  return `${(distanceMeters / 1_000).toLocaleString('es-AR', { maximumFractionDigits: 1 })} km`;
 }
 
 type AvailabilityPanelProps = {
