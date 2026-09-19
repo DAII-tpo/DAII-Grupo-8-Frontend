@@ -1,6 +1,7 @@
 import {
   ActionIcon,
   AppShell,
+  Avatar,
   Group,
   Text,
   Tooltip,
@@ -60,7 +61,7 @@ const accountNavigationItems: NavigationItem[] = [
 
 export function MainLayout() {
   const [mobileOpened, { toggle: toggleMobile }] = useDisclosure(false);
-  const [sidebarOpened, { toggle: toggleSidebar }] = useDisclosure(false);
+  const [sidebarOpened, { toggle: toggleSidebar }] = useDisclosure(true);
   const { logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -86,33 +87,48 @@ export function MainLayout() {
       }}
     >
       <AppShell.Header>
-        <Group className={classes.headerContent} gap="md">
-          <Tooltip label={sidebarOpened ? 'Ocultar menu' : 'Mostrar menu'}>
+        <Group className={classes.headerContent} justify="space-between" gap="md">
+          <Group gap="md">
+            <Tooltip label={sidebarOpened ? 'Ocultar menú' : 'Mostrar menú'}>
+              <ActionIcon
+                aria-label="Alternar menú lateral"
+                className={classes.menuButton}
+                variant="subtle"
+                visibleFrom="sm"
+                onClick={toggleSidebar}
+              >
+                {menuIcon}
+              </ActionIcon>
+            </Tooltip>
             <ActionIcon
-              aria-label="Alternar menu lateral"
+              aria-label="Abrir menú lateral"
               className={classes.menuButton}
-              variant="filled"
-              visibleFrom="sm"
-              onClick={toggleSidebar}
+              variant="subtle"
+              hiddenFrom="sm"
+              onClick={toggleMobile}
             >
-              {menuIcon}
+              {mobileMenuIcon}
             </ActionIcon>
-          </Tooltip>
-          <ActionIcon
-            aria-label="Abrir menu lateral"
-            className={classes.menuButton}
-            variant="filled"
-            hiddenFrom="sm"
-            onClick={toggleMobile}
-          >
-            {mobileMenuIcon}
-          </ActionIcon>
-          <BrandLogo />
+            <div className={classes.mobileBrand}>
+              <BrandLogo compact />
+            </div>
+            <Text className={classes.headerTitle} visibleFrom="sm">Servicios de la ciudad</Text>
+          </Group>
+          <Group className={classes.userSummary} gap="sm" wrap="nowrap">
+            <Avatar className={classes.avatar} radius="xl">UD</Avatar>
+            <div className={classes.userCopy}>
+              <Text className={classes.userName}>Usuario demo</Text>
+              <Text className={classes.userRole}>Ciudadano</Text>
+            </div>
+          </Group>
         </Group>
       </AppShell.Header>
 
       <AppShell.Navbar>
         <nav className={classes.navigation} aria-label="Menu principal CityPass+">
+          <div className={classes.sidebarBrand}>
+            <BrandLogo compact />
+          </div>
           <div className={classes.navSection}>
             {moduleNavigationItems.map((item) => (
               <NavigationLink
@@ -146,6 +162,11 @@ export function MainLayout() {
               />
             ))}
           </div>
+          <div aria-hidden="true" className={classes.sidebarDecoration}>
+            <span className={classes.buildingTall} />
+            <span className={classes.buildingMedium} />
+            <span className={classes.buildingSmall} />
+          </div>
         </nav>
       </AppShell.Navbar>
 
@@ -155,7 +176,7 @@ export function MainLayout() {
 
       <AppShell.Footer>
         <Text className={classes.footerText}>
-          CityPass+ | Movilidad Urbana Inteligente
+          © 2026 CityPass+ · Servicios urbanos en un solo lugar
         </Text>
       </AppShell.Footer>
     </AppShell>
