@@ -62,14 +62,14 @@ afterEach(() => {
 });
 
 describe('AdministrationPage', () => {
-  it('carga incidencias reales y mantiene activa la navegación de Administración', async () => {
+  it('carga incidencias reales dentro de la administración de Movilidad', async () => {
     mockData();
 
     renderPage();
 
     expect(await screen.findByText('Rueda desinflada')).toBeInTheDocument();
     expect(screen.getByText('user@citypass.com')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Administracion' })).toHaveAttribute('data-active', 'true');
+    expect(screen.getByRole('heading', { name: 'Administración de Movilidad' })).toBeInTheDocument();
     expect(incidentService.getAll).toHaveBeenCalledWith(7);
     expect(maintenanceService.getAll).toHaveBeenCalledWith(7);
   });
@@ -154,7 +154,7 @@ describe('AdministrationPage', () => {
     await screen.findByText('Rueda desinflada');
     expect(screen.getByRole('tab', { name: 'Incidencias' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Mantenimiento' })).toBeInTheDocument();
-    fireEvent.click(screen.getAllByRole('tab', { name: 'Estaciones' })[1]);
+    fireEvent.click(screen.getByRole('tab', { name: 'Estaciones' }));
     expect(screen.getByText('Gestión de estaciones')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Bicicletas' }));
     expect(screen.getByText('Gestión de bicicletas')).toBeInTheDocument();

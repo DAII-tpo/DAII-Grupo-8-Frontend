@@ -17,6 +17,7 @@ import {
   Menu,
   MessageSquare,
   Settings,
+  ShieldCheck,
   Siren,
   Trees,
   Trash2,
@@ -28,6 +29,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../../app/providers/authContext';
 import { BrandLogo } from '../../components/common/BrandLogo';
+import { env } from '../../config/env';
 
 import classes from './MainLayout.module.css';
 
@@ -57,6 +59,14 @@ const accountNavigationItems: NavigationItem[] = [
   { icon: User, label: 'Mi Cuenta', path: '/mi-cuenta' },
   { icon: Settings, label: 'Configuración', path: '/configuracion' },
   { icon: LogOut, label: 'Cerrar Sesión', path: '/login', action: 'logout' },
+];
+
+const managementNavigationItems: NavigationItem[] = [
+  {
+    icon: ShieldCheck,
+    label: 'Administración',
+    path: '/movilidad/administracion',
+  },
 ];
 
 export function MainLayout() {
@@ -118,7 +128,7 @@ export function MainLayout() {
             <Avatar className={classes.avatar} radius="xl">UD</Avatar>
             <div className={classes.userCopy}>
               <Text className={classes.userName}>Usuario demo</Text>
-              <Text className={classes.userRole}>Ciudadano</Text>
+              <Text className={classes.userRole}>{env.demoUserRole === 'ADMIN' ? 'Administrador' : 'Ciudadano'}</Text>
             </div>
           </Group>
         </Group>
@@ -149,6 +159,25 @@ export function MainLayout() {
               />
             ))}
           </div>
+          {env.demoUserRole === 'ADMIN' ? (
+            <>
+              <Text className={classes.sectionLabel}>Gestión</Text>
+              <div className={classes.managementSection}>
+                {managementNavigationItems.map((item) => (
+                  <NavigationLink
+                    key={item.path}
+                    item={item}
+                    pathname={location.pathname}
+                    onNavigate={() => {
+                      if (mobileOpened) {
+                        toggleMobile();
+                      }
+                    }}
+                  />
+                ))}
+              </div>
+            </>
+          ) : null}
           <Text className={classes.sectionLabel}>Cuenta</Text>
           <div className={classes.accountSection}>
             {accountNavigationItems.map((item) => (
@@ -192,8 +221,9 @@ function NavigationLink({ item, onNavigate, pathname }: NavigationLinkProps) {
     item.path === '/'
       ? pathname === item.path
       : item.path === '/movilidad'
-        ? pathname === item.path
-          || pathname.startsWith('/movilidad/')
+        ? (pathname === item.path
+          || pathname.startsWith('/movilidad/'))
+          && !pathname.startsWith('/movilidad/administracion')
         : pathname.startsWith(item.path);
 
   return (

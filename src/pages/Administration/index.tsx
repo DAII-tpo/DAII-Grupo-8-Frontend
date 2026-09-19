@@ -3,7 +3,6 @@ import { isAxiosError } from 'axios';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
 import { currentUserId } from '../../config/currentUser';
@@ -127,10 +126,9 @@ export function AdministrationPage() {
   return (
     <Stack className={pageClasses.page} gap="lg">
       <MobilityPageHeader
-        title="Administración"
-        subtitle="Gestioná incidencias, mantenimiento, estaciones y bicicletas."
+        title="Administración de Movilidad"
+        subtitle="Gestioná la operación del servicio desde un espacio separado de la experiencia ciudadana."
       />
-      <MobilityNavigation showAdministration />
 
       {isLoading ? <LoadingState /> : null}
       {loadError ? <LoadError message={loadError} onRetry={() => void loadAdministrationData()} /> : null}
