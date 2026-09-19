@@ -13,7 +13,7 @@ import {
   Title,
 } from '@mantine/core';
 import { isAxiosError } from 'axios';
-import { AlertCircle, Bike, Play, Route } from 'lucide-react';
+import { AlertCircle, Bike, Clock3, MapPin, Play, Route } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
@@ -361,17 +361,21 @@ function ActiveTripPanel({ onTripCompleted, trip, userId }: ActiveTripPanelProps
   return (
     <Paper className={classes.activeTripPanel} radius="md" p="lg">
       <Stack gap="md">
-        <Group justify="space-between" wrap="wrap">
-          <div>
-            <Title className={classes.sectionTitle} order={2}>Tenés un viaje activo</Title>
-            <Text c="dimmed" size="sm">Seleccioná la estación en la que vas a devolver la bicicleta.</Text>
-          </div>
-          <Badge color="citypassUrbanGreen" variant="filled">{trip.status}</Badge>
+        <Group className={classes.activeTripHeader} justify="space-between" wrap="wrap">
+          <Group gap="md" wrap="nowrap">
+            <div className={classes.activeTripIcon}><Bike size={25} /></div>
+            <div>
+              <Text className={classes.activeTripEyebrow}>RECORRIDO EN CURSO</Text>
+              <Title className={classes.activeTripTitle} order={2}>Tenés un viaje activo</Title>
+              <Text c="dimmed" size="sm">Elegí dónde devolver la bicicleta cuando llegues a destino.</Text>
+            </div>
+          </Group>
+          <Badge color="citypassUrbanGreen" size="lg" variant="filled">En curso</Badge>
         </Group>
-        <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
-          <TripMetric label="Bicicleta" value={trip.bikeCode} />
-          <TripMetric label="Estación de origen" value={trip.originStationName} />
-          <TripMetric label="Inicio" value={formatDateTime(trip.startedAt)} />
+        <SimpleGrid className={classes.activeMetrics} cols={{ base: 1, sm: 3 }} spacing="sm">
+          <TripMetric icon={Bike} label="Bicicleta" value={trip.bikeCode} />
+          <TripMetric icon={MapPin} label="Estación de origen" value={trip.originStationName} />
+          <TripMetric icon={Clock3} label="Inicio" value={formatDateTime(trip.startedAt)} />
         </SimpleGrid>
 
         {isLoadingStations ? <LoadingPanel message="Cargando estaciones destino..." /> : null}
@@ -467,7 +471,7 @@ function CompletedTripPanel({ onStartAnother, trip }: CompletedTripPanelProps) {
             <Title className={classes.sectionTitle} order={2}>Viaje finalizado</Title>
             <Text c="dimmed" size="sm">La bicicleta fue devuelta correctamente.</Text>
           </div>
-          <Badge color="citypassUrbanGreen" variant="filled">{trip.status}</Badge>
+          <Badge color="citypassUrbanGreen" variant="filled">Completado</Badge>
         </Group>
         <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
           <TripMetric label="Bicicleta" value={trip.bikeCode} />
@@ -484,13 +488,15 @@ function CompletedTripPanel({ onStartAnother, trip }: CompletedTripPanelProps) {
 }
 
 type TripMetricProps = {
+  icon?: typeof Bike;
   label: string;
   value: string;
 };
 
-function TripMetric({ label, value }: TripMetricProps) {
+function TripMetric({ icon: Icon, label, value }: TripMetricProps) {
   return (
     <div className={classes.tripMetric}>
+      {Icon ? <Icon className={classes.tripMetricIcon} size={18} /> : null}
       <Text className={classes.metricLabel}>{label}</Text>
       <Text className={classes.metricValue}>{value}</Text>
     </div>

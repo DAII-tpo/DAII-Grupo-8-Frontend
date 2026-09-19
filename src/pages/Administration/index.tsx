@@ -1,6 +1,6 @@
-import { Alert, Badge, Button, Group, Loader, NativeSelect, Paper, ScrollArea, SimpleGrid, Stack, Tabs, Table, Text, Textarea, Title } from '@mantine/core';
+import { Alert, Badge, Button, Group, Loader, NativeSelect, Paper, ScrollArea, SimpleGrid, Stack, Tabs, Table, Text, Textarea, TextInput, Title } from '@mantine/core';
 import { isAxiosError } from 'axios';
-import { AlertCircle, Bike, CheckCircle2, ParkingCircle, RefreshCw, Wrench } from 'lucide-react';
+import { AlertCircle, Bike, CheckCircle2, ParkingCircle, RefreshCw, Search, Wrench } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
@@ -247,8 +247,45 @@ function BikeStatusChart({ bikes, compact = false }: { bikes: BikeResponse[]; co
 }
 
 function StationCapacityChart({ bikes, stations }: { bikes: BikeResponse[]; stations: Station[] }) {
-  const visibleStations = stations.slice(0, 8);
-  return <Paper aria-label="Ocupación de estaciones" className={`${classes.chartCard} ${classes.toneGreen}`} radius="md" p="lg" role="img"><Title className={classes.chartTitle} order={2}>Ocupación de estaciones</Title><Text c="dimmed" size="sm">Bicicletas registradas frente a la capacidad informada.</Text>{visibleStations.length === 0 ? <Text c="dimmed" mt="lg">No hay estaciones para representar.</Text> : <Stack gap="md" mt="lg">{visibleStations.map((station) => { const count = bikes.filter((bike) => bike.stationId === station.id).length; const percentage = station.capacity === 0 ? 0 : Math.min(100, count / station.capacity * 100); return <div key={station.id}><Group justify="space-between" gap="sm"><Text className={classes.stationLabel}>{station.name}</Text><Text c="dimmed" size="xs">{count} / {station.capacity}</Text></Group><div className={classes.capacityTrack}><div className={classes.capacityFill} style={{ width: `${percentage}%` }} /></div></div>; })}</Stack>}</Paper>;
+  const [query, setQuery] = useState('');
+  const visibleStations = useMemo(() => {
+    const normalizedQuery = normalizeSearch(query);
+    if (!normalizedQuery) return stations;
+    return stations.filter((station) => normalizeSearch(`${station.name} ${station.address}`).includes(normalizedQuery));
+  }, [query, stations]);
+
+  return (
+    <Paper aria-label="Ocupación de estaciones" className={`${classes.chartCard} ${classes.toneGreen}`} radius="md" p="lg" role="img">
+      <Group align="flex-end" justify="space-between" wrap="wrap">
+        <div>
+          <Title className={classes.chartTitle} order={2}>Ocupación de estaciones</Title>
+          <Text c="dimmed" size="sm">Consultá todas las estaciones y compará las bicicletas registradas con su capacidad.</Text>
+        </div>
+        <TextInput
+          aria-label="Buscar estación en ocupación"
+          className={classes.stationSearch}
+          leftSection={<Search size={16} />}
+          onChange={(event) => setQuery(event.currentTarget.value)}
+          placeholder="Buscar estación"
+          value={query}
+        />
+      </Group>
+      <Text className={classes.stationCount} mt="md" size="xs">{visibleStations.length} de {stations.length} estaciones</Text>
+      {stations.length === 0 ? <Text c="dimmed" mt="lg">No hay estaciones para representar.</Text> : null}
+      {stations.length > 0 && visibleStations.length === 0 ? <Text c="dimmed" mt="lg">No encontramos estaciones con esa búsqueda.</Text> : null}
+      {visibleStations.length > 0 ? (
+        <ScrollArea.Autosize mah={430} mt="md" offsetScrollbars type="auto">
+          <Stack className={classes.stationCapacityList} gap="md">
+            {visibleStations.map((station) => {
+              const count = bikes.filter((bike) => bike.stationId === station.id).length;
+              const percentage = station.capacity === 0 ? 0 : Math.min(100, count / station.capacity * 100);
+              return <div key={station.id}><Group justify="space-between" gap="sm"><Text className={classes.stationLabel}>{station.name}</Text><Text c="dimmed" size="xs">{count} / {station.capacity}</Text></Group><div className={classes.capacityTrack}><div className={classes.capacityFill} style={{ width: `${percentage}%` }} /></div></div>;
+            })}
+          </Stack>
+        </ScrollArea.Autosize>
+      ) : null}
+    </Paper>
+  );
 }
 
 function incidentChartData(incidents: AdminIncidentResponse[]): ChartDatum[] {
@@ -261,6 +298,7 @@ function maintenanceChartData(maintenance: MaintenanceResponse[]): ChartDatum[] 
 
 function countBikes(bikes: BikeResponse[], status: BikeStatus) { return bikes.filter((bike) => bike.status === status).length; }
 function capitalize(value: string) { return `${value.charAt(0).toUpperCase()}${value.slice(1)}`; }
+function normalizeSearch(value: string) { return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('es-AR'); }
 
 function LoadingState() {
   return <Paper className={classes.statePanel} radius="md" p="xl"><Stack align="center"><Loader color="citypassUrbanBlue" /><Text c="dimmed">Cargando información administrativa...</Text></Stack></Paper>;

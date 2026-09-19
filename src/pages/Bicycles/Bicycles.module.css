@@ -30,8 +30,43 @@
 }
 
 .selectionPanel { border-top: 4px solid #5e9fce; }
-.activeTripPanel { border-top: 4px solid var(--citypass-urban-green); }
+.activeTripPanel {
+  overflow: hidden;
+  border-top: 4px solid var(--citypass-urban-green);
+  background: linear-gradient(140deg, color-mix(in srgb, var(--citypass-urban-green) 7%, white), white 48%);
+}
 .completedTripPanel { border-top: 4px solid var(--citypass-urban-blue); }
+
+.activeTripHeader {
+  margin: -1.5rem -1.5rem 0;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--citypass-urban-green) 20%, white);
+  background: color-mix(in srgb, var(--citypass-urban-green) 8%, white);
+}
+
+.activeTripIcon {
+  display: grid;
+  width: 50px;
+  height: 50px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 1rem;
+  color: white;
+  background: var(--citypass-urban-green);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--citypass-urban-green) 28%, transparent);
+}
+
+.activeTripEyebrow { color: var(--citypass-urban-green); font-size: 0.68rem; font-weight: 850; letter-spacing: 0.1em; }
+.activeTripTitle { color: var(--citypass-night-blue); font-size: 1.25rem; }
+
+.activeMetrics .tripMetric {
+  min-height: 5rem;
+  border: 1px solid color-mix(in srgb, var(--citypass-urban-green) 22%, white);
+  border-left: 1px solid color-mix(in srgb, var(--citypass-urban-green) 22%, white);
+  border-radius: 0.7rem;
+  padding: 0.8rem 0.9rem 0.8rem 2.75rem;
+  background: white;
+}
 
 .statePanel {
   display: grid;
@@ -60,9 +95,12 @@
 }
 
 .tripMetric {
+  position: relative;
   border-left: 3px solid var(--citypass-urban-green);
   padding-left: 0.75rem;
 }
+
+.tripMetricIcon { position: absolute; top: 0.9rem; left: 0.85rem; color: var(--citypass-urban-green); }
 
 .metricLabel {
   color: var(--citypass-medium-gray);

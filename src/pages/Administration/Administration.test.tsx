@@ -106,6 +106,30 @@ describe('AdministrationPage', () => {
     expect(bikeService.getByStation).toHaveBeenCalledWith(2);
   });
 
+  it('permite buscar en la ocupación sin ocultar estaciones por cantidad', async () => {
+    mockData();
+    const stations = Array.from({ length: 10 }, (_, index) => ({
+      id: index + 1,
+      name: index === 9 ? 'Estación Décima' : `Estación ${index + 1}`,
+      address: `Calle ${index + 1}`,
+      latitude: -34.6,
+      longitude: -58.38,
+      capacity: 20,
+      status: 'ACTIVE' as const,
+      createdAt: '2026-09-01T12:00:00Z',
+      updatedAt: '2026-09-01T12:00:00Z',
+      deletedAt: null,
+    }));
+    vi.mocked(stationService.getAll).mockResolvedValueOnce(stations);
+
+    renderPage();
+
+    expect(await screen.findByText('10 de 10 estaciones')).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Buscar estación en ocupación' }), { target: { value: 'decima' } });
+    expect(screen.getByText('1 de 10 estaciones')).toBeInTheDocument();
+    expect(screen.getByText('Estación Décima')).toBeInTheDocument();
+  });
+
   it('carga incidencias reales dentro de la administración de Movilidad', async () => {
     mockData();
 

@@ -67,6 +67,9 @@
 .donutTotal { color: var(--citypass-night-blue); font-size: 1.55rem; font-weight: 850; line-height: 1; }
 .legendDot { width: 0.65rem; height: 0.65rem; flex: 0 0 auto; border-radius: 50%; }
 .stationLabel { overflow: hidden; color: var(--citypass-night-blue); font-size: 0.84rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.stationSearch { width: min(100%, 18rem); }
+.stationCount { color: var(--citypass-urban-green); font-weight: 750; }
+.stationCapacityList { padding-right: 0.6rem; }
 .capacityTrack { height: 0.6rem; margin-top: 0.35rem; }
 .capacityFill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--citypass-urban-green), #75af93); }
 

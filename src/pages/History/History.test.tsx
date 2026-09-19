@@ -25,6 +25,7 @@ describe('HistoryPage', () => {
     expect(await screen.findByText(/Plaza Norte/)).toBeInTheDocument();
     expect(screen.getByText('Parque Sur', { exact: false })).toBeInTheDocument();
     expect(screen.getAllByText('1 h 05 min')).toHaveLength(2);
+    expect(screen.getByText('Completado')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Anterior' })).toBeDisabled();
     expect(screen.getByRole('tab', { name: 'Historial' })).toHaveAttribute('data-active', 'true');
     expect(tripService.getHistory).toHaveBeenCalledWith(7, 0, 10);
