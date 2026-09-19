@@ -76,6 +76,7 @@
 .inlineOccupancy { width: min(12rem, 22vw); min-width: 8rem; }
 .inlineCapacityTrack { overflow: hidden; height: 0.42rem; margin-top: 0.35rem; border-radius: 999px; background: color-mix(in srgb, var(--citypass-concrete) 75%, white); }
 .inlineCapacityFill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--citypass-urban-green), #75af93); }
+.stationManagementSearch { width: min(100%, 22rem); }
 
 @media (max-width: 42rem) {
   .barRow { grid-template-columns: 1fr 2rem; }

@@ -12,7 +12,8 @@ import {
   Title,
 } from "@mantine/core";
 import { isAxiosError } from "axios";
-import { useCallback, useEffect, useState } from "react";
+import { Search } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { stationService } from "../../services/stations/stationService";
 import type {
@@ -246,34 +247,64 @@ function StationTable({
   onDeactivate: (station: Station) => void;
   onEdit: (station: Station) => void;
 }) {
+  const [query, setQuery] = useState("");
+  const visibleStations = useMemo(() => {
+    const normalizedQuery = normalizeSearch(query);
+    if (!normalizedQuery) return stations;
+    return stations.filter((station) =>
+      normalizeSearch(`${station.name} ${station.address ?? ""} ${stationStatusLabels[station.status]}`).includes(normalizedQuery),
+    );
+  }, [query, stations]);
+
   if (loading) return <Text>Cargando estaciones...</Text>;
   if (stations.length === 0)
     return <Text c="dimmed">No hay estaciones registradas.</Text>;
 
   return (
     <Paper className={classes.tablePanel} p="md">
-      <Table>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>Nombre</Table.Th>
-            <Table.Th>Dirección</Table.Th>
-            <Table.Th>Ocupación</Table.Th>
-            <Table.Th>Estado</Table.Th>
-            <Table.Th />
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {stations.map((station) => (
-            <StationRow
-              key={station.id}
-              bikeCount={bikeCountByStation.get(station.id) ?? 0}
-              station={station}
-              onDeactivate={onDeactivate}
-              onEdit={onEdit}
-            />
-          ))}
-        </Table.Tbody>
-      </Table>
+      <Stack gap="md">
+        <Group justify="space-between" align="flex-end" wrap="wrap">
+          <div>
+            <Title className={classes.sectionTitle} order={2}>Estaciones registradas</Title>
+            <Text c="dimmed" size="sm">Consultá la ocupación y gestioná cada estación.</Text>
+          </div>
+          <TextInput
+            aria-label="Buscar estación para gestionar"
+            className={classes.stationManagementSearch}
+            leftSection={<Search size={16} />}
+            onChange={(event) => setQuery(event.currentTarget.value)}
+            placeholder="Buscar por nombre, dirección o estado"
+            value={query}
+          />
+        </Group>
+        <Text className={classes.stationCount} size="xs">{visibleStations.length} de {stations.length} estaciones</Text>
+        {visibleStations.length === 0 ? (
+          <Text c="dimmed">No encontramos estaciones con esa búsqueda.</Text>
+        ) : (
+          <Table>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>Nombre</Table.Th>
+                <Table.Th>Dirección</Table.Th>
+                <Table.Th>Ocupación</Table.Th>
+                <Table.Th>Estado</Table.Th>
+                <Table.Th />
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {visibleStations.map((station) => (
+                <StationRow
+                  key={station.id}
+                  bikeCount={bikeCountByStation.get(station.id) ?? 0}
+                  station={station}
+                  onDeactivate={onDeactivate}
+                  onEdit={onEdit}
+                />
+              ))}
+            </Table.Tbody>
+          </Table>
+        )}
+      </Stack>
     </Paper>
   );
 }
@@ -392,4 +423,8 @@ function getErrorMessage(error: unknown): string {
   if (error.response?.status === 404)
     return "El recurso solicitado ya no existe.";
   return "No se pudo completar la operación. Intentá nuevamente.";
+}
+
+function normalizeSearch(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLocaleLowerCase("es-AR");
 }
