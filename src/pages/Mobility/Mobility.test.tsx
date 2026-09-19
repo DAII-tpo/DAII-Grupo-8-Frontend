@@ -126,6 +126,16 @@ describe('MobilityPage', () => {
     expect(screen.getByRole('link', { name: 'Reportar problema' })).toHaveAttribute('href', '/movilidad/reportes');
   });
 
+  it('mantiene una acción útil cuando no encuentra estaciones cercanas', async () => {
+    getCurrentPosition.mockImplementationOnce((success) => success({ coords: { latitude: -34.6037, longitude: -58.3816 } } as GeolocationPosition));
+    vi.mocked(stationService.getNearby).mockResolvedValueOnce([]);
+
+    renderPage();
+
+    expect(await screen.findByText('No encontramos estaciones dentro del radio cercano. Hay 1 registradas para consultar en el mapa.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ver todas las estaciones' })).toHaveAttribute('href', '/movilidad/mapa');
+  });
+
   it('mantiene la navegación interna y permite abrir el mapa', async () => {
     renderPage();
 

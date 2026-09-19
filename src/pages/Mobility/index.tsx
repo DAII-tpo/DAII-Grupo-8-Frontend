@@ -240,12 +240,17 @@ function RecentTripCard({ trip, isLoading }: { trip: TripResponse | null; isLoad
         <div><Text className={classes.eyebrow}>Actividad reciente</Text><Title className={classes.detailTitle} order={2}>Último viaje</Title></div>
         <div className={`${classes.detailIcon} ${classes.detailIconBlue}`}><History size={22} /></div>
       </Group>
-      {isLoading ? <Loader color="citypassUrbanBlue" size="sm" /> : null}
-      {!isLoading && !trip ? <Text c="dimmed">Todavía no tenés viajes finalizados.</Text> : null}
+      {isLoading ? <div className={classes.detailBody}><Loader color="citypassUrbanBlue" size="sm" /></div> : null}
+      {!isLoading && !trip ? (
+        <Stack className={classes.detailBody} gap="sm">
+          <Text c="dimmed">Todavía no tenés viajes finalizados.</Text>
+          <Button renderRoot={(props) => <NavLink {...props} to="/movilidad/bicicletas" />} className={classes.inlineButton} rightSection={<ArrowRight size={16} />} variant="subtle">Iniciar un viaje</Button>
+        </Stack>
+      ) : null}
       {!isLoading && trip ? (
-        <Stack gap="sm">
+        <Stack className={classes.detailBody} gap="sm">
           <Text className={classes.routeText}>{trip.originStationName} <span>→</span> {trip.destinationStationName ?? 'Sin destino informado'}</Text>
-          <Group gap="lg" wrap="wrap">
+          <Group className={classes.detailMetrics} gap="sm" wrap="wrap">
             <DetailMetric label="Fecha" value={formatDateTime(trip.startedAt)} />
             <DetailMetric label="Duración" value={formatDuration(trip.durationSeconds)} />
             <DetailMetric label="Bicicleta" value={trip.bikeCode} />
@@ -264,13 +269,23 @@ function NearbyStationCard({ locationState, station, stationCount }: { locationS
         <div><Text className={classes.eyebrow}>Cerca tuyo</Text><Title className={classes.detailTitle} order={2}>Estación recomendada</Title></div>
         <div className={`${classes.detailIcon} ${classes.detailIconGreen}`}><MapPin size={22} /></div>
       </Group>
-      {locationState === 'loading' ? <Group gap="sm"><Loader color="citypassUrbanGreen" size="sm" /><Text c="dimmed">Buscando estaciones cercanas...</Text></Group> : null}
-      {locationState === 'unavailable' ? <Text c="dimmed">Permití el acceso a tu ubicación para recibir una recomendación cercana.</Text> : null}
-      {locationState === 'available' && !station ? <Text c="dimmed">No encontramos estaciones dentro del radio cercano. Hay {stationCount ?? 0} registradas para consultar en el mapa.</Text> : null}
+      {locationState === 'loading' ? <Group className={classes.detailBody} align="flex-start" gap="sm"><Loader color="citypassUrbanGreen" size="sm" /><Text c="dimmed">Buscando estaciones cercanas...</Text></Group> : null}
+      {locationState === 'unavailable' ? (
+        <Stack className={classes.detailBody} gap="sm">
+          <Text c="dimmed">Permití el acceso a tu ubicación para recibir una recomendación cercana.</Text>
+          <Button renderRoot={(props) => <NavLink {...props} to="/movilidad/mapa" />} className={classes.inlineButton} rightSection={<ArrowRight size={16} />} variant="subtle">Ver mapa de estaciones</Button>
+        </Stack>
+      ) : null}
+      {locationState === 'available' && !station ? (
+        <Stack className={classes.detailBody} gap="sm">
+          <Text c="dimmed">No encontramos estaciones dentro del radio cercano. Hay {stationCount ?? 0} registradas para consultar en el mapa.</Text>
+          <Button renderRoot={(props) => <NavLink {...props} to="/movilidad/mapa" />} className={classes.inlineButton} rightSection={<ArrowRight size={16} />} variant="subtle">Ver todas las estaciones</Button>
+        </Stack>
+      ) : null}
       {station ? (
-        <Stack gap="sm">
+        <Stack className={classes.detailBody} gap="sm">
           <div><Text className={classes.routeText}>{station.stationName}</Text><Text c="dimmed" size="sm">{station.address}</Text></div>
-          <Group gap="lg">
+          <Group className={classes.detailMetrics} gap="sm" wrap="wrap">
             <DetailMetric label="Distancia" value={formatDistance(station.distanceMeters)} />
             <DetailMetric label="Bicicletas" value={String(station.availableBikes)} />
             <DetailMetric label="Espacios" value={String(station.availableSlots)} />
