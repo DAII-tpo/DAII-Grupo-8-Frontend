@@ -17,6 +17,7 @@ import { AlertCircle, Bike, Play, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
+import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { currentUserId } from '../../config/currentUser';
 import { bikeService } from '../../services/bikes/bikeService';
 import { stationService } from '../../services/stations/stationService';
@@ -25,16 +26,17 @@ import type { BikeResponse } from '../../types/bike';
 import type { Station } from '../../types/station';
 import type { StationAvailability } from '../../types/stationAvailability';
 import type { TripResponse } from '../../types/trip';
+import pageClasses from '../../styles/mobilityPage.module.css';
 
 import classes from './Bicycles.module.css';
 
 export function BicyclesPage() {
   return (
-    <Stack gap="lg">
-      <div>
-        <Title className={classes.title} order={1}>Bicicletas y viajes</Title>
-        <Text className={classes.subtitle}>Elegí una estación y una bicicleta disponible para iniciar tu viaje.</Text>
-      </div>
+    <Stack className={pageClasses.page} gap="lg">
+      <MobilityPageHeader
+        title="Bicicletas y viajes"
+        subtitle="Elegí una estación y una bicicleta disponible para iniciar tu viaje."
+      />
 
       <MobilityNavigation />
 

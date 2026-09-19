@@ -93,7 +93,14 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
 
       try {
         const nearbyStations = await stationService.getNearby({ lat: location[0], lng: location[1] });
-        setStations(nearbyStations.map(toNearbyMapStation));
+        if (nearbyStations.length > 0) {
+          setStations(nearbyStations.map(toNearbyMapStation));
+          setIsFallback(false);
+        } else {
+          const allStations = await stationService.getAll();
+          setStations(allStations.map(toFallbackMapStation));
+          setIsFallback(true);
+        }
       } catch {
         setBackendError(true);
       } finally {
@@ -145,7 +152,10 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
     }
   };
 
-  const mapCenter = userLocation ?? (stations[0] ? [stations[0].latitude, stations[0].longitude] : null);
+  const firstStationCenter: Coordinates | null = stations[0]
+    ? [stations[0].latitude, stations[0].longitude]
+    : null;
+  const mapCenter = isFallback ? firstStationCenter : userLocation ?? firstStationCenter;
 
   return (
     <Stack gap="lg">

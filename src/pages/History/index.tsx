@@ -4,10 +4,12 @@ import { AlertCircle, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react';
 
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
+import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { currentUserId } from '../../config/currentUser';
 import { tripService } from '../../services/trips/tripService';
 import type { PagedResponse } from '../../types/pagination';
 import type { TripResponse } from '../../types/trip';
+import pageClasses from '../../styles/mobilityPage.module.css';
 
 import classes from './History.module.css';
 
@@ -39,7 +41,7 @@ export function HistoryPage() {
 
   useEffect(() => { void Promise.resolve().then(() => loadHistory(page)); }, [loadHistory, page]);
 
-  return <Stack gap="lg"><Title className={classes.title} order={1}>Historial</Title><MobilityNavigation />{isLoading ? <LoadingState /> : null}{error ? <ErrorState message={error} onRetry={() => void loadHistory(page)} /> : null}{!isLoading && !error && history?.content.length === 0 ? <EmptyState /> : null}{!isLoading && !error && history && history.content.length > 0 ? <><Stack gap="sm">{history.content.map((trip) => <TripCard key={trip.id} trip={trip} />)}</Stack><Group justify="space-between"><Button disabled={history.page === 0} leftSection={<ChevronLeft size={16} />} onClick={() => setPage((current) => current - 1)} variant="default">Anterior</Button><Text c="dimmed" size="sm">Página {history.page + 1} de {Math.max(history.totalPages, 1)}</Text><Button disabled={history.last} onClick={() => setPage((current) => current + 1)} rightSection={<ChevronRight size={16} />}>Siguiente</Button></Group></> : null}</Stack>;
+  return <Stack className={pageClasses.page} gap="lg"><MobilityPageHeader title="Historial" subtitle="Revisá tus viajes finalizados y el detalle de cada recorrido." /><MobilityNavigation />{isLoading ? <LoadingState /> : null}{error ? <ErrorState message={error} onRetry={() => void loadHistory(page)} /> : null}{!isLoading && !error && history?.content.length === 0 ? <EmptyState /> : null}{!isLoading && !error && history && history.content.length > 0 ? <><Stack gap="sm">{history.content.map((trip) => <TripCard key={trip.id} trip={trip} />)}</Stack><Group justify="space-between"><Button disabled={history.page === 0} leftSection={<ChevronLeft size={16} />} onClick={() => setPage((current) => current - 1)} variant="default">Anterior</Button><Text c="dimmed" size="sm">Página {history.page + 1} de {Math.max(history.totalPages, 1)}</Text><Button disabled={history.last} onClick={() => setPage((current) => current + 1)} rightSection={<ChevronRight size={16} />}>Siguiente</Button></Group></> : null}</Stack>;
 }
 
 function LoadingState() { return <Paper className={classes.statePanel} radius="md" p="xl"><Stack align="center"><Loader color="citypassUrbanBlue" /><Text c="dimmed">Cargando tus viajes...</Text></Stack></Paper>; }

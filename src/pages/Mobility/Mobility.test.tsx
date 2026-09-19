@@ -42,6 +42,19 @@ const nearbyStation = {
   availableSlots: 13,
 };
 
+const station = {
+  id: 2,
+  name: 'Estacion Parque',
+  address: 'Av. Santa Fe 500',
+  latitude: -34.59,
+  longitude: -58.39,
+  capacity: 18,
+  status: 'ACTIVE' as const,
+  createdAt: '2026-09-01T12:00:00Z',
+  updatedAt: '2026-09-01T12:00:00Z',
+  deletedAt: null,
+};
+
 function CurrentPath() {
   const location = useLocation();
   return <output data-testid="current-path">{location.pathname}</output>;
@@ -98,13 +111,15 @@ describe('MobilityPage', () => {
     expect(screen.getAllByText('320 m')).toHaveLength(2);
   });
 
-  it('muestra el estado vacío real si nearby no devuelve estaciones', async () => {
+  it('muestra las estaciones registradas si nearby no devuelve estaciones', async () => {
     mockLocationSuccess();
     vi.mocked(stationService.getNearby).mockResolvedValueOnce([]);
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([station]);
 
     renderMobilityPage();
 
-    expect(await screen.findByText('No se encontraron estaciones activas dentro del radio de búsqueda.')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Estacion Parque' })).toBeInTheDocument();
+    expect(stationService.getAll).toHaveBeenCalledOnce();
   });
 
   it('marca Inicio como activo y mantiene la navegación al mapa', () => {

@@ -4,11 +4,13 @@ import { AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
+import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { currentUserId } from '../../config/currentUser';
 import { incidentService } from '../../services/incidents/incidentService';
 import { tripService } from '../../services/trips/tripService';
 import type { IncidentResponse, IncidentTypeResponse } from '../../types/incident';
 import type { TripResponse } from '../../types/trip';
+import pageClasses from '../../styles/mobilityPage.module.css';
 
 import classes from './Reports.module.css';
 
@@ -91,8 +93,11 @@ export function ReportsPage() {
   };
 
   return (
-    <Stack gap="lg">
-      <Title className={classes.title} order={1}>Reportar problema</Title>
+    <Stack className={pageClasses.page} gap="lg">
+      <MobilityPageHeader
+        title="Reportar un problema"
+        subtitle="Informá una incidencia relacionada con la bicicleta que estás utilizando."
+      />
       <MobilityNavigation />
 
       {isLoading ? <LoadingState /> : null}

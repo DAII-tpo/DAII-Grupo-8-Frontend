@@ -134,14 +134,16 @@ describe('MapPage', () => {
     expect(screen.getAllByText('320 m')).toHaveLength(2);
   });
 
-  it('muestra un estado vacío cuando no hay estaciones cercanas', async () => {
+  it('muestra todas las estaciones cuando no hay estaciones cercanas', async () => {
     mockLocationSuccess();
     vi.mocked(stationService.getNearby).mockResolvedValueOnce([]);
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([station]);
 
     renderPage();
 
-    expect(await screen.findByText('No se encontraron estaciones activas dentro del radio de búsqueda.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Estacion Centro' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Estacion Parque' })).toBeInTheDocument();
+    expect(stationService.getAll).toHaveBeenCalledOnce();
+    expect(screen.queryByText('No se encontraron estaciones activas dentro del radio de búsqueda.')).not.toBeInTheDocument();
   });
 
   it('usa estaciones registradas sin llamar nearby cuando la geolocalización es denegada', async () => {

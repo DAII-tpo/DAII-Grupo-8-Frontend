@@ -1,10 +1,12 @@
-import { Badge, Group, Paper, SimpleGrid, Stack, Text, Title } from '@mantine/core';
+import { Badge, Group, Paper, SimpleGrid, Stack, Text } from '@mantine/core';
 import { Bike, ClipboardList, History, MapPin, ParkingCircle, Route, Settings } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { NavLink } from 'react-router-dom';
 
 import { StationsMap } from '../../components/mobility/StationsMap';
+import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
+import pageClasses from '../../styles/mobilityPage.module.css';
 
 import classes from './Mobility.module.css';
 
@@ -27,14 +29,12 @@ const mobilityAreas: MobilityArea[] = [
 
 export function MobilityPage() {
   return (
-    <Stack gap="md">
-      <Group justify="space-between" align="flex-start">
-        <Stack gap={4}>
-          <Title className={classes.title} order={1}>Movilidad Urbana</Title>
-          <Text className={classes.subtitle}>Mapa, estaciones, bicicletas, viajes y gestión del módulo.</Text>
-        </Stack>
-        <Badge className={classes.statusBadge}>Mapa en tiempo real</Badge>
-      </Group>
+    <Stack className={pageClasses.page} gap="lg">
+      <MobilityPageHeader
+        title="Mi movilidad"
+        subtitle="Mapa, estaciones, bicicletas y viajes en un solo lugar."
+        action={<Badge className={classes.statusBadge}>Mapa en tiempo real</Badge>}
+      />
 
       <MobilityNavigation />
 

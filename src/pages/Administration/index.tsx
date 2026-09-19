@@ -4,6 +4,7 @@ import { AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
+import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { currentUserId } from '../../config/currentUser';
 import { incidentService } from '../../services/incidents/incidentService';
 import { maintenanceService } from '../../services/maintenance/maintenanceService';
@@ -11,6 +12,7 @@ import { BikeManagement } from './BikeManagement';
 import { StationManagement } from './StationManagement';
 import type { AdminIncidentResponse, IncidentStatus } from '../../types/incident';
 import type { MaintenanceResponse } from '../../types/maintenance';
+import pageClasses from '../../styles/mobilityPage.module.css';
 
 import classes from './Administration.module.css';
 
@@ -122,9 +124,12 @@ export function AdministrationPage() {
   };
 
   return (
-    <Stack gap="lg">
-      <Title className={classes.title} order={1}>Administración</Title>
-      <MobilityNavigation />
+    <Stack className={pageClasses.page} gap="lg">
+      <MobilityPageHeader
+        title="Administración"
+        subtitle="Gestioná incidencias, mantenimiento, estaciones y bicicletas."
+      />
+      <MobilityNavigation showAdministration />
 
       {isLoading ? <LoadingState /> : null}
       {loadError ? <LoadError message={loadError} onRetry={() => void loadAdministrationData()} /> : null}
