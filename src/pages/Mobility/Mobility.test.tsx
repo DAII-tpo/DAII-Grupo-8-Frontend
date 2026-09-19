@@ -96,11 +96,16 @@ describe('MobilityPage', () => {
   it('integra el mapa real, las estaciones cercanas y la selección de una estación', async () => {
     mockLocationSuccess();
     vi.mocked(stationService.getNearby).mockResolvedValueOnce([nearbyStation]);
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([
+      { ...station, id: 1, name: 'Estacion Centro', address: 'Av. Corrientes 100' },
+      station,
+    ]);
 
     renderMobilityPage();
 
     expect(await screen.findByTestId('map')).toBeInTheDocument();
     expect(stationService.getNearby).toHaveBeenCalledWith({ lat: -34.6037, lng: -58.3816 });
+    expect(screen.getByRole('button', { name: 'Estacion Parque' })).toBeInTheDocument();
     expect(screen.getByText('Estaciones cercanas')).toBeInTheDocument();
     expect(screen.queryByText('Estacion Plaza Norte')).not.toBeInTheDocument();
     expect(screen.queryByText('Reservar bicicleta')).not.toBeInTheDocument();
