@@ -48,6 +48,13 @@ export function AdministrationPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const bikeCountByStation = useMemo(() => {
+    const counts = new Map<number, number>();
+    bikes.forEach((bike) => {
+      if (bike.stationId !== null) counts.set(bike.stationId, (counts.get(bike.stationId) ?? 0) + 1);
+    });
+    return counts;
+  }, [bikes]);
 
   const loadAdministrationData = useCallback(async () => {
     if (userId === null) {
@@ -179,7 +186,7 @@ export function AdministrationPage() {
                 />
               </Stack>
             </Tabs.Panel>
-            <Tabs.Panel pt="md" value="stations"><Stack gap="lg"><StationCapacityChart bikes={bikes} stations={stations} /><StationManagement /></Stack></Tabs.Panel>
+            <Tabs.Panel pt="md" value="stations"><StationManagement bikeCountByStation={bikeCountByStation} /></Tabs.Panel>
             <Tabs.Panel pt="md" value="bikes"><Stack gap="lg"><BikeStatusChart bikes={bikes} /><BikeManagement /></Stack></Tabs.Panel>
           </Tabs>
         </>

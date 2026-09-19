@@ -35,8 +35,13 @@ const stationStatusOptions = [
   { value: "INACTIVE", label: "Inactiva" },
   { value: "MAINTENANCE", label: "Mantenimiento" },
 ];
+const stationStatusLabels: Record<StationStatus, string> = {
+  ACTIVE: "Activa",
+  INACTIVE: "Inactiva",
+  MAINTENANCE: "En mantenimiento",
+};
 
-export function StationManagement() {
+export function StationManagement({ bikeCountByStation }: { bikeCountByStation: ReadonlyMap<number, number> }) {
   const [stations, setStations] = useState<Station[]>([]);
   const [form, setForm] = useState<StationRequest>(emptyForm);
   const [editing, setEditing] = useState<Station | null>(null);
@@ -136,6 +141,7 @@ export function StationManagement() {
         onConfirm={() => void handleDeactivate()}
       />
       <StationTable
+        bikeCountByStation={bikeCountByStation}
         loading={loading}
         stations={stations}
         onDeactivate={setStationToDeactivate}
@@ -228,11 +234,13 @@ function StationForm({
 }
 
 function StationTable({
+  bikeCountByStation,
   loading,
   stations,
   onDeactivate,
   onEdit,
 }: {
+  bikeCountByStation: ReadonlyMap<number, number>;
   loading: boolean;
   stations: Station[];
   onDeactivate: (station: Station) => void;
@@ -249,7 +257,7 @@ function StationTable({
           <Table.Tr>
             <Table.Th>Nombre</Table.Th>
             <Table.Th>Dirección</Table.Th>
-            <Table.Th>Capacidad</Table.Th>
+            <Table.Th>Ocupación</Table.Th>
             <Table.Th>Estado</Table.Th>
             <Table.Th />
           </Table.Tr>
@@ -258,6 +266,7 @@ function StationTable({
           {stations.map((station) => (
             <StationRow
               key={station.id}
+              bikeCount={bikeCountByStation.get(station.id) ?? 0}
               station={station}
               onDeactivate={onDeactivate}
               onEdit={onEdit}
@@ -270,20 +279,33 @@ function StationTable({
 }
 
 function StationRow({
+  bikeCount,
   station,
   onDeactivate,
   onEdit,
 }: {
+  bikeCount: number;
   station: Station;
   onDeactivate: (station: Station) => void;
   onEdit: (station: Station) => void;
 }) {
+  const occupancyPercentage = station.capacity === 0 ? 0 : Math.min(100, bikeCount / station.capacity * 100);
   return (
     <Table.Tr>
       <Table.Td>{station.name}</Table.Td>
       <Table.Td>{station.address || "Sin dirección"}</Table.Td>
-      <Table.Td>{station.capacity}</Table.Td>
-      <Table.Td>{station.status}</Table.Td>
+      <Table.Td>
+        <div className={classes.inlineOccupancy}>
+          <Group gap="xs" justify="space-between" wrap="nowrap">
+            <Text fw={750} size="sm">{bikeCount} / {station.capacity}</Text>
+            <Text c="dimmed" size="xs">bicicletas</Text>
+          </Group>
+          <div className={classes.inlineCapacityTrack}>
+            <div className={classes.inlineCapacityFill} style={{ width: `${occupancyPercentage}%` }} />
+          </div>
+        </div>
+      </Table.Td>
+      <Table.Td>{stationStatusLabels[station.status]}</Table.Td>
       <Table.Td>
         <Group>
           <Button

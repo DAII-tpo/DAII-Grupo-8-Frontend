@@ -232,6 +232,7 @@ describe('AdministrationPage', () => {
     expect(screen.getByRole('tab', { name: 'Mantenimiento' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Estaciones' }));
     expect(screen.getByText('Gestión de estaciones')).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Ocupación de estaciones' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Bicicletas' }));
     expect(screen.getByText('Gestión de bicicletas')).toBeInTheDocument();
   });
