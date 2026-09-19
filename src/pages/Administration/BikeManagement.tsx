@@ -32,6 +32,16 @@ const bikeStatuses: BikeStatus[] = [
   "OUT_OF_SERVICE",
   "STOLEN",
 ];
+const bikeStatusLabels: Record<BikeStatus, string> = {
+  AVAILABLE: "Disponible",
+  IN_USE: "En uso",
+  MAINTENANCE: "En mantenimiento",
+  OUT_OF_SERVICE: "Fuera de servicio",
+  STOLEN: "Robada",
+};
+
+const toStatusOptions = (statuses: BikeStatus[]) =>
+  statuses.map((status) => ({ value: status, label: bikeStatusLabels[status] }));
 
 export function BikeManagement() {
   const [stations, setStations] = useState<Station[]>([]);
@@ -182,8 +192,9 @@ export function BikeManagement() {
               onChange={(e) => void loadBikes(e.currentTarget.value)}
             />
             <NativeSelect
+              aria-label="Estado inicial"
               label="Estado inicial"
-              data={initialStatuses}
+              data={toStatusOptions(initialStatuses)}
               value={createStatus}
               onChange={(e) =>
                 setCreateStatus(
@@ -216,7 +227,10 @@ export function BikeManagement() {
             <NativeSelect
               aria-label="Filtro de estado"
               label="Filtrar por estado"
-              data={["ALL", ...bikeStatuses]}
+              data={[
+                { value: "ALL", label: "Todos los estados" },
+                ...toStatusOptions(bikeStatuses),
+              ]}
               value={filter}
               onChange={(e) => setFilter(e.currentTarget.value)}
             />
@@ -296,14 +310,14 @@ function BikeRow({
   return (
     <Table.Tr>
       <Table.Td>{bike.code}</Table.Td>
-      <Table.Td>{bike.status}</Table.Td>
+      <Table.Td>{bikeStatusLabels[bike.status]}</Table.Td>
       <Table.Td>
         <Group>
           <NativeSelect
             aria-label={`Cambiar estado ${bike.code}`}
             data={[
               { value: "", label: "Cambiar estado" },
-              ...targets.map((status) => ({ value: status, label: status })),
+              ...toStatusOptions(targets),
             ]}
             onChange={(e) =>
               e.currentTarget.value &&
@@ -338,7 +352,7 @@ function BikeRow({
     </Table.Tr>
   );
 }
-function nextStatuses(status: BikeStatus) {
+function nextStatuses(status: BikeStatus): BikeStatus[] {
   if (status === "AVAILABLE")
     return ["MAINTENANCE", "OUT_OF_SERVICE", "STOLEN"];
   if (status === "MAINTENANCE")

@@ -1,6 +1,6 @@
 import { Badge, Button, Group, Loader, Paper, Stack, Text, Title } from '@mantine/core';
 import { isAxiosError } from 'axios';
-import { Activity, Bike, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock3, MapPin, Route } from 'lucide-react';
+import { Activity, Bike, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Flag, Play, Route } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
@@ -16,6 +16,7 @@ import pageClasses from '../../styles/mobilityPage.module.css';
 import classes from './History.module.css';
 
 const pageSize = 10;
+const argentinaTimeZone = 'America/Argentina/Buenos_Aires';
 const tripStatusLabels: Record<TripResponse['status'], string> = {
   ACTIVE: 'En curso',
   COMPLETED: 'Completado',
@@ -77,7 +78,10 @@ function TripCard({ trip }: { trip: TripResponse }) {
           <div>
             <Text className={classes.tripEyebrow}>VIAJE #{trip.id}</Text>
             <Title className={classes.tripTitle} order={2}>{trip.originStationName} <span aria-hidden="true">→</span> {trip.destinationStationName ?? 'Sin destino informado'}</Title>
-            <Text c="dimmed" size="sm">{formatDateTime(trip.startedAt)}</Text>
+            <Group className={classes.tripDate} gap={6} mt={3}>
+              <CalendarDays size={14} />
+              <Text size="sm">{formatDate(trip.startedAt)}</Text>
+            </Group>
           </div>
         </Group>
         <Badge color={isCompleted ? 'citypassUrbanGreen' : 'citypassUrbanBlue'} size="lg" variant="light">{tripStatusLabels[trip.status]}</Badge>
@@ -85,7 +89,8 @@ function TripCard({ trip }: { trip: TripResponse }) {
       <Group className={classes.metrics} mt="md" wrap="wrap">
         <Metric icon={Bike} label="Bicicleta" value={trip.bikeCode} />
         <Metric icon={Clock3} label="Duración" value={formatDuration(trip.durationSeconds)} />
-        {trip.endedAt ? <Metric icon={MapPin} label="Finalizado" value={formatDateTime(trip.endedAt)} /> : null}
+        <Metric icon={Play} label="Hora de inicio" value={formatTime(trip.startedAt)} />
+        {trip.endedAt ? <Metric icon={Flag} label="Hora de finalización" value={formatTripEnd(trip.startedAt, trip.endedAt)} /> : null}
       </Group>
     </Paper>
   );
@@ -95,5 +100,9 @@ function Metric({ icon: Icon, label, value }: { icon?: typeof Activity; label: s
   return <div className={classes.metric}>{Icon ? <Icon className={classes.metricIcon} size={17} /> : null}<div><Text fw={750}>{value}</Text><Text c="dimmed" size="xs">{label}</Text></div></div>;
 }
 function historyErrorMessage(error: unknown) { if (!isAxiosError(error)) return 'No pudimos cargar tus viajes. Intentá nuevamente.'; if (error.response?.status === 400) return 'La solicitud del historial no es válida.'; if (error.response?.status === 404) return 'No se encontró el usuario.'; return 'No pudimos cargar tus viajes. Intentá nuevamente.'; }
-function formatDateTime(value: string) { return new Intl.DateTimeFormat('es-AR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)); }
+function formatDate(value: string) { return new Intl.DateTimeFormat('es-AR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: argentinaTimeZone }).format(new Date(value)); }
+function formatTime(value: string) { return `${new Intl.DateTimeFormat('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: argentinaTimeZone }).format(new Date(value))} hs`; }
+function formatTripEnd(startedAt: string, endedAt: string) {
+  return formatDate(startedAt) === formatDate(endedAt) ? formatTime(endedAt) : `${formatDate(endedAt)}, ${formatTime(endedAt)}`;
+}
 function formatDuration(seconds: number | null) { if (seconds === null) return 'Sin información'; if (seconds < 60) return `${seconds} s`; const minutes = Math.floor(seconds / 60); if (minutes < 60) return `${minutes} min`; return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')} min`; }
