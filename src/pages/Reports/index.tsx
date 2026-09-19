@@ -1,10 +1,10 @@
 import { Alert, Badge, Button, Group, Loader, NativeSelect, Paper, Stack, Text, Textarea, Title } from '@mantine/core';
 import { isAxiosError } from 'axios';
-import { AlertCircle, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { NavLink } from 'react-router-dom';
 
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
-import { MobilityFeatureBanner } from '../../components/mobility/MobilityFeatureBanner';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
 import { currentUserId } from '../../config/currentUser';
@@ -102,14 +102,6 @@ export function ReportsPage() {
       />
       <MobilityNavigation />
 
-      <MobilityFeatureBanner
-        description="Durante un viaje activo podés informar un problema y asociarlo directamente con la bicicleta que estás usando."
-        icon={ShieldAlert}
-        label="Asistencia durante el viaje"
-        title="Reportá una incidencia de forma clara y rápida"
-        tone="red"
-      />
-
       {isLoading ? <LoadingState /> : null}
       {hasLoadError ? <LoadErrorState onRetry={() => void loadFormData()} /> : null}
       {!isLoading && !hasLoadError && reportedIncident ? (
@@ -152,17 +144,35 @@ function LoadErrorState({ onRetry }: { onRetry: () => void }) {
 
 function NoActiveTripState() {
   return (
-    <Alert color="orange" icon={<AlertCircle size={18} />} title="No tenés un viaje activo">
-      Para reportar un problema, primero necesitás tener una bicicleta en uso.
-    </Alert>
+    <Paper className={`${classes.emptyState} ${classes.emptyStateDanger}`} radius="lg" p="xl">
+      <Stack align="center" gap="sm">
+        <div className={classes.emptyStateIcon}><AlertCircle size={28} /></div>
+        <Title className={classes.emptyStateTitle} order={2}>No tenés un viaje activo</Title>
+        <Text c="dimmed" maw={440} ta="center">
+          Para reportar un problema, primero necesitás tener una bicicleta en uso.
+        </Text>
+        <Button
+          color="red"
+          mt="xs"
+          renderRoot={(props) => <NavLink {...props} to="/movilidad/bicicletas" />}
+          variant="light"
+        >
+          Ir a Bicicletas/Viajes
+        </Button>
+      </Stack>
+    </Paper>
   );
 }
 
 function NoTypesState() {
   return (
-    <Alert color="orange" icon={<AlertCircle size={18} />} title="No hay tipos de incidencia disponibles">
-      No se puede enviar un reporte hasta que el backend disponga de tipos activos.
-    </Alert>
+    <Paper className={`${classes.emptyState} ${classes.emptyStateDanger}`} radius="lg" p="xl">
+      <Stack align="center" gap="sm">
+        <div className={classes.emptyStateIcon}><AlertCircle size={28} /></div>
+        <Title className={classes.emptyStateTitle} order={2}>No hay tipos de incidencia disponibles</Title>
+        <Text c="dimmed" maw={440} ta="center">No se puede enviar un reporte hasta que existan tipos activos.</Text>
+      </Stack>
+    </Paper>
   );
 }
 

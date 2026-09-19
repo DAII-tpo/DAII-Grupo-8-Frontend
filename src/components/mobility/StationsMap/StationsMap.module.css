@@ -108,6 +108,19 @@
   color: var(--citypass-urban-green);
 }
 
+.unavailableNotice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--citypass-emergency-red) 28%, white);
+  border-radius: 0.65rem;
+  padding: 0.8rem;
+  color: #a52f39;
+  background: color-mix(in srgb, var(--citypass-emergency-red) 9%, white);
+}
+
+.unavailableNotice > svg { flex: 0 0 auto; margin-top: 0.05rem; }
+
 .nearbyStation {
   border-radius: 0.35rem;
   padding: 0.5rem;

@@ -1,6 +1,6 @@
 import 'leaflet/dist/leaflet.css';
 
-import { Alert, Badge, Group, Loader, Paper, Stack, Text, Title, UnstyledButton } from '@mantine/core';
+import { Alert, Group, Loader, Paper, Stack, Text, Title, UnstyledButton } from '@mantine/core';
 import { divIcon } from 'leaflet';
 import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet';
 import { AlertCircle, Bike, MapPin, Navigation } from 'lucide-react';
@@ -300,8 +300,15 @@ function StationDetails({ availability, hasAvailabilityError, isAvailabilityLoad
 
         {isAvailabilityLoading ? <Group gap="sm"><Loader color="citypassUrbanBlue" size="sm" /><Text c="dimmed" size="sm">Consultando disponibilidad...</Text></Group> : null}
         {hasAvailabilityError ? <Alert color="red" title="No se pudo consultar la disponibilidad">La estación seleccionada no está disponible o ocurrió un error al consultar el backend.</Alert> : null}
-        {availableBikes === 0 ? <Alert color="orange" icon={<Bike size={18} />} title="No hay bicicletas disponibles">Esta estación no cuenta con bicicletas disponibles en este momento.</Alert> : null}
-        {station.distanceMeters === null ? <Badge variant="light" color="citypassUrbanBlue">Estación registrada</Badge> : null}
+        {availableBikes === 0 ? (
+          <div className={classes.unavailableNotice} role="status">
+            <Bike size={20} />
+            <div>
+              <Text fw={750} size="sm">No hay bicicletas disponibles</Text>
+              <Text size="xs">Esta estación no cuenta con bicicletas disponibles en este momento.</Text>
+            </div>
+          </div>
+        ) : null}
       </Stack>
     </Paper>
   );

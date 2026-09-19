@@ -14,10 +14,19 @@
 
 .statePanel,
 .formPanel,
-.successPanel {
+.successPanel,
+.emptyState {
   border: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 58%, white);
   background: white;
   box-shadow: 0 10px 28px rgb(20 36 48 / 6%);
+}
+
+.formPanel,
+.successPanel,
+.statePanel,
+.emptyState {
+  width: min(100%, 64rem);
+  margin-inline: auto;
 }
 
 .formPanel { border-top: 4px solid var(--citypass-emergency-red); }
@@ -35,4 +44,21 @@
 
 .successIcon {
   color: var(--citypass-urban-green);
+}
+
+.emptyState {
+  display: grid;
+  min-height: 240px;
+  place-items: center;
+  border-top: 4px solid var(--citypass-emergency-red);
+  text-align: center;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--citypass-emergency-red) 8%, white), white 68%);
+}
+
+.emptyStateDanger { border-color: color-mix(in srgb, var(--citypass-emergency-red) 34%, white); border-top-color: var(--citypass-emergency-red); }
+.emptyStateIcon { display: grid; width: 56px; height: 56px; place-items: center; border-radius: 50%; color: white; background: var(--citypass-emergency-red); box-shadow: 0 9px 22px rgb(200 84 77 / 22%); }
+.emptyStateTitle { color: var(--citypass-night-blue); font-size: 1.2rem; }
+
+@media (max-width: 36rem) {
+  .emptyState { min-height: 220px; padding: 1.25rem !important; }
 }
