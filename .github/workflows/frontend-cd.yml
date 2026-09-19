@@ -1,0 +1,39 @@
+name: Frontend CD
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  frontend-cd:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar codigo
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 
+
+      - name: Configurar Node.js 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Instalar Vercel CLI
+        run: npm install --global vercel@59.20.0
+
+      - name: Obtener configuracion de produccion
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Construir frontend de produccion
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Desplegar en Vercel
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
