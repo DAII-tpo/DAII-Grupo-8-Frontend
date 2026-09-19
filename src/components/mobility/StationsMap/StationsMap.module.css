@@ -132,6 +132,42 @@
   white-space: nowrap;
 }
 
+.stationMarkerHost {
+  background: transparent;
+  border: 0;
+}
+
+.stationMarker {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 3px solid white;
+  border-radius: 50% 50% 50% 12%;
+  color: white;
+  background: var(--citypass-urban-blue);
+  box-shadow: 0 5px 14px rgb(20 36 48 / 35%);
+  transform: rotate(-45deg);
+  transition: transform 150ms ease, background-color 150ms ease;
+}
+
+.stationMarker svg {
+  width: 23px;
+  height: 23px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+  transform: rotate(45deg);
+}
+
+.stationMarker:hover,
+.stationMarkerSelected {
+  background: var(--citypass-urban-green);
+  transform: rotate(-45deg) scale(1.12);
+}
+
 @media (max-width: 62rem) {
   .mapLayout {
     grid-template-columns: 1fr;

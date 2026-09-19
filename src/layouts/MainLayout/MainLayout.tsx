@@ -129,6 +129,7 @@ export function MainLayout() {
           <div className={classes.sidebarBrand}>
             <BrandLogo compact />
           </div>
+          <Text className={classes.sectionLabel}>Servicios</Text>
           <div className={classes.navSection}>
             {moduleNavigationItems.map((item) => (
               <NavigationLink
@@ -148,6 +149,7 @@ export function MainLayout() {
               />
             ))}
           </div>
+          <Text className={classes.sectionLabel}>Cuenta</Text>
           <div className={classes.accountSection}>
             {accountNavigationItems.map((item) => (
               <NavigationLink
@@ -161,11 +163,6 @@ export function MainLayout() {
                 }}
               />
             ))}
-          </div>
-          <div aria-hidden="true" className={classes.sidebarDecoration}>
-            <span className={classes.buildingTall} />
-            <span className={classes.buildingMedium} />
-            <span className={classes.buildingSmall} />
           </div>
         </nav>
       </AppShell.Navbar>

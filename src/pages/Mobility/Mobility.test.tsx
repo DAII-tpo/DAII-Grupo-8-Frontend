@@ -12,6 +12,9 @@ vi.mock('react-leaflet', () => ({
     <button onClick={eventHandlers?.click} type="button">{children}</button>
   ),
   MapContainer: ({ children }: { children: React.ReactNode }) => <div data-testid="map">{children}</div>,
+  Marker: ({ children, eventHandlers }: { children: React.ReactNode; eventHandlers?: { click?: () => void } }) => (
+    <button onClick={eventHandlers?.click} type="button">{children}</button>
+  ),
   TileLayer: () => null,
   Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useMap: () => ({ setView: vi.fn() }),

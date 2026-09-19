@@ -1,7 +1,8 @@
 import 'leaflet/dist/leaflet.css';
 
 import { Alert, Badge, Group, Loader, Paper, Stack, Text, Title, UnstyledButton } from '@mantine/core';
-import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from 'react-leaflet';
+import { divIcon } from 'leaflet';
+import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet';
 import { AlertCircle, Bike, MapPin, Navigation } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -25,6 +26,15 @@ type MapStation = {
   longitude: number;
   name: string;
 };
+
+function createStationIcon(isSelected: boolean) {
+  return divIcon({
+    className: classes.stationMarkerHost,
+    html: `<span class="${classes.stationMarker}${isSelected ? ` ${classes.stationMarkerSelected}` : ''}" aria-hidden="true"><svg viewBox="0 0 24 24" role="img"><circle cx="6" cy="17" r="3.25"/><circle cx="18" cy="17" r="3.25"/><path d="m6 17 4-7 3 7m-7 0h7l4-7m-8 0h4m-5-3h3"/></svg></span>`,
+    iconAnchor: [22, 22],
+    iconSize: [44, 44],
+  });
+}
 
 function toNearbyMapStation(station: NearbyStation): MapStation {
   return {
@@ -190,15 +200,14 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
                   </CircleMarker>
                 ) : null}
                 {stations.map((station) => (
-                  <CircleMarker
-                    center={[station.latitude, station.longitude]}
+                  <Marker
                     eventHandlers={{ click: () => void selectStation(station) }}
+                    icon={createStationIcon(selectedStation?.id === station.id)}
                     key={station.id}
-                    pathOptions={{ color: '#4F8A72', fillColor: '#4F8A72', fillOpacity: 0.9 }}
-                    radius={9}
+                    position={[station.latitude, station.longitude]}
                   >
                     <Tooltip direction="top">{station.name}</Tooltip>
-                  </CircleMarker>
+                  </Marker>
                 ))}
               </MapContainer>
             ) : (
