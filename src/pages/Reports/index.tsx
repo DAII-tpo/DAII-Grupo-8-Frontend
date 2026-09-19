@@ -1,10 +1,11 @@
 import { Alert, Badge, Button, Group, Loader, NativeSelect, Paper, Stack, Text, Textarea, Title } from '@mantine/core';
 import { isAxiosError } from 'axios';
-import { AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
+import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
 import { currentUserId } from '../../config/currentUser';
 import { incidentService } from '../../services/incidents/incidentService';
 import { tripService } from '../../services/trips/tripService';
@@ -137,14 +138,7 @@ function LoadingState() {
 }
 
 function LoadErrorState({ onRetry }: { onRetry: () => void }) {
-  return (
-    <Alert color="red" icon={<AlertCircle size={18} />} title="No se pudo preparar el reporte">
-      <Group justify="space-between" align="center" mt="xs">
-        <Text size="sm">Verificá que el backend esté disponible e intentá nuevamente.</Text>
-        <Button leftSection={<RefreshCw size={16} />} variant="light" onClick={onRetry}>Reintentar</Button>
-      </Group>
-    </Alert>
-  );
+  return <RetryErrorAlert message="Verificá que el backend esté disponible e intentá nuevamente." onRetry={onRetry} title="No se pudo preparar el reporte" />;
 }
 
 function NoActiveTripState() {

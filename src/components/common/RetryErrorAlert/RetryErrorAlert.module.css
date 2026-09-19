@@ -1,0 +1,18 @@
+.content {
+  flex: 1;
+}
+
+.retryButton {
+  flex-shrink: 0;
+}
+
+@media (max-width: 36rem) {
+  .content {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .retryButton {
+    width: 100%;
+  }
+}

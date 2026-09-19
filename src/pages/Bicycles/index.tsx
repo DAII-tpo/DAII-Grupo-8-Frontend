@@ -13,11 +13,12 @@ import {
   Title,
 } from '@mantine/core';
 import { isAxiosError } from 'axios';
-import { AlertCircle, Bike, Play, RefreshCw } from 'lucide-react';
+import { AlertCircle, Bike, Play } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
+import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
 import { currentUserId } from '../../config/currentUser';
 import { bikeService } from '../../services/bikes/bikeService';
 import { stationService } from '../../services/stations/stationService';
@@ -86,14 +87,11 @@ function TripManager({ userId }: TripManagerProps) {
 
   if (activeTripError) {
     return (
-      <Alert color="red" icon={<AlertCircle size={18} />} title="No se pudo consultar el viaje activo">
-        <Stack gap="sm">
-          <Text size="sm">{activeTripError}</Text>
-          <Button leftSection={<RefreshCw size={16} />} variant="light" onClick={() => void loadActiveTrip()}>
-            Reintentar
-          </Button>
-        </Stack>
-      </Alert>
+      <RetryErrorAlert
+        message={activeTripError}
+        onRetry={() => void loadActiveTrip()}
+        title="No se pudo consultar el viaje activo"
+      />
     );
   }
 
@@ -190,14 +188,11 @@ function StartTripFlow({ onTripStarted, userId }: StartTripFlowProps) {
 
   if (stationsError) {
     return (
-      <Alert color="red" icon={<AlertCircle size={18} />} title="No se pudieron cargar las estaciones">
-        <Stack gap="sm">
-          <Text size="sm">Verificá que el backend esté disponible e intentá nuevamente.</Text>
-          <Button leftSection={<RefreshCw size={16} />} variant="light" onClick={() => void loadStations()}>
-            Reintentar
-          </Button>
-        </Stack>
-      </Alert>
+      <RetryErrorAlert
+        message="Verificá que el backend esté disponible e intentá nuevamente."
+        onRetry={() => void loadStations()}
+        title="No se pudieron cargar las estaciones"
+      />
     );
   }
 
@@ -372,14 +367,11 @@ function ActiveTripPanel({ onTripCompleted, trip, userId }: ActiveTripPanelProps
 
         {isLoadingStations ? <LoadingPanel message="Cargando estaciones destino..." /> : null}
         {stationsError ? (
-          <Alert color="red" icon={<AlertCircle size={18} />} title="No se pudieron cargar las estaciones">
-            <Stack gap="sm">
-              <Text size="sm">Verificá que el backend esté disponible e intentá nuevamente.</Text>
-              <Button leftSection={<RefreshCw size={16} />} variant="light" onClick={() => void loadStations()}>
-                Reintentar
-              </Button>
-            </Stack>
-          </Alert>
+          <RetryErrorAlert
+            message="Verificá que el backend esté disponible e intentá nuevamente."
+            onRetry={() => void loadStations()}
+            title="No se pudieron cargar las estaciones"
+          />
         ) : null}
         {!isLoadingStations && !stationsError && stations.length === 0 ? (
           <Alert color="orange" icon={<AlertCircle size={18} />} title="No hay estaciones destino disponibles">

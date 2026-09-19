@@ -47,6 +47,25 @@
   background: color-mix(in srgb, var(--citypass-sky-blue) 24%, white);
 }
 
+.tableToolbar {
+  align-items: flex-end;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.searchInput {
+  flex: 0 1 25rem;
+  width: 100%;
+}
+
+.noResults {
+  border-top: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 45%, white);
+  color: var(--citypass-medium-gray);
+  padding: 2rem 1rem 1rem;
+}
+
 .availabilityTitle {
   color: var(--citypass-night-blue);
   font-size: 1.1rem;
@@ -70,6 +89,15 @@
 }
 
 @media (max-width: 36rem) {
+  .tableToolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .searchInput {
+    flex-basis: auto;
+  }
+
   .availabilityMetrics {
     grid-template-columns: 1fr;
   }
