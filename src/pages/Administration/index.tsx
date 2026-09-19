@@ -4,6 +4,7 @@ import { AlertCircle, Bike, CheckCircle2, ParkingCircle, RefreshCw, Wrench } fro
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
+import mobilityNavigationClasses from '../../components/mobility/MobilityNavigation/MobilityNavigation.module.css';
 import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
 import { currentUserId } from '../../config/currentUser';
 import { bikeService } from '../../services/bikes/bikeService';
@@ -149,7 +150,7 @@ export function AdministrationPage() {
         <>
           {actionError ? <Alert color="red" icon={<AlertCircle size={18} />} title="No se pudo completar la operación">{actionError}</Alert> : null}
           {actionSuccess ? <Alert color="green" icon={<CheckCircle2 size={18} />} title="Operación realizada">{actionSuccess}</Alert> : null}
-          <Tabs classNames={{ list: classes.adminTabs }} defaultValue="summary" keepMounted={false}>
+          <Tabs classNames={{ list: mobilityNavigationClasses.tabsList }} defaultValue="summary" keepMounted={false}>
             <Tabs.List>
               <Tabs.Tab value="summary">Resumen</Tabs.Tab>
               <Tabs.Tab value="incidents">Incidencias</Tabs.Tab>

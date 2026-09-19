@@ -155,8 +155,8 @@ describe('ReportsPage', () => {
 
     renderPage();
 
-    expect(await screen.findByText('No tenés un viaje activo')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Ir a Bicicletas/Viajes' })).toHaveAttribute('href', '/movilidad/bicicletas');
+    expect(await screen.findByText('No tenés ningún viaje activo')).toBeInTheDocument();
+    expect(screen.getByText('Asistencia durante el viaje')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Enviar reporte' })).not.toBeInTheDocument();
   });
 

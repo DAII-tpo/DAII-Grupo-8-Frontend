@@ -26,20 +26,6 @@
   place-items: center;
 }
 
-.adminTabs {
-  gap: 0.35rem;
-  border-bottom: 0;
-  border-radius: 0.8rem;
-  padding: 0.35rem;
-  background: color-mix(in srgb, var(--citypass-sky-blue) 22%, white);
-}
-
-.adminTabs :global([data-active]) {
-  border-radius: 0.55rem;
-  color: white;
-  background: var(--citypass-urban-blue);
-}
-
 .metricCard,
 .chartCard {
   --chart-accent: var(--citypass-urban-blue);

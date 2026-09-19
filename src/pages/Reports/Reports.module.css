@@ -48,17 +48,14 @@
 
 .emptyState {
   display: grid;
-  min-height: 240px;
+  min-height: 200px;
   place-items: center;
-  border-top: 4px solid var(--citypass-emergency-red);
   text-align: center;
-  background: linear-gradient(145deg, color-mix(in srgb, var(--citypass-emergency-red) 8%, white), white 68%);
 }
 
-.emptyStateDanger { border-color: color-mix(in srgb, var(--citypass-emergency-red) 34%, white); border-top-color: var(--citypass-emergency-red); }
-.emptyStateIcon { display: grid; width: 56px; height: 56px; place-items: center; border-radius: 50%; color: white; background: var(--citypass-emergency-red); box-shadow: 0 9px 22px rgb(200 84 77 / 22%); }
+.emptyStateIcon { color: var(--citypass-emergency-red); }
 .emptyStateTitle { color: var(--citypass-night-blue); font-size: 1.2rem; }
 
 @media (max-width: 36rem) {
-  .emptyState { min-height: 220px; padding: 1.25rem !important; }
+  .emptyState { min-height: 190px; padding: 1.25rem !important; }
 }
