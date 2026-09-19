@@ -12,10 +12,11 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
-import { AlertCircle, MapPin, Search } from 'lucide-react';
+import { AlertCircle, MapPin, Search, Waypoints } from 'lucide-react';
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
+import { MobilityFeatureBanner } from '../../components/mobility/MobilityFeatureBanner';
 import { stationService } from '../../services/stations/stationService';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
@@ -124,6 +125,14 @@ export function StationsPage() {
       />
 
       <MobilityNavigation />
+
+      <MobilityFeatureBanner
+        description="Buscá por nombre o dirección, compará cercanía y abrí la disponibilidad dentro de cada estación."
+        icon={Waypoints}
+        label="Directorio inteligente"
+        title="Elegí el mejor punto para comenzar tu viaje"
+        tone="green"
+      />
 
       {isLoading ? <LoadingState /> : null}
       {hasError ? <RetryErrorAlert message="Verificá que el backend esté disponible e intentá nuevamente." onRetry={retry} title="No se pudieron cargar las estaciones" /> : null}

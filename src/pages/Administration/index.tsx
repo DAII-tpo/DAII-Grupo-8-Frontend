@@ -1,17 +1,21 @@
-import { Alert, Badge, Button, Group, Loader, NativeSelect, Paper, ScrollArea, Stack, Tabs, Table, Text, Textarea, Title } from '@mantine/core';
+import { Alert, Badge, Button, Group, Loader, NativeSelect, Paper, ScrollArea, SimpleGrid, Stack, Tabs, Table, Text, Textarea, Title } from '@mantine/core';
 import { isAxiosError } from 'axios';
-import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, Bike, CheckCircle2, ParkingCircle, RefreshCw, Wrench } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
 import { currentUserId } from '../../config/currentUser';
+import { bikeService } from '../../services/bikes/bikeService';
 import { incidentService } from '../../services/incidents/incidentService';
 import { maintenanceService } from '../../services/maintenance/maintenanceService';
+import { stationService } from '../../services/stations/stationService';
 import { BikeManagement } from './BikeManagement';
 import { StationManagement } from './StationManagement';
 import type { AdminIncidentResponse, IncidentStatus } from '../../types/incident';
 import type { MaintenanceResponse } from '../../types/maintenance';
+import type { BikeResponse, BikeStatus } from '../../types/bike';
+import type { Station } from '../../types/station';
 import pageClasses from '../../styles/mobilityPage.module.css';
 
 import classes from './Administration.module.css';
@@ -36,6 +40,8 @@ export function AdministrationPage() {
   const userId = currentUserId;
   const [incidents, setIncidents] = useState<AdminIncidentResponse[]>([]);
   const [maintenance, setMaintenance] = useState<MaintenanceResponse[]>([]);
+  const [stations, setStations] = useState<Station[]>([]);
+  const [bikes, setBikes] = useState<BikeResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -52,12 +58,18 @@ export function AdministrationPage() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const [loadedIncidents, loadedMaintenance] = await Promise.all([
+      const [loadedIncidents, loadedMaintenance, loadedStations] = await Promise.all([
         incidentService.getAll(userId),
         maintenanceService.getAll(userId),
+        stationService.getAll(),
       ]);
+      const bikeResults = await Promise.allSettled(
+        loadedStations.map((station) => bikeService.getByStation(station.id)),
+      );
       setIncidents(loadedIncidents);
       setMaintenance(loadedMaintenance);
+      setStations(loadedStations);
+      setBikes(bikeResults.flatMap((result) => result.status === 'fulfilled' ? result.value : []));
     } catch (error) {
       setLoadError(administrationErrorMessage(error));
     } finally {
@@ -128,6 +140,7 @@ export function AdministrationPage() {
       <MobilityPageHeader
         title="Administración de Movilidad"
         subtitle="Gestioná la operación del servicio desde un espacio separado de la experiencia ciudadana."
+        action={<Button leftSection={<RefreshCw size={16} />} loading={isLoading} onClick={() => void loadAdministrationData()} variant="light">Actualizar datos</Button>}
       />
 
       {isLoading ? <LoadingState /> : null}
@@ -136,33 +149,117 @@ export function AdministrationPage() {
         <>
           {actionError ? <Alert color="red" icon={<AlertCircle size={18} />} title="No se pudo completar la operación">{actionError}</Alert> : null}
           {actionSuccess ? <Alert color="green" icon={<CheckCircle2 size={18} />} title="Operación realizada">{actionSuccess}</Alert> : null}
-          <Tabs defaultValue="incidents" keepMounted={false}>
+          <Tabs classNames={{ list: classes.adminTabs }} defaultValue="summary" keepMounted={false}>
             <Tabs.List>
+              <Tabs.Tab value="summary">Resumen</Tabs.Tab>
               <Tabs.Tab value="incidents">Incidencias</Tabs.Tab>
               <Tabs.Tab value="maintenance">Mantenimiento</Tabs.Tab>
               <Tabs.Tab value="stations">Estaciones</Tabs.Tab>
               <Tabs.Tab value="bikes">Bicicletas</Tabs.Tab>
             </Tabs.List>
+            <Tabs.Panel pt="md" value="summary">
+              <AdministrationSummary bikes={bikes} incidents={incidents} maintenance={maintenance} stations={stations} />
+            </Tabs.Panel>
             <Tabs.Panel pt="md" value="incidents">
-              <IncidentsPanel incidents={incidents} onUpdate={updateIncident} pendingAction={pendingAction} />
+              <Stack gap="lg">
+                <AdminBarChart description="Comparación de incidencias según su estado actual." data={incidentChartData(incidents)} title="Incidencias por estado" tone="red" />
+                <IncidentsPanel incidents={incidents} onUpdate={updateIncident} pendingAction={pendingAction} />
+              </Stack>
             </Tabs.Panel>
             <Tabs.Panel pt="md" value="maintenance">
-              <MaintenancePanel
-                incidents={incidents}
-                maintenance={maintenance}
-                onComplete={completeMaintenance}
-                onCreate={createMaintenance}
-                pendingAction={pendingAction}
-              />
+              <Stack gap="lg">
+                <AdminBarChart description="Distribución de las tareas de mantenimiento registradas." data={maintenanceChartData(maintenance)} title="Mantenimientos por estado" tone="amber" />
+                <MaintenancePanel
+                  incidents={incidents}
+                  maintenance={maintenance}
+                  onComplete={completeMaintenance}
+                  onCreate={createMaintenance}
+                  pendingAction={pendingAction}
+                />
+              </Stack>
             </Tabs.Panel>
-            <Tabs.Panel pt="md" value="stations"><StationManagement /></Tabs.Panel>
-            <Tabs.Panel pt="md" value="bikes"><BikeManagement /></Tabs.Panel>
+            <Tabs.Panel pt="md" value="stations"><Stack gap="lg"><StationCapacityChart bikes={bikes} stations={stations} /><StationManagement /></Stack></Tabs.Panel>
+            <Tabs.Panel pt="md" value="bikes"><Stack gap="lg"><BikeStatusChart bikes={bikes} /><BikeManagement /></Stack></Tabs.Panel>
           </Tabs>
         </>
       ) : null}
     </Stack>
   );
 }
+
+function AdministrationSummary({ bikes, incidents, maintenance, stations }: { bikes: BikeResponse[]; incidents: AdminIncidentResponse[]; maintenance: MaintenanceResponse[]; stations: Station[] }) {
+  const openIncidents = incidents.filter((incident) => incident.status === 'OPEN' || incident.status === 'UNDER_REVIEW').length;
+  const activeMaintenance = maintenance.filter((item) => item.status === 'PENDING' || item.status === 'IN_PROGRESS').length;
+  const activeStations = stations.filter((station) => station.status === 'ACTIVE').length;
+  const availableBikes = bikes.filter((bike) => bike.status === 'AVAILABLE').length;
+
+  return (
+    <Stack gap="lg">
+      <SimpleGrid cols={{ base: 1, xs: 2, lg: 4 }} spacing="md">
+        <AdminMetric icon={AlertCircle} label="Incidencias abiertas" tone="red" value={openIncidents} />
+        <AdminMetric icon={Wrench} label="Mantenimientos activos" tone="amber" value={activeMaintenance} />
+        <AdminMetric icon={ParkingCircle} label="Estaciones activas" tone="green" value={activeStations} />
+        <AdminMetric icon={Bike} label="Bicicletas disponibles" tone="blue" value={availableBikes} />
+      </SimpleGrid>
+      <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
+        <AdminBarChart description="Vista rápida de los casos que requieren seguimiento." data={incidentChartData(incidents)} title="Estado de incidencias" tone="red" />
+        <BikeStatusChart bikes={bikes} compact />
+      </SimpleGrid>
+      <StationCapacityChart bikes={bikes} stations={stations} />
+    </Stack>
+  );
+}
+
+type ChartTone = 'blue' | 'green' | 'amber' | 'red';
+type ChartDatum = { label: string; value: number };
+
+function AdminMetric({ icon: Icon, label, tone, value }: { icon: typeof AlertCircle; label: string; tone: ChartTone; value: number }) {
+  return <Paper className={`${classes.metricCard} ${classes[`tone${capitalize(tone)}`]}`} radius="md" p="md"><div className={classes.metricIcon}><Icon size={21} /></div><Text className={classes.metricLabel}>{label}</Text><Text className={classes.metricNumber}>{value}</Text></Paper>;
+}
+
+function AdminBarChart({ data, description, title, tone }: { data: ChartDatum[]; description: string; title: string; tone: ChartTone }) {
+  const max = Math.max(1, ...data.map((item) => item.value));
+  return (
+    <Paper aria-label={title} className={`${classes.chartCard} ${classes[`tone${capitalize(tone)}`]}`} radius="md" p="lg" role="img">
+      <Title className={classes.chartTitle} order={2}>{title}</Title>
+      <Text c="dimmed" size="sm">{description}</Text>
+      <Stack className={classes.barChart} gap="sm" mt="lg">
+        {data.map((item) => <div className={classes.barRow} key={item.label}><Text className={classes.barLabel}>{item.label}</Text><div className={classes.barTrack}><div className={classes.barFill} style={{ width: `${item.value === 0 ? 0 : Math.max(8, item.value / max * 100)}%` }} /></div><Text className={classes.barValue}>{item.value}</Text></div>)}
+      </Stack>
+    </Paper>
+  );
+}
+
+function BikeStatusChart({ bikes, compact = false }: { bikes: BikeResponse[]; compact?: boolean }) {
+  const data: Array<ChartDatum & { color: string }> = [
+    { label: 'Disponibles', value: countBikes(bikes, 'AVAILABLE'), color: 'var(--citypass-urban-green)' },
+    { label: 'En uso', value: countBikes(bikes, 'IN_USE'), color: 'var(--citypass-urban-blue)' },
+    { label: 'Mantenimiento', value: countBikes(bikes, 'MAINTENANCE'), color: 'var(--citypass-amber)' },
+    { label: 'Fuera de servicio', value: countBikes(bikes, 'OUT_OF_SERVICE') + countBikes(bikes, 'STOLEN'), color: 'var(--citypass-emergency-red)' },
+  ];
+  const total = data.reduce((sum, item) => sum + item.value, 0);
+  let cursor = 0;
+  const segments = data.map((item) => { const start = cursor; cursor += total === 0 ? 0 : item.value / total * 100; return `${item.color} ${start}% ${cursor}%`; });
+  const background = total === 0 ? 'var(--citypass-concrete)' : `conic-gradient(${segments.join(', ')})`;
+
+  return <Paper aria-label="Distribución de bicicletas por estado" className={`${classes.chartCard} ${classes.toneBlue}`} radius="md" p="lg" role="img"><Title className={classes.chartTitle} order={2}>Bicicletas por estado</Title><Text c="dimmed" size="sm">Composición de las bicicletas cargadas en estaciones.</Text><div className={`${classes.donutLayout} ${compact ? classes.donutCompact : ''}`}><div className={classes.donut} style={{ background }}><div><Text className={classes.donutTotal}>{total}</Text><Text c="dimmed" size="xs">Total</Text></div></div><Stack gap="xs">{data.map((item) => <Group gap="xs" justify="space-between" key={item.label} wrap="nowrap"><Group gap="xs" wrap="nowrap"><span className={classes.legendDot} style={{ background: item.color }} /><Text size="sm">{item.label}</Text></Group><Text fw={800} size="sm">{item.value}</Text></Group>)}</Stack></div></Paper>;
+}
+
+function StationCapacityChart({ bikes, stations }: { bikes: BikeResponse[]; stations: Station[] }) {
+  const visibleStations = stations.slice(0, 8);
+  return <Paper aria-label="Ocupación de estaciones" className={`${classes.chartCard} ${classes.toneGreen}`} radius="md" p="lg" role="img"><Title className={classes.chartTitle} order={2}>Ocupación de estaciones</Title><Text c="dimmed" size="sm">Bicicletas registradas frente a la capacidad informada.</Text>{visibleStations.length === 0 ? <Text c="dimmed" mt="lg">No hay estaciones para representar.</Text> : <Stack gap="md" mt="lg">{visibleStations.map((station) => { const count = bikes.filter((bike) => bike.stationId === station.id).length; const percentage = station.capacity === 0 ? 0 : Math.min(100, count / station.capacity * 100); return <div key={station.id}><Group justify="space-between" gap="sm"><Text className={classes.stationLabel}>{station.name}</Text><Text c="dimmed" size="xs">{count} / {station.capacity}</Text></Group><div className={classes.capacityTrack}><div className={classes.capacityFill} style={{ width: `${percentage}%` }} /></div></div>; })}</Stack>}</Paper>;
+}
+
+function incidentChartData(incidents: AdminIncidentResponse[]): ChartDatum[] {
+  return (Object.keys(incidentStatusLabels) as IncidentStatus[]).map((status) => ({ label: incidentStatusLabels[status], value: incidents.filter((incident) => incident.status === status).length }));
+}
+
+function maintenanceChartData(maintenance: MaintenanceResponse[]): ChartDatum[] {
+  return (Object.keys(maintenanceStatusLabels) as Array<keyof typeof maintenanceStatusLabels>).map((status) => ({ label: maintenanceStatusLabels[status], value: maintenance.filter((item) => item.status === status).length }));
+}
+
+function countBikes(bikes: BikeResponse[], status: BikeStatus) { return bikes.filter((bike) => bike.status === status).length; }
+function capitalize(value: string) { return `${value.charAt(0).toUpperCase()}${value.slice(1)}`; }
 
 function LoadingState() {
   return <Paper className={classes.statePanel} radius="md" p="xl"><Stack align="center"><Loader color="citypassUrbanBlue" /><Text c="dimmed">Cargando información administrativa...</Text></Stack></Paper>;

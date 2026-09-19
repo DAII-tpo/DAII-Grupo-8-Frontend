@@ -180,7 +180,7 @@ function ActiveTripCard({ activeTrip, isLoading }: { activeTrip: TripResponse | 
           <Title className={classes.heroTitle} order={2}>No tenés un viaje en curso</Title>
           <Text className={classes.heroText}>Encontrá una bicicleta disponible y empezá tu próximo recorrido por la ciudad.</Text>
           <Group mt="xs">
-            <Button renderRoot={(props) => <NavLink {...props} to="/movilidad/estaciones" />} color="white" variant="white">Buscar estación</Button>
+            <Button renderRoot={(props) => <NavLink {...props} to="/movilidad/estaciones" />} className={classes.heroPrimaryButton} variant="white">Buscar estación</Button>
             <Button renderRoot={(props) => <NavLink {...props} to="/movilidad/mapa" />} className={classes.heroSecondaryButton} variant="outline">Ver mapa</Button>
           </Group>
         </Stack>
@@ -199,7 +199,7 @@ function ActiveTripCard({ activeTrip, isLoading }: { activeTrip: TripResponse | 
           <Text><Clock3 size={17} /> Iniciado {formatDateTime(activeTrip.startedAt)}</Text>
         </Group>
         <Group mt="xs">
-          <Button renderRoot={(props) => <NavLink {...props} to="/movilidad/bicicletas" />} color="white" variant="white">Ver viaje activo</Button>
+          <Button renderRoot={(props) => <NavLink {...props} to="/movilidad/bicicletas" />} className={classes.heroPrimaryButton} variant="white">Ver viaje activo</Button>
           <Button renderRoot={(props) => <NavLink {...props} to="/movilidad/reportes" />} className={classes.heroSecondaryButton} variant="outline">Reportar problema</Button>
         </Group>
       </Stack>

@@ -3,6 +3,10 @@
 .title { font-size: 1.8rem; line-height: 1.2; }
 .tripTitle { font-size: 1.05rem; }
 .statePanel,
-.tripCard { border: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 58%, white); background: white; }
+.tripCard,
+.summaryPanel { border: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 58%, white); background: white; box-shadow: 0 10px 28px rgb(20 36 48 / 6%); }
 .statePanel { display: grid; min-height: 200px; place-items: center; }
 .metrics { gap: 2rem; }
+.summaryPanel { border-top: 4px solid var(--citypass-amber); border-radius: 0.75rem; padding: 1rem 1.25rem; background: linear-gradient(110deg, color-mix(in srgb, var(--citypass-amber) 9%, white), white); }
+.tripCard { border-left: 4px solid var(--citypass-urban-blue); transition: transform 150ms ease, box-shadow 150ms ease; }
+.tripCard:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgb(20 36 48 / 9%); }

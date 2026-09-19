@@ -19,6 +19,8 @@
 .heroText { max-width: 38rem; color: rgb(255 255 255 / 87%); }
 .heroBadge { align-self: flex-start; color: #143f72; background: rgb(255 255 255 / 90%); }
 .activeBadge { align-self: flex-start; color: #164d48; background: rgb(255 255 255 / 90%); }
+.heroPrimaryButton { color: #174b82; background: white; }
+.heroPrimaryButton:hover { color: #123f72; background: #f3f8fc; }
 .heroSecondaryButton { color: white; border-color: rgb(255 255 255 / 72%); }
 .heroSecondaryButton:hover { color: white; border-color: white; background: rgb(255 255 255 / 10%); }
 

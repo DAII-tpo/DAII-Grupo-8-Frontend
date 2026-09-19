@@ -13,10 +13,11 @@ import {
   Title,
 } from '@mantine/core';
 import { isAxiosError } from 'axios';
-import { AlertCircle, Bike, Play } from 'lucide-react';
+import { AlertCircle, Bike, Play, Route } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
+import { MobilityFeatureBanner } from '../../components/mobility/MobilityFeatureBanner';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
 import { currentUserId } from '../../config/currentUser';
@@ -40,6 +41,14 @@ export function BicyclesPage() {
       />
 
       <MobilityNavigation />
+
+      <MobilityFeatureBanner
+        description="Seleccioná una estación, elegí una bicicleta disponible y seguí el estado del recorrido hasta devolverla."
+        icon={Route}
+        label="Viaje paso a paso"
+        title="Todo el recorrido en una misma pantalla"
+        tone="sky"
+      />
 
       {currentUserId === null ? <MissingUserConfiguration /> : <TripManager userId={currentUserId} />}
     </Stack>

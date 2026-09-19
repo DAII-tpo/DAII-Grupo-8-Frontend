@@ -1,9 +1,10 @@
 import { Alert, Badge, Button, Group, Loader, NativeSelect, Paper, Stack, Text, Textarea, Title } from '@mantine/core';
 import { isAxiosError } from 'axios';
-import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
+import { MobilityFeatureBanner } from '../../components/mobility/MobilityFeatureBanner';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
 import { currentUserId } from '../../config/currentUser';
@@ -100,6 +101,14 @@ export function ReportsPage() {
         subtitle="Informá una incidencia relacionada con la bicicleta que estás utilizando."
       />
       <MobilityNavigation />
+
+      <MobilityFeatureBanner
+        description="Durante un viaje activo podés informar un problema y asociarlo directamente con la bicicleta que estás usando."
+        icon={ShieldAlert}
+        label="Asistencia durante el viaje"
+        title="Reportá una incidencia de forma clara y rápida"
+        tone="red"
+      />
 
       {isLoading ? <LoadingState /> : null}
       {hasLoadError ? <LoadErrorState onRetry={() => void loadFormData()} /> : null}

@@ -64,7 +64,7 @@ const accountNavigationItems: NavigationItem[] = [
 const managementNavigationItems: NavigationItem[] = [
   {
     icon: ShieldCheck,
-    label: 'Administración',
+    label: 'Movilidad',
     path: '/movilidad/administracion',
   },
 ];

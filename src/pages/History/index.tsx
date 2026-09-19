@@ -1,9 +1,10 @@
 import { Badge, Button, Group, Loader, Paper, Stack, Text, Title } from '@mantine/core';
 import { isAxiosError } from 'axios';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Activity, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
+import { MobilityFeatureBanner } from '../../components/mobility/MobilityFeatureBanner';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
 import { currentUserId } from '../../config/currentUser';
@@ -42,8 +43,10 @@ export function HistoryPage() {
 
   useEffect(() => { void Promise.resolve().then(() => loadHistory(page)); }, [loadHistory, page]);
 
-  return <Stack className={pageClasses.page} gap="lg"><MobilityPageHeader title="Historial" subtitle="Revisá tus viajes finalizados y el detalle de cada recorrido." /><MobilityNavigation />{isLoading ? <LoadingState /> : null}{error ? <ErrorState message={error} onRetry={() => void loadHistory(page)} /> : null}{!isLoading && !error && history?.content.length === 0 ? <EmptyState /> : null}{!isLoading && !error && history && history.content.length > 0 ? <><Stack gap="sm">{history.content.map((trip) => <TripCard key={trip.id} trip={trip} />)}</Stack><Group justify="space-between"><Button disabled={history.page === 0} leftSection={<ChevronLeft size={16} />} onClick={() => setPage((current) => current - 1)} variant="default">Anterior</Button><Text c="dimmed" size="sm">Página {history.page + 1} de {Math.max(history.totalPages, 1)}</Text><Button disabled={history.last} onClick={() => setPage((current) => current + 1)} rightSection={<ChevronRight size={16} />}>Siguiente</Button></Group></> : null}</Stack>;
+  return <Stack className={pageClasses.page} gap="lg"><MobilityPageHeader title="Historial" subtitle="Revisá tus viajes finalizados y el detalle de cada recorrido." /><MobilityNavigation /><MobilityFeatureBanner description="Consultá origen, destino, bicicleta y duración de cada viaje registrado en tu cuenta." icon={Activity} label="Tu actividad" title="Todos tus recorridos organizados" tone="amber" />{isLoading ? <LoadingState /> : null}{error ? <ErrorState message={error} onRetry={() => void loadHistory(page)} /> : null}{!isLoading && !error && history?.content.length === 0 ? <EmptyState /> : null}{!isLoading && !error && history && history.content.length > 0 ? <><HistorySummary history={history} /><Stack gap="sm">{history.content.map((trip) => <TripCard key={trip.id} trip={trip} />)}</Stack><Group justify="space-between"><Button disabled={history.page === 0} leftSection={<ChevronLeft size={16} />} onClick={() => setPage((current) => current - 1)} variant="default">Anterior</Button><Text c="dimmed" size="sm">Página {history.page + 1} de {Math.max(history.totalPages, 1)}</Text><Button disabled={history.last} onClick={() => setPage((current) => current + 1)} rightSection={<ChevronRight size={16} />}>Siguiente</Button></Group></> : null}</Stack>;
 }
+
+function HistorySummary({ history }: { history: PagedResponse<TripResponse> }) { const durations = history.content.map((trip) => trip.durationSeconds).filter((value): value is number => value !== null); const average = durations.length === 0 ? null : Math.round(durations.reduce((sum, value) => sum + value, 0) / durations.length); return <Group className={classes.summaryPanel} gap="xl" wrap="wrap"><Metric label="Viajes registrados" value={String(history.totalElements)} /><Metric label="Mostrados en esta página" value={String(history.content.length)} /><Metric label="Duración promedio visible" value={formatDuration(average)} /></Group>; }
 
 function LoadingState() { return <Paper className={classes.statePanel} radius="md" p="xl"><Stack align="center"><Loader color="citypassUrbanBlue" /><Text c="dimmed">Cargando tus viajes...</Text></Stack></Paper>; }
 function EmptyState() { return <Paper className={classes.statePanel} radius="md" p="xl"><Text c="dimmed">Todavía no tenés viajes finalizados.</Text></Paper>; }

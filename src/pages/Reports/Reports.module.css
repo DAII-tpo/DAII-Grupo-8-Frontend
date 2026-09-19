@@ -17,7 +17,10 @@
 .successPanel {
   border: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 58%, white);
   background: white;
+  box-shadow: 0 10px 28px rgb(20 36 48 / 6%);
 }
+
+.formPanel { border-top: 4px solid var(--citypass-emergency-red); }
 
 .statePanel {
   display: grid;
@@ -27,6 +30,7 @@
 
 .successPanel {
   border-color: color-mix(in srgb, var(--citypass-urban-green) 45%, white);
+  border-top: 4px solid var(--citypass-urban-green);
 }
 
 .successIcon {

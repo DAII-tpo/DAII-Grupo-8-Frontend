@@ -44,7 +44,8 @@
   min-height: clamp(30rem, 66vh, 44rem);
   overflow: clip;
   border-radius: 0.75rem;
-  box-shadow: 0 12px 32px rgba(20, 36, 48, 0.08);
+  border-top: 4px solid var(--citypass-urban-blue);
+  box-shadow: 0 14px 34px rgba(20, 36, 48, 0.1);
 }
 
 .map {
@@ -69,6 +70,7 @@
   align-self: start;
   border-radius: 0.75rem;
   box-shadow: 0 8px 24px rgba(20, 36, 48, 0.06);
+  border-top: 4px solid var(--citypass-urban-green);
 }
 
 .nearbyPanel {
