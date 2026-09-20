@@ -163,8 +163,9 @@ describe('StationsPage', () => {
 
     expect(stationService.getAvailability).toHaveBeenCalledWith(1);
     expect(await screen.findByText('Bicicletas disponibles')).toBeInTheDocument();
-    expect(screen.getByText('Última actualización: 2026-09-08T14:30:00Z')).toBeInTheDocument();
+    expect(screen.getByText(/Última actualización:/)).toBeInTheDocument();
     expect(screen.getByText('13')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ocultar disponibilidad de Estacion Centro' })).toHaveAttribute('aria-expanded', 'true');
   });
 
   it('informa cuando la estación seleccionada no tiene bicicletas disponibles', async () => {

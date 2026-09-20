@@ -131,6 +131,7 @@ describe('BicyclesPage', () => {
     renderPage();
 
     expect(await screen.findByText('Tenés un viaje activo')).toBeInTheDocument();
+    expect(screen.getByText('En curso')).toBeInTheDocument();
     expect(screen.getByText('BIKE-001')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Iniciar viaje' })).not.toBeInTheDocument();
     expect(await screen.findByRole('combobox', { name: 'Estación destino' })).toBeInTheDocument();

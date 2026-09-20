@@ -44,7 +44,8 @@
   min-height: clamp(30rem, 66vh, 44rem);
   overflow: clip;
   border-radius: 0.75rem;
-  box-shadow: 0 12px 32px rgba(20, 36, 48, 0.08);
+  border-top: 4px solid var(--citypass-urban-blue);
+  box-shadow: 0 14px 34px rgba(20, 36, 48, 0.1);
 }
 
 .map {
@@ -69,6 +70,7 @@
   align-self: start;
   border-radius: 0.75rem;
   box-shadow: 0 8px 24px rgba(20, 36, 48, 0.06);
+  border-top: 4px solid var(--citypass-urban-green);
 }
 
 .nearbyPanel {
@@ -105,6 +107,19 @@
 .emptyIcon {
   color: var(--citypass-urban-green);
 }
+
+.unavailableNotice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--citypass-emergency-red) 28%, white);
+  border-radius: 0.65rem;
+  padding: 0.8rem;
+  color: #a52f39;
+  background: color-mix(in srgb, var(--citypass-emergency-red) 9%, white);
+}
+
+.unavailableNotice > svg { flex: 0 0 auto; margin-top: 0.05rem; }
 
 .nearbyStation {
   border-radius: 0.35rem;

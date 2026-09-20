@@ -24,7 +24,11 @@ describe('HistoryPage', () => {
     renderPage();
     expect(await screen.findByText(/Plaza Norte/)).toBeInTheDocument();
     expect(screen.getByText('Parque Sur', { exact: false })).toBeInTheDocument();
-    expect(screen.getByText('1 h 05 min')).toBeInTheDocument();
+    expect(screen.getAllByText('1 h 05 min')).toHaveLength(2);
+    expect(screen.getByText('Completado')).toBeInTheDocument();
+    expect(screen.getByText('17 de septiembre de 2026')).toBeInTheDocument();
+    expect(screen.getByText('11:00 hs')).toBeInTheDocument();
+    expect(screen.getByText('12:05 hs')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Anterior' })).toBeDisabled();
     expect(screen.getByRole('tab', { name: 'Historial' })).toHaveAttribute('data-active', 'true');
     expect(tripService.getHistory).toHaveBeenCalledWith(7, 0, 10);

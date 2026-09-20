@@ -1,6 +1,7 @@
 import { Badge, Stack } from '@mantine/core';
-import { CircleCheck } from 'lucide-react';
+import { CircleCheck, MapPinned } from 'lucide-react';
 
+import { MobilityFeatureBanner } from '../../components/mobility/MobilityFeatureBanner';
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
 import { StationsMap } from '../../components/mobility/StationsMap';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
@@ -25,6 +26,13 @@ export function MapPage() {
         </Badge>}
       />
       <MobilityNavigation />
+      <MobilityFeatureBanner
+        description="Desplazate, acercá el mapa y seleccioná cualquier marcador para consultar bicicletas y espacios."
+        icon={MapPinned}
+        label="Red de estaciones"
+        title="Explorá la ciudad sin perder de vista la disponibilidad"
+        tone="blue"
+      />
       <StationsMap showHeading={false} />
     </Stack>
   );

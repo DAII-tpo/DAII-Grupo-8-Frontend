@@ -1,37 +1,22 @@
 import { MantineProvider } from '@mantine/core';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { stationService } from '../../services/stations/stationService';
+import { tripService } from '../../services/trips/tripService';
 import { mantineTheme } from '../../styles/theme';
 import { MobilityPage } from './index';
 
-vi.mock('react-leaflet', () => ({
-  CircleMarker: ({ children, eventHandlers }: { children: React.ReactNode; eventHandlers?: { click?: () => void } }) => (
-    <button onClick={eventHandlers?.click} type="button">{children}</button>
-  ),
-  MapContainer: ({ children }: { children: React.ReactNode }) => <div data-testid="map">{children}</div>,
-  Marker: ({ children, eventHandlers }: { children: React.ReactNode; eventHandlers?: { click?: () => void } }) => (
-    <button onClick={eventHandlers?.click} type="button">{children}</button>
-  ),
-  TileLayer: () => null,
-  Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  useMap: () => ({ setView: vi.fn() }),
-}));
+vi.mock('../../config/currentUser', () => ({ currentUserId: 1 }));
 
 vi.mock('../../services/stations/stationService', () => ({
-  stationService: {
-    getAll: vi.fn(),
-    getAvailability: vi.fn(),
-    getNearby: vi.fn(),
-  },
+  stationService: { getAll: vi.fn(), getNearby: vi.fn() },
 }));
 
-type PositionSuccess = (position: GeolocationPosition) => void;
-type PositionError = (error: GeolocationPositionError) => void;
-
-const getCurrentPosition = vi.fn<(success: PositionSuccess, error?: PositionError) => void>();
+vi.mock('../../services/trips/tripService', () => ({
+  tripService: { getActive: vi.fn(), getHistory: vi.fn() },
+}));
 
 const nearbyStation = {
   stationId: 1,
@@ -46,24 +31,49 @@ const nearbyStation = {
 };
 
 const station = {
-  id: 2,
-  name: 'Estacion Parque',
-  address: 'Av. Santa Fe 500',
-  latitude: -34.59,
-  longitude: -58.39,
-  capacity: 18,
+  id: 1,
+  name: 'Estacion Centro',
+  address: 'Av. Corrientes 100',
+  latitude: -34.6037,
+  longitude: -58.3816,
+  capacity: 20,
   status: 'ACTIVE' as const,
   createdAt: '2026-09-01T12:00:00Z',
   updatedAt: '2026-09-01T12:00:00Z',
   deletedAt: null,
 };
 
+const completedTrip = {
+  id: 3,
+  status: 'COMPLETED' as const,
+  bikeId: 1,
+  bikeCode: 'BIKE-001',
+  originStationId: 1,
+  originStationName: 'Estacion Centro',
+  destinationStationId: 2,
+  destinationStationName: 'Estacion Parque',
+  startedAt: '2026-09-17T14:00:00Z',
+  endedAt: '2026-09-17T14:30:00Z',
+  durationSeconds: 1800,
+};
+
+const activeTrip = {
+  ...completedTrip,
+  status: 'ACTIVE' as const,
+  destinationStationId: null,
+  destinationStationName: null,
+  endedAt: null,
+  durationSeconds: null,
+};
+
+const getCurrentPosition = vi.fn<(success: PositionCallback, error?: PositionErrorCallback) => void>();
+
 function CurrentPath() {
   const location = useLocation();
   return <output data-testid="current-path">{location.pathname}</output>;
 }
 
-function renderMobilityPage() {
+function renderPage() {
   return render(
     <MemoryRouter initialEntries={['/movilidad']}>
       <MantineProvider theme={mantineTheme}>
@@ -77,17 +87,12 @@ function renderMobilityPage() {
   );
 }
 
-function mockLocationSuccess() {
-  getCurrentPosition.mockImplementationOnce((success) => {
-    success({ coords: { latitude: -34.6037, longitude: -58.3816 } } as GeolocationPosition);
-  });
-}
-
 beforeEach(() => {
-  Object.defineProperty(navigator, 'geolocation', {
-    configurable: true,
-    value: { getCurrentPosition },
-  });
+  Object.defineProperty(navigator, 'geolocation', { configurable: true, value: { getCurrentPosition } });
+  vi.mocked(stationService.getAll).mockResolvedValue([station]);
+  vi.mocked(stationService.getNearby).mockResolvedValue([nearbyStation]);
+  vi.mocked(tripService.getActive).mockResolvedValue(null);
+  vi.mocked(tripService.getHistory).mockResolvedValue({ content: [completedTrip], page: 0, size: 1, totalElements: 4, totalPages: 4, last: false });
 });
 
 afterEach(() => {
@@ -96,47 +101,45 @@ afterEach(() => {
 });
 
 describe('MobilityPage', () => {
-  it('integra el mapa real, las estaciones cercanas y la selección de una estación', async () => {
-    mockLocationSuccess();
-    vi.mocked(stationService.getNearby).mockResolvedValueOnce([nearbyStation]);
-    vi.mocked(stationService.getAll).mockResolvedValueOnce([
-      { ...station, id: 1, name: 'Estacion Centro', address: 'Av. Corrientes 100' },
-      station,
-    ]);
+  it('muestra un tablero ciudadano con datos reales y acciones rápidas', async () => {
+    getCurrentPosition.mockImplementationOnce((success) => success({ coords: { latitude: -34.6037, longitude: -58.3816 } } as GeolocationPosition));
 
-    renderMobilityPage();
+    renderPage();
 
-    expect(await screen.findByTestId('map')).toBeInTheDocument();
-    expect(stationService.getNearby).toHaveBeenCalledWith({ lat: -34.6037, lng: -58.3816 });
-    expect(screen.getByRole('button', { name: 'Estacion Parque' })).toBeInTheDocument();
-    expect(screen.getByText('Estaciones cercanas')).toBeInTheDocument();
-    expect(screen.queryByText('Estacion Plaza Norte')).not.toBeInTheDocument();
-    expect(screen.queryByText('Reservar bicicleta')).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Estacion Centro' }));
-
-    expect(await screen.findByText('Bicicletas disponibles')).toBeInTheDocument();
-    expect(screen.getAllByText('320 m')).toHaveLength(2);
+    expect(await screen.findByText('No tenés un viaje en curso')).toBeInTheDocument();
+    expect(screen.getByText('Viajes realizados')).toBeInTheDocument();
+    expect(screen.getByText('4')).toBeInTheDocument();
+    expect(screen.getByText('Estación recomendada')).toBeInTheDocument();
+    expect(screen.getAllByText('7')).toHaveLength(2);
+    expect(screen.getByText('Último viaje')).toBeInTheDocument();
+    expect(stationService.getNearby).toHaveBeenCalledWith({ lat: -34.6037, lng: -58.3816, limit: 1 });
+    expect(tripService.getHistory).toHaveBeenCalledWith(1, 0, 1);
   });
 
-  it('muestra las estaciones registradas si nearby no devuelve estaciones', async () => {
-    mockLocationSuccess();
+  it('destaca el viaje activo y habilita el acceso al reporte', async () => {
+    vi.mocked(tripService.getActive).mockResolvedValueOnce(activeTrip);
+
+    renderPage();
+
+    expect(await screen.findByText('BIKE-001 está en uso')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ver viaje activo' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Reportar problema' })).toHaveAttribute('href', '/movilidad/reportes');
+  });
+
+  it('mantiene una acción útil cuando no encuentra estaciones cercanas', async () => {
+    getCurrentPosition.mockImplementationOnce((success) => success({ coords: { latitude: -34.6037, longitude: -58.3816 } } as GeolocationPosition));
     vi.mocked(stationService.getNearby).mockResolvedValueOnce([]);
-    vi.mocked(stationService.getAll).mockResolvedValueOnce([station]);
 
-    renderMobilityPage();
+    renderPage();
 
-    expect(await screen.findByRole('button', { name: 'Estacion Parque' })).toBeInTheDocument();
-    expect(stationService.getAll).toHaveBeenCalledOnce();
+    expect(await screen.findByText('No encontramos estaciones dentro del radio cercano. Hay 1 registradas para consultar en el mapa.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ver todas las estaciones' })).toHaveAttribute('href', '/movilidad/mapa');
   });
 
-  it('marca Inicio como activo y mantiene la navegación al mapa', () => {
-    vi.mocked(stationService.getNearby).mockResolvedValue([]);
+  it('mantiene la navegación interna y permite abrir el mapa', async () => {
+    renderPage();
 
-    renderMobilityPage();
-
-    expect(screen.getByRole('tab', { name: 'Inicio' })).toHaveAttribute('data-active', 'true');
-
+    await waitFor(() => expect(screen.getByRole('tab', { name: 'Inicio' })).toHaveAttribute('data-active', 'true'));
     fireEvent.click(screen.getByRole('tab', { name: 'Mapa' }));
     expect(screen.getByTestId('current-path')).toHaveTextContent('/movilidad/mapa');
   });

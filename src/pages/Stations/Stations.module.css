@@ -18,7 +18,10 @@
 .availabilityPanel {
   border: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 58%, white);
   background: white;
+  box-shadow: 0 10px 28px rgb(20 36 48 / 6%);
 }
+
+.tablePanel { border-top: 4px solid var(--citypass-urban-green); }
 
 .statePanel {
   display: grid;
@@ -47,12 +50,21 @@
   background: color-mix(in srgb, var(--citypass-sky-blue) 24%, white);
 }
 
+.availabilityRow :global(td) {
+  padding: 0 !important;
+  border-top: 0;
+  background: color-mix(in srgb, var(--citypass-sky-blue) 11%, white);
+}
+
 .tableToolbar {
   align-items: flex-end;
   display: flex;
   gap: 1rem;
   justify-content: space-between;
   margin-bottom: 1rem;
+  border-radius: 0.65rem;
+  padding: 0.85rem;
+  background: linear-gradient(110deg, color-mix(in srgb, var(--citypass-urban-green) 10%, white), white);
 }
 
 .searchInput {
@@ -69,6 +81,15 @@
 .availabilityTitle {
   color: var(--citypass-night-blue);
   font-size: 1.1rem;
+}
+
+.availabilityPanel {
+  margin: 0.25rem 0.75rem 0.9rem;
+  border-left: 4px solid var(--citypass-urban-blue);
+  border-radius: 0.65rem;
+  padding: 1rem 1.15rem;
+  background: white;
+  box-shadow: 0 8px 20px rgb(20 36 48 / 5%);
 }
 
 .availabilityMetrics {

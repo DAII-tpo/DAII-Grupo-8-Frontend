@@ -180,6 +180,7 @@ describe('MapPage', () => {
     expect(await screen.findByText('Bicicletas disponibles')).toBeInTheDocument();
     expect(stationService.getAvailability).toHaveBeenCalledWith(2);
     expect(screen.queryByText('Distancia')).not.toBeInTheDocument();
+    expect(screen.queryByText('Estación registrada')).not.toBeInTheDocument();
   });
 
   it('muestra un error si falla la consulta de estaciones cercanas', async () => {

@@ -12,10 +12,11 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
-import { AlertCircle, MapPin, Search } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AlertCircle, MapPin, Search, Waypoints } from 'lucide-react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
+import { MobilityFeatureBanner } from '../../components/mobility/MobilityFeatureBanner';
 import { stationService } from '../../services/stations/stationService';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
@@ -94,6 +95,14 @@ export function StationsPage() {
   };
 
   const selectStation = async (stationId: number) => {
+    if (selectedStationId === stationId) {
+      setSelectedStationId(null);
+      setAvailability(null);
+      setHasAvailabilityError(false);
+      setIsAvailabilityLoading(false);
+      return;
+    }
+
     setSelectedStationId(stationId);
     setAvailability(null);
     setHasAvailabilityError(false);
@@ -117,12 +126,23 @@ export function StationsPage() {
 
       <MobilityNavigation />
 
+      <MobilityFeatureBanner
+        description="Buscá por nombre o dirección, compará cercanía y abrí la disponibilidad dentro de cada estación."
+        icon={Waypoints}
+        label="Directorio inteligente"
+        title="Elegí el mejor punto para comenzar tu viaje"
+        tone="green"
+      />
+
       {isLoading ? <LoadingState /> : null}
       {hasError ? <RetryErrorAlert message="Verificá que el backend esté disponible e intentá nuevamente." onRetry={retry} title="No se pudieron cargar las estaciones" /> : null}
       {!isLoading && !hasError && stations.length === 0 ? <EmptyState /> : null}
       {!isLoading && !hasError && stations.length > 0 ? (
         <>
           <StationsTable
+            availability={availability}
+            hasAvailabilityError={hasAvailabilityError}
+            isAvailabilityLoading={isAvailabilityLoading}
             onSelectStation={selectStation}
             onSearchChange={setSearchQuery}
             searchQuery={searchQuery}
@@ -130,12 +150,6 @@ export function StationsPage() {
             stations={visibleStations}
             totalStations={stations.length}
             userLocationAvailable={userLocation !== null}
-          />
-          <AvailabilityPanel
-            availability={availability}
-            hasError={hasAvailabilityError}
-            isLoading={isAvailabilityLoading}
-            selectedStationId={selectedStationId}
           />
         </>
       ) : null}
@@ -171,6 +185,9 @@ function EmptyState() {
 }
 
 type StationsTableProps = {
+  availability: StationAvailability | null;
+  hasAvailabilityError: boolean;
+  isAvailabilityLoading: boolean;
   onSelectStation: (stationId: number) => void;
   onSearchChange: (query: string) => void;
   searchQuery: string;
@@ -180,30 +197,44 @@ type StationsTableProps = {
   userLocationAvailable: boolean;
 };
 
-function StationsTable({ onSearchChange, onSelectStation, searchQuery, selectedStationId, stations, totalStations, userLocationAvailable }: StationsTableProps) {
-  const rows = stations.map((station) => (
-    <Table.Tr className={station.id === selectedStationId ? classes.selectedRow : undefined} key={station.id}>
-      <Table.Td>
-        <Text fw={700}>{station.name}</Text>
-      </Table.Td>
-      <Table.Td>{station.address || 'Sin dirección informada'}</Table.Td>
-      <Table.Td>{formatDistance(station.distanceMeters)}</Table.Td>
-      <Table.Td>{station.capacity}</Table.Td>
-      <Table.Td>
-        <Badge className={classes[`status${station.status}`]}>{statusLabels[station.status]}</Badge>
-      </Table.Td>
-      <Table.Td>
-        <Button
-          aria-label={`Consultar disponibilidad de ${station.name}`}
-          onClick={() => void onSelectStation(station.id)}
-          size="compact-sm"
-          variant="light"
-        >
-          Ver disponibilidad
-        </Button>
-      </Table.Td>
-    </Table.Tr>
-  ));
+function StationsTable({ availability, hasAvailabilityError, isAvailabilityLoading, onSearchChange, onSelectStation, searchQuery, selectedStationId, stations, totalStations, userLocationAvailable }: StationsTableProps) {
+  const rows = stations.map((station) => {
+    const isSelected = station.id === selectedStationId;
+
+    return (
+      <Fragment key={station.id}>
+        <Table.Tr className={isSelected ? classes.selectedRow : undefined}>
+          <Table.Td><Text fw={700}>{station.name}</Text></Table.Td>
+          <Table.Td>{station.address || 'Sin dirección informada'}</Table.Td>
+          <Table.Td>{formatDistance(station.distanceMeters)}</Table.Td>
+          <Table.Td>{station.capacity}</Table.Td>
+          <Table.Td><Badge className={classes[`status${station.status}`]}>{statusLabels[station.status]}</Badge></Table.Td>
+          <Table.Td>
+            <Button
+              aria-expanded={isSelected}
+              aria-label={`${isSelected ? 'Ocultar' : 'Consultar'} disponibilidad de ${station.name}`}
+              onClick={() => void onSelectStation(station.id)}
+              size="compact-sm"
+              variant={isSelected ? 'filled' : 'light'}
+            >
+              {isSelected ? 'Ocultar' : 'Ver disponibilidad'}
+            </Button>
+          </Table.Td>
+        </Table.Tr>
+        {isSelected ? (
+          <Table.Tr className={classes.availabilityRow}>
+            <Table.Td colSpan={6}>
+              <AvailabilityPanel
+                availability={availability}
+                hasError={hasAvailabilityError}
+                isLoading={isAvailabilityLoading}
+              />
+            </Table.Td>
+          </Table.Tr>
+        ) : null}
+      </Fragment>
+    );
+  });
 
   return (
     <Paper className={classes.tablePanel} radius="md" p="md">
@@ -275,21 +306,14 @@ type AvailabilityPanelProps = {
   availability: StationAvailability | null;
   hasError: boolean;
   isLoading: boolean;
-  selectedStationId: number | null;
 };
 
-function AvailabilityPanel({ availability, hasError, isLoading, selectedStationId }: AvailabilityPanelProps) {
+function AvailabilityPanel({ availability, hasError, isLoading }: AvailabilityPanelProps) {
   return (
-    <Paper className={classes.availabilityPanel} radius="md" p="md">
+    <div className={classes.availabilityPanel}>
       <Title className={classes.availabilityTitle} order={2}>
         Disponibilidad de bicicletas
       </Title>
-
-      {selectedStationId === null ? (
-        <Text c="dimmed" mt="xs">
-          Seleccioná una estación para consultar su disponibilidad actual.
-        </Text>
-      ) : null}
       {isLoading ? (
         <Group gap="sm" mt="md">
           <Loader color="citypassUrbanBlue" size="sm" />
@@ -302,7 +326,7 @@ function AvailabilityPanel({ availability, hasError, isLoading, selectedStationI
         </Alert>
       ) : null}
       {availability ? <AvailabilityDetails availability={availability} /> : null}
-    </Paper>
+    </div>
   );
 }
 
@@ -317,7 +341,7 @@ function AvailabilityDetails({ availability }: AvailabilityDetailsProps) {
         <div>
           <Text fw={700}>{availability.stationName}</Text>
           <Text c="dimmed" size="sm">
-            Última actualización: {availability.checkedAt}
+            Última actualización: {formatDateTime(availability.checkedAt)}
           </Text>
         </div>
         <Badge className={classes[`status${availability.status}`]}>{statusLabels[availability.status]}</Badge>
@@ -336,6 +360,10 @@ function AvailabilityDetails({ availability }: AvailabilityDetailsProps) {
       ) : null}
     </Stack>
   );
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat('es-AR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value));
 }
 
 type AvailabilityMetricProps = {
