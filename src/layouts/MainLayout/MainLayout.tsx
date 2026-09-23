@@ -29,7 +29,6 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../../app/providers/authContext';
 import { BrandLogo } from '../../components/common/BrandLogo';
-import { env } from '../../config/env';
 
 import classes from './MainLayout.module.css';
 
@@ -72,7 +71,7 @@ const managementNavigationItems: NavigationItem[] = [
 export function MainLayout() {
   const [mobileOpened, { toggle: toggleMobile }] = useDisclosure(false);
   const [sidebarOpened, { toggle: toggleSidebar }] = useDisclosure(true);
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const menuIcon = sidebarOpened ? <X size={28} /> : <Menu size={32} />;
@@ -127,8 +126,8 @@ export function MainLayout() {
           <Group className={classes.userSummary} gap="sm" wrap="nowrap">
             <Avatar className={classes.avatar} radius="xl">UD</Avatar>
             <div className={classes.userCopy}>
-              <Text className={classes.userName}>Usuario demo</Text>
-              <Text className={classes.userRole}>{env.demoUserRole === 'ADMIN' ? 'Administrador' : 'Ciudadano'}</Text>
+              <Text className={classes.userName}>{user?.email ?? 'Usuario demo'}</Text>
+              <Text className={classes.userRole}>{user?.role === 'ADMIN' ? 'Administrador' : 'Ciudadano'}</Text>
             </div>
           </Group>
         </Group>
@@ -159,7 +158,7 @@ export function MainLayout() {
               />
             ))}
           </div>
-          {env.demoUserRole === 'ADMIN' ? (
+          {user?.role === 'ADMIN' ? (
             <>
               <Text className={classes.sectionLabel}>Gestión</Text>
               <div className={classes.managementSection}>

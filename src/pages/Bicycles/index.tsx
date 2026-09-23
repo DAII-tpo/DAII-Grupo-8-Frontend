@@ -17,10 +17,10 @@ import { AlertCircle, Bike, Clock3, MapPin, Play, Route } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
+import { useAuth } from '../../app/providers/authContext';
 import { MobilityFeatureBanner } from '../../components/mobility/MobilityFeatureBanner';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
-import { currentUserId } from '../../config/currentUser';
 import { bikeService } from '../../services/bikes/bikeService';
 import { stationService } from '../../services/stations/stationService';
 import { tripService } from '../../services/trips/tripService';
@@ -33,6 +33,8 @@ import pageClasses from '../../styles/mobilityPage.module.css';
 import classes from './Bicycles.module.css';
 
 export function BicyclesPage() {
+  const { user } = useAuth();
+  const userId = user?.userId ?? null;
   return (
     <Stack className={pageClasses.page} gap="lg">
       <MobilityPageHeader
@@ -50,7 +52,7 @@ export function BicyclesPage() {
         tone="sky"
       />
 
-      {currentUserId === null ? <MissingUserConfiguration /> : <TripManager userId={currentUserId} />}
+      {userId === null ? <MissingUserConfiguration /> : <TripManager userId={userId} />}
     </Stack>
   );
 }
@@ -58,7 +60,7 @@ export function BicyclesPage() {
 function MissingUserConfiguration() {
   return (
     <Alert color="orange" icon={<AlertCircle size={18} />} title="Falta configurar el usuario temporal">
-      Configurá VITE_DEMO_USER_ID con el ID de un usuario existente en el backend para consultar o iniciar viajes.
+      No se pudo obtener el usuario autenticado para consultar o iniciar viajes.
     </Alert>
   );
 }

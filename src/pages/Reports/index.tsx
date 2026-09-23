@@ -4,10 +4,10 @@ import { AlertCircle, CheckCircle2, MapPin, Navigation, ShieldAlert } from 'luci
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { MobilityFeatureBanner } from '../../components/mobility/MobilityFeatureBanner';
+import { useAuth } from '../../app/providers/authContext';
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
-import { currentUserId } from '../../config/currentUser';
 import { incidentService } from '../../services/incidents/incidentService';
 import { stationService } from '../../services/stations/stationService';
 import { tripService } from '../../services/trips/tripService';
@@ -21,7 +21,8 @@ import classes from './Reports.module.css';
 const maxDescriptionLength = 2000;
 
 export function ReportsPage() {
-  const userId = currentUserId;
+  const { user } = useAuth();
+  const userId = user?.userId ?? null;
   const [activeTrip, setActiveTrip] = useState<TripResponse | null>(null);
   const [types, setTypes] = useState<IncidentTypeResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);

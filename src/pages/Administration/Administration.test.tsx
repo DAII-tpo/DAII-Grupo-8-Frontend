@@ -10,7 +10,9 @@ import { stationService } from '../../services/stations/stationService';
 import { mantineTheme } from '../../styles/theme';
 import { AdministrationPage } from './index';
 
-vi.mock('../../config/currentUser', () => ({ currentUserId: 7 }));
+vi.mock('../../app/providers/authContext', () => ({
+  useAuth: () => ({ user: { email: 'admin@citypass.com', role: 'ADMIN', userId: 2 } }),
+}));
 vi.mock('../../services/incidents/incidentService', () => ({ incidentService: { getAll: vi.fn(), updateStatus: vi.fn() } }));
 vi.mock('../../services/maintenance/maintenanceService', () => ({ maintenanceService: { getAll: vi.fn(), create: vi.fn(), complete: vi.fn() } }));
 vi.mock('../../services/stations/stationService', () => ({ stationService: { getAll: vi.fn() } }));
@@ -140,8 +142,8 @@ describe('AdministrationPage', () => {
     expect(await screen.findByText('Rueda desinflada')).toBeInTheDocument();
     expect(screen.getByText('user@citypass.com')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Administración de Movilidad' })).toBeInTheDocument();
-    expect(incidentService.getAll).toHaveBeenCalledWith(7);
-    expect(maintenanceService.getAll).toHaveBeenCalledWith(7);
+    expect(incidentService.getAll).toHaveBeenCalledWith(2);
+    expect(maintenanceService.getAll).toHaveBeenCalledWith(2);
   });
 
   it('muestra un estado vacío para incidencias', async () => {
@@ -166,7 +168,7 @@ describe('AdministrationPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'En revisión' }));
 
     expect(await screen.findByText('El estado de la incidencia fue actualizado.')).toBeInTheDocument();
-    expect(incidentService.updateStatus).toHaveBeenCalledWith(7, 8, { status: 'UNDER_REVIEW' });
+    expect(incidentService.updateStatus).toHaveBeenCalledWith(2, 8, { status: 'UNDER_REVIEW' });
     expect(screen.getAllByText('En revisión')).toHaveLength(2);
   });
 
@@ -182,7 +184,7 @@ describe('AdministrationPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Iniciar mantenimiento' }));
 
     expect(await screen.findByText('La bicicleta fue enviada a mantenimiento.')).toBeInTheDocument();
-    expect(maintenanceService.create).toHaveBeenCalledWith(7, {
+    expect(maintenanceService.create).toHaveBeenCalledWith(2, {
       bikeId: 1,
       incidentId: 8,
       description: 'Revisar rueda',
@@ -205,7 +207,7 @@ describe('AdministrationPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Finalizar' }));
 
     expect(await screen.findByText('El mantenimiento fue finalizado.')).toBeInTheDocument();
-    expect(maintenanceService.complete).toHaveBeenCalledWith(7, 3, { resolution: 'Rueda reparada' });
+    expect(maintenanceService.complete).toHaveBeenCalledWith(2, 3, { resolution: 'Rueda reparada' });
     expect(screen.getAllByText('Completado')).toHaveLength(2);
   });
 

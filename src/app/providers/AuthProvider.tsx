@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
 
-import { authStorageKey, demoCredentials } from '../../config/demoAuth';
+import { authenticateDemoUser, authStorageKey, isAuthUser, type AuthUser } from '../../config/demoAuth';
 import { AuthContext, type AuthContextValue } from './authContext';
 
 type AuthProviderProps = {
@@ -9,32 +9,38 @@ type AuthProviderProps = {
 };
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [isAuthenticated, setIsAuthenticated] = useState(
-    () => window.localStorage.getItem(authStorageKey) === 'true',
-  );
+  const [user, setUser] = useState<AuthUser | null>(() => readStoredUser());
+  const isAuthenticated = user !== null;
 
   const value = useMemo<AuthContextValue>(
     () => ({
       isAuthenticated,
+      user,
       login: (email, password) => {
-        const isValid =
-          email.trim().toLowerCase() === demoCredentials.email
-          && password === demoCredentials.password;
-
-        if (isValid) {
-          window.localStorage.setItem(authStorageKey, 'true');
-          setIsAuthenticated(true);
-        }
-
-        return isValid;
+        const authenticatedUser = authenticateDemoUser(email, password);
+        if (!authenticatedUser) return false;
+        window.localStorage.setItem(authStorageKey, JSON.stringify(authenticatedUser));
+        setUser(authenticatedUser);
+        return true;
       },
       logout: () => {
         window.localStorage.removeItem(authStorageKey);
-        setIsAuthenticated(false);
+        setUser(null);
       },
     }),
-    [isAuthenticated],
+    [isAuthenticated, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+function readStoredUser(): AuthUser | null {
+  const stored = window.localStorage.getItem(authStorageKey);
+  if (!stored) return null;
+  try {
+    const user: unknown = JSON.parse(stored);
+    if (isAuthUser(user)) return user;
+  } catch { /* Invalid persisted session. */ }
+  window.localStorage.removeItem(authStorageKey);
+  return null;
 }

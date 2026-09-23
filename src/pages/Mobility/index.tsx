@@ -26,8 +26,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
+import { useAuth } from '../../app/providers/authContext';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
-import { currentUserId } from '../../config/currentUser';
 import { stationService } from '../../services/stations/stationService';
 import { tripService } from '../../services/trips/tripService';
 import pageClasses from '../../styles/mobilityPage.module.css';
@@ -56,6 +56,8 @@ const quickActions: QuickAction[] = [
 ];
 
 export function MobilityPage() {
+  const { user } = useAuth();
+  const userId = user?.userId ?? null;
   const [activeTrip, setActiveTrip] = useState<TripResponse | null>(null);
   const [history, setHistory] = useState<PagedResponse<TripResponse> | null>(null);
   const [stationCount, setStationCount] = useState<number | null>(null);
@@ -65,7 +67,7 @@ export function MobilityPage() {
   const [locationState, setLocationState] = useState<LocationState>('loading');
 
   const loadDashboard = useCallback(async () => {
-    if (currentUserId === null) {
+    if (userId === null) {
       setHasSummaryError(true);
       setIsLoading(false);
       return;
@@ -74,8 +76,8 @@ export function MobilityPage() {
     setIsLoading(true);
     setHasSummaryError(false);
     const [activeResult, historyResult, stationsResult] = await Promise.allSettled([
-      tripService.getActive(currentUserId),
-      tripService.getHistory(currentUserId, 0, 1),
+      tripService.getActive(userId),
+      tripService.getHistory(userId, 0, 1),
       stationService.getAll(),
     ]);
 
@@ -88,7 +90,7 @@ export function MobilityPage() {
       || stationsResult.status === 'rejected',
     );
     setIsLoading(false);
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     void Promise.resolve().then(loadDashboard);

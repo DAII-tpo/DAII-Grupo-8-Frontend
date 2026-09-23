@@ -1,7 +1,6 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter } from 'react-router-dom';
 
 import { PlaceholderPage } from '../../components/common/PlaceholderPage';
-import { env } from '../../config/env';
 import { AuthLayout } from '../../layouts/AuthLayout/AuthLayout';
 import { MainLayout } from '../../layouts/MainLayout/MainLayout';
 import { ActiveTripPage } from '../../pages/ActiveTrip';
@@ -15,6 +14,7 @@ import { MobilityPage } from '../../pages/Mobility';
 import { ReportsPage } from '../../pages/Reports';
 import { StationsPage } from '../../pages/Stations';
 import { RequireAuth } from './RequireAuth';
+import { RequireRole } from './RequireRole';
 
 export const router = createBrowserRouter([
   {
@@ -40,7 +40,7 @@ export const router = createBrowserRouter([
       { path: 'movilidad/reportes', element: <ReportsPage /> },
       {
         path: 'movilidad/administracion',
-        element: env.demoUserRole === 'ADMIN' ? <AdministrationPage /> : <Navigate to="/movilidad" replace />,
+        element: <RequireRole role="ADMIN"><AdministrationPage /></RequireRole>,
       },
       { path: 'residuos', element: <PlaceholderPage title="Residuos" /> },
       { path: 'reclamos', element: <PlaceholderPage title="Reclamos" /> },

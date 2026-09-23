@@ -4,10 +4,10 @@ import { Activity, Bike, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, 
 import { useCallback, useEffect, useState } from 'react';
 
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
+import { useAuth } from '../../app/providers/authContext';
 import { MobilityFeatureBanner } from '../../components/mobility/MobilityFeatureBanner';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
-import { currentUserId } from '../../config/currentUser';
 import { tripService } from '../../services/trips/tripService';
 import type { PagedResponse } from '../../types/pagination';
 import type { TripResponse } from '../../types/trip';
@@ -25,7 +25,8 @@ const tripStatusLabels: Record<TripResponse['status'], string> = {
 };
 
 export function HistoryPage() {
-  const userId = currentUserId;
+  const { user } = useAuth();
+  const userId = user?.userId ?? null;
   const [history, setHistory] = useState<PagedResponse<TripResponse> | null>(null);
   const [page, setPage] = useState(0);
   const [isLoading, setIsLoading] = useState(true);

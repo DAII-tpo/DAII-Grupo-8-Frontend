@@ -4,9 +4,9 @@ import { AlertCircle, Bike, CheckCircle2, ParkingCircle, RefreshCw, Search, Wren
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
+import { useAuth } from '../../app/providers/authContext';
 import mobilityNavigationClasses from '../../components/mobility/MobilityNavigation/MobilityNavigation.module.css';
 import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
-import { currentUserId } from '../../config/currentUser';
 import { bikeService } from '../../services/bikes/bikeService';
 import { incidentService } from '../../services/incidents/incidentService';
 import { maintenanceService } from '../../services/maintenance/maintenanceService';
@@ -38,7 +38,8 @@ const maintenanceStatusLabels = {
 } as const;
 
 export function AdministrationPage() {
-  const userId = currentUserId;
+  const { user } = useAuth();
+  const userId = user?.userId ?? null;
   const [incidents, setIncidents] = useState<AdminIncidentResponse[]>([]);
   const [maintenance, setMaintenance] = useState<MaintenanceResponse[]>([]);
   const [stations, setStations] = useState<Station[]>([]);
