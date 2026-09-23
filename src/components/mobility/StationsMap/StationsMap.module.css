@@ -55,6 +55,33 @@
   width: 100%;
 }
 
+.recenterControl {
+  position: absolute;
+  z-index: 1000;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 65%, white);
+  border-radius: 0.35rem;
+  color: var(--citypass-night-blue);
+  background: white;
+  box-shadow: 0 4px 12px rgb(20 36 48 / 20%);
+  cursor: pointer;
+}
+
+.recenterControl:hover {
+  color: white;
+  background: var(--citypass-urban-blue);
+}
+
+.recenterControl:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--citypass-urban-blue) 48%, white);
+  outline-offset: 2px;
+}
+
 .emptyMap {
   display: grid;
   min-height: 32rem;

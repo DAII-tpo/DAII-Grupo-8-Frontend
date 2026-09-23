@@ -7,6 +7,8 @@ import { stationService } from '../../services/stations/stationService';
 import { mantineTheme } from '../../styles/theme';
 import { MapPage } from './index';
 
+const { mapSetView } = vi.hoisted(() => ({ mapSetView: vi.fn() }));
+
 vi.mock('react-leaflet', () => ({
   CircleMarker: ({ children, eventHandlers }: { children: React.ReactNode; eventHandlers?: { click?: () => void } }) => (
     <button onClick={eventHandlers?.click} type="button">{children}</button>
@@ -17,7 +19,7 @@ vi.mock('react-leaflet', () => ({
   ),
   TileLayer: () => null,
   Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  useMap: () => ({ setView: vi.fn() }),
+  useMap: () => ({ setView: mapSetView }),
 }));
 
 vi.mock('../../services/stations/stationService', () => ({
@@ -160,6 +162,20 @@ describe('MapPage', () => {
     expect(screen.getAllByText('320 m')).toHaveLength(2);
   });
 
+  it('muestra el control de ubicación y recentra el mapa sin solicitarla nuevamente', async () => {
+    mockLocationSuccess();
+    vi.mocked(stationService.getNearby).mockResolvedValueOnce([nearbyStation]);
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([{ ...station, id: 1, name: 'Estacion Centro', address: 'Av. Corrientes 100' }]);
+
+    renderPage();
+
+    const recenterControl = await screen.findByRole('button', { name: 'Ir a mi ubicación' });
+    fireEvent.click(recenterControl);
+
+    expect(mapSetView).toHaveBeenLastCalledWith([-34.6037, -58.3816], 17);
+    expect(getCurrentPosition).toHaveBeenCalledOnce();
+  });
+
   it('muestra todas las estaciones cuando no hay estaciones cercanas', async () => {
     mockLocationSuccess();
     vi.mocked(stationService.getNearby).mockResolvedValueOnce([]);
@@ -199,6 +215,7 @@ describe('MapPage', () => {
     expect(stationService.getAvailability).toHaveBeenCalledWith(2);
     expect(screen.queryByText('Distancia')).not.toBeInTheDocument();
     expect(screen.queryByText('Estación registrada')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ir a mi ubicación' })).not.toBeInTheDocument();
   });
 
   it('muestra un error si falla la consulta de estaciones cercanas', async () => {
