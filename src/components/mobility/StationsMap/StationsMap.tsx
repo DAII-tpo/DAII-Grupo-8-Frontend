@@ -3,7 +3,7 @@ import 'leaflet/dist/leaflet.css';
 import { Alert, Group, Loader, Paper, Stack, Text, Title, UnstyledButton } from '@mantine/core';
 import { divIcon } from 'leaflet';
 import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet';
-import { AlertCircle, Bike, MapPin, Navigation, Sparkles } from 'lucide-react';
+import { AlertCircle, Bike, LocateFixed, MapPin, Navigation, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { stationService } from '../../../services/stations/stationService';
@@ -212,6 +212,7 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
                 <MapViewport center={mapCenter} />
+                {userLocation ? <RecenterToUserControl location={userLocation} /> : null}
                 {userLocation ? (
                   <CircleMarker center={userLocation} className={classes.userMarker} pathOptions={{ color: '#2F5CA6', fillColor: '#2F5CA6', fillOpacity: 1 }} radius={8}>
                     <Tooltip direction="top">Tu ubicación</Tooltip>
@@ -276,6 +277,22 @@ function MapViewport({ center }: { center: Coordinates }) {
   }, [center, map]);
 
   return null;
+}
+
+function RecenterToUserControl({ location }: Readonly<{ location: Coordinates }>) {
+  const map = useMap();
+
+  return (
+    <button
+      aria-label="Ir a mi ubicación"
+      className={classes.recenterControl}
+      onClick={() => map.setView(location, 17)}
+      title="Ir a mi ubicación"
+      type="button"
+    >
+      <LocateFixed aria-hidden="true" size={20} />
+    </button>
+  );
 }
 
 function LoadingState({ message }: { message: string }) {
