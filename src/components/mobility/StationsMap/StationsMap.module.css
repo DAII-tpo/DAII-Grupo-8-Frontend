@@ -80,6 +80,12 @@
   box-shadow: 0 8px 24px rgba(20, 36, 48, 0.06);
 }
 
+.recommendationPanel {
+  border: 1px solid color-mix(in srgb, var(--citypass-urban-green) 45%, white);
+  border-top: 4px solid var(--citypass-urban-green);
+  background: color-mix(in srgb, var(--citypass-urban-green) 7%, white);
+}
+
 .detailsTitle,
 .emptyTitle,
 .nearbyTitle {
@@ -181,6 +187,11 @@
 .stationMarkerSelected {
   background: var(--citypass-urban-green);
   transform: rotate(-45deg) scale(1.12);
+}
+
+.stationMarkerRecommended {
+  background: var(--citypass-urban-green);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--citypass-urban-green) 28%, transparent), 0 5px 14px rgb(20 36 48 / 35%);
 }
 
 @media (max-width: 62rem) {

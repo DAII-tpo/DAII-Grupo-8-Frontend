@@ -3,13 +3,14 @@ import 'leaflet/dist/leaflet.css';
 import { Alert, Group, Loader, Paper, Stack, Text, Title, UnstyledButton } from '@mantine/core';
 import { divIcon } from 'leaflet';
 import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet';
-import { AlertCircle, Bike, MapPin, Navigation } from 'lucide-react';
+import { AlertCircle, Bike, MapPin, Navigation, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { stationService } from '../../../services/stations/stationService';
 import type { NearbyStation } from '../../../types/nearbyStation';
 import type { Station } from '../../../types/station';
 import type { StationAvailability } from '../../../types/stationAvailability';
+import type { StationRecommendation } from '../../../types/stationRecommendation';
 
 import classes from './StationsMap.module.css';
 
@@ -27,10 +28,10 @@ type MapStation = {
   name: string;
 };
 
-function createStationIcon(isSelected: boolean) {
+function createStationIcon(isSelected: boolean, isRecommended: boolean) {
   return divIcon({
     className: classes.stationMarkerHost,
-    html: `<span class="${classes.stationMarker}${isSelected ? ` ${classes.stationMarkerSelected}` : ''}" aria-hidden="true"><svg viewBox="0 0 24 24" role="img"><circle cx="6" cy="17" r="3.25"/><circle cx="18" cy="17" r="3.25"/><path d="m6 17 4-7 3 7m-7 0h7l4-7m-8 0h4m-5-3h3"/></svg></span>`,
+    html: `<span class="${classes.stationMarker}${isSelected ? ` ${classes.stationMarkerSelected}` : ''}${isRecommended ? ` ${classes.stationMarkerRecommended}` : ''}" aria-hidden="true"><svg viewBox="0 0 24 24" role="img"><circle cx="6" cy="17" r="3.25"/><circle cx="18" cy="17" r="3.25"/><path d="m6 17 4-7 3 7m-7 0h7l4-7m-8 0h4m-5-3h3"/></svg></span>`,
     iconAnchor: [22, 22],
     iconSize: [44, 44],
   });
@@ -79,6 +80,9 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
   const [selectedAvailability, setSelectedAvailability] = useState<StationAvailability | null>(null);
   const [isAvailabilityLoading, setIsAvailabilityLoading] = useState(false);
   const [hasAvailabilityError, setHasAvailabilityError] = useState(false);
+  const [recommendation, setRecommendation] = useState<StationRecommendation | null>(null);
+  const [isRecommendationLoading, setIsRecommendationLoading] = useState(false);
+  const [hasRecommendationError, setHasRecommendationError] = useState(false);
 
   useEffect(() => {
     const loadFallbackStations = async () => {
@@ -118,6 +122,18 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
       }
     };
 
+    const loadRecommendation = async (location: Coordinates) => {
+      setIsRecommendationLoading(true);
+      setHasRecommendationError(false);
+      try {
+        setRecommendation(await stationService.getRecommendation(location[0], location[1], 'PICKUP'));
+      } catch {
+        setHasRecommendationError(true);
+      } finally {
+        setIsRecommendationLoading(false);
+      }
+    };
+
     const showFallback = (message: string) => {
       setGeolocationError(message);
       setIsGeolocationLoading(false);
@@ -135,6 +151,7 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
         setUserLocation(location);
         setIsGeolocationLoading(false);
         void loadNearbyStations(location);
+        void loadRecommendation(location);
       },
       () => {
         showFallback('No se pudo obtener tu ubicación. Se muestran todas las estaciones registradas.');
@@ -167,6 +184,7 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
     : null;
   const mapCenter = userLocation ?? firstStationCenter;
   const nearbyStations = stations.filter((station) => station.distanceMeters !== null);
+  const recommendedStationId = recommendation?.status === 'RECOMMENDED' ? recommendation.station?.stationId : null;
 
   return (
     <Stack gap="lg">
@@ -202,7 +220,7 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
                 {stations.map((station) => (
                   <Marker
                     eventHandlers={{ click: () => void selectStation(station) }}
-                    icon={createStationIcon(selectedStation?.id === station.id)}
+                    icon={createStationIcon(selectedStation?.id === station.id, recommendedStationId === station.id)}
                     key={station.id}
                     position={[station.latitude, station.longitude]}
                   >
@@ -216,6 +234,7 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
           </Paper>
 
           <Stack gap="md">
+          <RecommendationPanel error={hasRecommendationError} loading={isRecommendationLoading} recommendation={recommendation} />
           <StationDetails
             availability={selectedAvailability}
             hasAvailabilityError={hasAvailabilityError}
@@ -229,6 +248,24 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
 
     </Stack>
   );
+}
+
+function RecommendationPanel({ error, loading, recommendation }: { error: boolean; loading: boolean; recommendation: StationRecommendation | null }) {
+  if (loading) return <Paper className={classes.recommendationPanel} radius="md" p="md"><Group gap="sm"><Loader size="sm" /><Text size="sm">Buscando la mejor estación para retirar una bicicleta...</Text></Group></Paper>;
+  if (error) return <Alert color="gray" title="Recomendación no disponible">Podés continuar usando el mapa y elegir cualquier estación.</Alert>;
+  if (!recommendation) return null;
+  if (recommendation.status === 'NO_RECOMMENDATION') return <Alert color="blue" title="Sin recomendación disponible">{recommendation.message}</Alert>;
+  if (!recommendation.station) return null;
+
+  const isModel = recommendation.source === 'MODEL';
+  const title = isModel ? 'Estación recomendada' : 'Alternativa recomendada disponible';
+  return <Paper className={classes.recommendationPanel} radius="md" p="md"><Stack gap="xs">
+    <Group gap="xs">{isModel ? <Sparkles size={18} /> : <MapPin size={18} />}<Text fw={700}>{title}</Text></Group>
+    <Text fw={700}>{recommendation.station.stationName}</Text>
+    {recommendation.station.address ? <Text c="dimmed" size="sm">{recommendation.station.address}</Text> : null}
+    <Group gap="md"><Text size="sm">{recommendation.station.distanceMeters} m</Text><Text size="sm">{recommendation.station.availableBikes} bicicletas</Text><Text size="sm">{recommendation.station.availableSlots} espacios</Text></Group>
+    <Text size="sm">{recommendation.message}</Text>
+  </Stack></Paper>;
 }
 
 function MapViewport({ center }: { center: Coordinates }) {
