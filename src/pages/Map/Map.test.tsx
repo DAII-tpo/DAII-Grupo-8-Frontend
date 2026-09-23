@@ -12,8 +12,8 @@ vi.mock('react-leaflet', () => ({
     <button onClick={eventHandlers?.click} type="button">{children}</button>
   ),
   MapContainer: ({ children }: { children: React.ReactNode }) => <div data-testid="map">{children}</div>,
-  Marker: ({ children, eventHandlers }: { children: React.ReactNode; eventHandlers?: { click?: () => void } }) => (
-    <button onClick={eventHandlers?.click} type="button">{children}</button>
+  Marker: ({ children, eventHandlers, icon }: { children: React.ReactNode; eventHandlers?: { click?: () => void }; icon?: { options?: { html?: string } } }) => (
+    <button data-recommended={icon?.options?.html?.includes('stationMarkerRecommended') ? 'true' : 'false'} onClick={eventHandlers?.click} type="button">{children}</button>
   ),
   TileLayer: () => null,
   Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -25,6 +25,7 @@ vi.mock('../../services/stations/stationService', () => ({
     getAll: vi.fn(),
     getAvailability: vi.fn(),
     getNearby: vi.fn(),
+    getRecommendation: vi.fn(),
   },
 }));
 
@@ -57,6 +58,23 @@ const station = {
   updatedAt: '2026-09-01T12:00:00Z',
   deletedAt: null,
 };
+
+const recommendedStation = {
+  stationId: 1,
+  stationName: 'Estacion Centro',
+  address: 'Av. Corrientes 100',
+  latitude: -34.6037,
+  longitude: -58.3816,
+  distanceMeters: 320,
+  capacity: 20,
+  availableBikes: 7,
+  availableSlots: 13,
+  score: 0.9,
+};
+
+function recommendation(source: 'MODEL' | 'FALLBACK' = 'MODEL') {
+  return { status: 'RECOMMENDED' as const, source, purpose: 'PICKUP' as const, reason: null, message: 'La mejor opción disponible.', station: recommendedStation, alternatives: [], explanation: null, modelVersion: source === 'MODEL' ? 'v1' : null, generatedAt: '2026-09-23T12:00:00Z' };
+}
 
 function renderPage() {
   return render(
@@ -190,5 +208,70 @@ describe('MapPage', () => {
     renderPage();
 
     expect(await screen.findByText('No se pudieron cargar las estaciones')).toBeInTheDocument();
+  });
+
+  it('muestra una recomendación MODEL y destaca su marcador sin bloquear el mapa', async () => {
+    mockLocationSuccess();
+    vi.mocked(stationService.getNearby).mockResolvedValue([nearbyStation]);
+    vi.mocked(stationService.getAll).mockResolvedValue([{ ...station, id: 1, name: 'Estacion Centro', address: 'Av. Corrientes 100' }]);
+    vi.mocked(stationService.getRecommendation).mockResolvedValue(recommendation());
+    renderPage();
+    expect(await screen.findByText('Estación recomendada')).toBeInTheDocument();
+    expect(screen.getByText('La mejor opción disponible.')).toBeInTheDocument();
+    expect(screen.getByTestId('map')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Estacion Centro' })).toHaveAttribute('data-recommended', 'true');
+  });
+
+  it('muestra fallback neutral, no recommendation y errores sin impedir el mapa', async () => {
+    mockLocationSuccess();
+    vi.mocked(stationService.getNearby).mockResolvedValue([nearbyStation]);
+    vi.mocked(stationService.getAll).mockResolvedValue([{ ...station, id: 1, name: 'Estacion Centro', address: 'Av. Corrientes 100' }]);
+    vi.mocked(stationService.getRecommendation).mockResolvedValue(recommendation('FALLBACK'));
+    renderPage();
+    expect(await screen.findByText('Alternativa recomendada disponible')).toBeInTheDocument();
+    expect(screen.queryByText('Estación recomendada')).not.toBeInTheDocument();
+  });
+
+  it('muestra NO_RECOMMENDATION sin afectar el mapa ni el listado de estaciones', async () => {
+    mockLocationSuccess();
+    vi.mocked(stationService.getNearby).mockResolvedValue([nearbyStation]);
+    vi.mocked(stationService.getAll).mockResolvedValue([{ ...station, id: 1, name: 'Estacion Centro', address: 'Av. Corrientes 100' }]);
+    vi.mocked(stationService.getRecommendation).mockResolvedValue({ status: 'NO_RECOMMENDATION', source: 'MODEL', purpose: 'PICKUP', reason: 'NO_VIABLE_STATION', message: 'No hay bicicletas disponibles cerca.', station: null, alternatives: [], explanation: null, modelVersion: 'v1', generatedAt: '2026-09-23T12:00:00Z' });
+
+    renderPage();
+
+    expect(await screen.findByText('No hay bicicletas disponibles cerca.')).toBeInTheDocument();
+    expect(screen.getByTestId('map')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Estacion Centro' })).toBeInTheDocument();
+    expect(screen.queryByText('No se pudieron cargar las estaciones')).not.toBeInTheDocument();
+  });
+
+  it('muestra un aviso discreto cuando falla recommendation y conserva el mapa', async () => {
+    mockLocationSuccess();
+    vi.mocked(stationService.getNearby).mockResolvedValue([nearbyStation]);
+    vi.mocked(stationService.getAll).mockResolvedValue([{ ...station, id: 1, name: 'Estacion Centro', address: 'Av. Corrientes 100' }]);
+    vi.mocked(stationService.getRecommendation).mockRejectedValue(new Error('Recommendation unavailable'));
+
+    renderPage();
+
+    expect(await screen.findByText('Recomendación no disponible')).toBeInTheDocument();
+    expect(screen.getByTestId('map')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Estacion Centro' })).toBeInTheDocument();
+    expect(screen.queryByText('No se pudieron cargar las estaciones')).not.toBeInTheDocument();
+  });
+
+  it('mantiene el mapa disponible mientras carga la recomendación', async () => {
+    mockLocationSuccess();
+    vi.mocked(stationService.getNearby).mockResolvedValue([nearbyStation]);
+    vi.mocked(stationService.getAll).mockResolvedValue([{ ...station, id: 1, name: 'Estacion Centro', address: 'Av. Corrientes 100' }]);
+    let resolveRecommendation!: (value: ReturnType<typeof recommendation>) => void;
+    vi.mocked(stationService.getRecommendation).mockReturnValue(new Promise((resolve) => { resolveRecommendation = resolve; }));
+
+    renderPage();
+
+    expect(await screen.findByText('Buscando la mejor estación para retirar una bicicleta...')).toBeInTheDocument();
+    expect(screen.getByTestId('map')).toBeInTheDocument();
+    resolveRecommendation(recommendation());
+    expect(await screen.findByText('Estación recomendada')).toBeInTheDocument();
   });
 });
