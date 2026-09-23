@@ -9,7 +9,9 @@ import { tripService } from '../../services/trips/tripService';
 import { mantineTheme } from '../../styles/theme';
 import { BicyclesPage } from './index';
 
-vi.mock('../../config/currentUser', () => ({ currentUserId: 7 }));
+vi.mock('../../app/providers/authContext', () => ({
+  useAuth: () => ({ user: { email: 'user@citypass.com', role: 'USER', userId: 1 } }),
+}));
 vi.mock('../../services/bikes/bikeService', () => ({ bikeService: { getAvailable: vi.fn() } }));
 vi.mock('../../services/stations/stationService', () => ({ stationService: { getAll: vi.fn(), getAvailability: vi.fn() } }));
 vi.mock('../../services/trips/tripService', () => ({ tripService: { end: vi.fn(), getActive: vi.fn(), start: vi.fn() } }));
@@ -121,7 +123,7 @@ describe('BicyclesPage', () => {
     renderPage();
 
     expect(await screen.findByRole('combobox', { name: 'Estación de origen' })).toBeInTheDocument();
-    expect(tripService.getActive).toHaveBeenCalledWith(7);
+    expect(tripService.getActive).toHaveBeenCalledWith(1);
     expect(screen.getByRole('tab', { name: 'Bicicletas/Viajes' })).toHaveAttribute('data-active', 'true');
   });
 
@@ -198,7 +200,7 @@ describe('BicyclesPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Finalizar viaje' }));
 
     expect(await screen.findByText('Viaje finalizado')).toBeInTheDocument();
-    expect(tripService.end).toHaveBeenCalledWith(7, 3, { destinationStationId: 2 });
+    expect(tripService.end).toHaveBeenCalledWith(1, 3, { destinationStationId: 2 });
     expect(screen.getAllByText('Estacion Centro')).toHaveLength(2);
     expect(screen.getByText('30 min 0 s')).toBeInTheDocument();
   });
@@ -319,7 +321,7 @@ describe('BicyclesPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Iniciar viaje' }));
 
     expect(await screen.findByText('Tenés un viaje activo')).toBeInTheDocument();
-    expect(tripService.start).toHaveBeenCalledWith(7, { bikeId: 1 });
+    expect(tripService.start).toHaveBeenCalledWith(1, { bikeId: 1 });
   });
 
   it('muestra un error entendible si no puede iniciar el viaje', async () => {

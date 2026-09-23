@@ -8,7 +8,9 @@ import { tripService } from '../../services/trips/tripService';
 import { mantineTheme } from '../../styles/theme';
 import { MobilityPage } from './index';
 
-vi.mock('../../config/currentUser', () => ({ currentUserId: 1 }));
+vi.mock('../../app/providers/authContext', () => ({
+  useAuth: () => ({ user: { email: 'user@citypass.com', role: 'USER', userId: 1 } }),
+}));
 
 vi.mock('../../services/stations/stationService', () => ({
   stationService: { getAll: vi.fn(), getNearby: vi.fn() },

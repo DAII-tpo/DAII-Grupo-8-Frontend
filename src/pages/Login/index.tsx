@@ -1,10 +1,10 @@
 import { Alert, Button, PasswordInput, Stack, Text, TextInput, Title } from '@mantine/core';
-import type { FormEvent } from 'react';
+import type { FormEventHandler } from 'react';
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../../app/providers/authContext';
-import { demoCredentials } from '../../config/demoAuth';
+import { demoAccounts } from '../../config/demoAuth';
 
 type LoginLocationState = {
   from?: {
@@ -13,8 +13,8 @@ type LoginLocationState = {
 };
 
 export function LoginPage() {
-  const [email, setEmail] = useState<string>(demoCredentials.email);
-  const [password, setPassword] = useState<string>(demoCredentials.password);
+  const [email, setEmail] = useState<string>(demoAccounts[0].email);
+  const [password, setPassword] = useState<string>(demoAccounts[0].password);
   const [error, setError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -22,7 +22,7 @@ export function LoginPage() {
   const state = location.state as LoginLocationState | null;
   const redirectTo = state?.from?.pathname ?? '/';
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit: FormEventHandler<HTMLFormElement> = (event) => {
     event.preventDefault();
     setError('');
 
@@ -43,8 +43,8 @@ export function LoginPage() {
           autenticacion.
         </Text>
         <Alert color="blue" variant="light">
-          Usuario demo: {demoCredentials.email} | Clave:{' '}
-          {demoCredentials.password}
+          Usuario: user@citypass.com | Clave: citypass123 | Rol: USER<br />
+          Usuario: admin@citypass.com | Clave: citypass123 | Rol: ADMIN
         </Alert>
         {error && (
           <Alert color="red" variant="light">
@@ -53,7 +53,7 @@ export function LoginPage() {
         )}
         <TextInput
           label="Correo electronico"
-          placeholder="demo@citypass.com"
+          placeholder="user@citypass.com"
           type="email"
           value={email}
           onChange={(event) => setEmail(event.currentTarget.value)}

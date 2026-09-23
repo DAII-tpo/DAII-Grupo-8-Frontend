@@ -4,10 +4,10 @@ import { AlertCircle, CheckCircle2, MapPin, Navigation, ShieldAlert } from 'luci
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { MobilityFeatureBanner } from '../../components/mobility/MobilityFeatureBanner';
+import { useAuth } from '../../app/providers/authContext';
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
-import { currentUserId } from '../../config/currentUser';
 import { incidentService } from '../../services/incidents/incidentService';
 import { stationService } from '../../services/stations/stationService';
 import { tripService } from '../../services/trips/tripService';
@@ -21,7 +21,8 @@ import classes from './Reports.module.css';
 const maxDescriptionLength = 2000;
 
 export function ReportsPage() {
-  const userId = currentUserId;
+  const { user } = useAuth();
+  const userId = user?.userId ?? null;
   const [activeTrip, setActiveTrip] = useState<TripResponse | null>(null);
   const [types, setTypes] = useState<IncidentTypeResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -218,7 +219,7 @@ function LoadingState() {
   );
 }
 
-function LoadErrorState({ onRetry }: { onRetry: () => void }) {
+function LoadErrorState({ onRetry }: Readonly<{ onRetry: () => void }>) {
   return <RetryErrorAlert message="Verificá que el backend esté disponible e intentá nuevamente." onRetry={onRetry} title="No se pudo preparar el reporte" />;
 }
 
@@ -272,7 +273,7 @@ function ReportForm({
   selectedType,
   submitError,
   types,
-}: ReportFormProps) {
+}: Readonly<ReportFormProps>) {
   const isDescriptionValid = description.trim().length > 0 && description.length <= maxDescriptionLength;
   const canSubmit = incidentTypeId !== '' && isDescriptionValid && !isSubmitting;
 
@@ -319,7 +320,7 @@ type SuccessStateProps = {
   returnedStationName: string | null;
 };
 
-function SuccessState({ incident, onOpenReturn, onReportAnother, returnedStationName }: SuccessStateProps) {
+function SuccessState({ incident, onOpenReturn, onReportAnother, returnedStationName }: Readonly<SuccessStateProps>) {
   return (
     <Paper className={classes.successPanel} radius="md" p="lg">
       <Stack gap="md">
@@ -364,7 +365,7 @@ type BikeReturnModalProps = {
   station: NearbyStation | null;
 };
 
-function BikeReturnModal({ isReturning, onClose, onConfirm, onRetry, opened, recommendationState, returnError, station }: BikeReturnModalProps) {
+function BikeReturnModal({ isReturning, onClose, onConfirm, onRetry, opened, recommendationState, returnError, station }: Readonly<BikeReturnModalProps>) {
   return (
     <Modal centered onClose={onClose} opened={opened} size="md" title="Devolvé la bicicleta de forma segura">
       <Stack gap="md">

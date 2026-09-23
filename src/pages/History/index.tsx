@@ -4,10 +4,10 @@ import { Activity, Bike, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, 
 import { useCallback, useEffect, useState } from 'react';
 
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
+import { useAuth } from '../../app/providers/authContext';
 import { MobilityFeatureBanner } from '../../components/mobility/MobilityFeatureBanner';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
-import { currentUserId } from '../../config/currentUser';
 import { tripService } from '../../services/trips/tripService';
 import type { PagedResponse } from '../../types/pagination';
 import type { TripResponse } from '../../types/trip';
@@ -25,7 +25,8 @@ const tripStatusLabels: Record<TripResponse['status'], string> = {
 };
 
 export function HistoryPage() {
-  const userId = currentUserId;
+  const { user } = useAuth();
+  const userId = user?.userId ?? null;
   const [history, setHistory] = useState<PagedResponse<TripResponse> | null>(null);
   const [page, setPage] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,10 +51,30 @@ export function HistoryPage() {
 
   useEffect(() => { void Promise.resolve().then(() => loadHistory(page)); }, [loadHistory, page]);
 
-  return <Stack className={pageClasses.page} gap="lg"><MobilityPageHeader title="Historial" subtitle="Revisá tus viajes finalizados y el detalle de cada recorrido." /><MobilityNavigation /><MobilityFeatureBanner description="Consultá origen, destino, bicicleta y duración de cada viaje registrado en tu cuenta." icon={Activity} label="Tu actividad" title="Todos tus recorridos organizados" tone="amber" />{isLoading ? <LoadingState /> : null}{error ? <ErrorState message={error} onRetry={() => void loadHistory(page)} /> : null}{!isLoading && !error && history?.content.length === 0 ? <EmptyState /> : null}{!isLoading && !error && history && history.content.length > 0 ? <><HistorySummary history={history} /><Stack gap="sm">{history.content.map((trip) => <TripCard key={trip.id} trip={trip} />)}</Stack><Group justify="space-between"><Button disabled={history.page === 0} leftSection={<ChevronLeft size={16} />} onClick={() => setPage((current) => current - 1)} variant="default">Anterior</Button><Text c="dimmed" size="sm">Página {history.page + 1} de {Math.max(history.totalPages, 1)}</Text><Button disabled={history.last} onClick={() => setPage((current) => current + 1)} rightSection={<ChevronRight size={16} />}>Siguiente</Button></Group></> : null}</Stack>;
+  return (
+    <Stack className={pageClasses.page} gap="lg">
+      <MobilityPageHeader title="Historial" subtitle="Revisá tus viajes finalizados y el detalle de cada recorrido." />
+      <MobilityNavigation />
+      <MobilityFeatureBanner description="Consultá origen, destino, bicicleta y duración de cada viaje registrado en tu cuenta." icon={Activity} label="Tu actividad" title="Todos tus recorridos organizados" tone="amber" />
+      {isLoading ? <LoadingState /> : null}
+      {error ? <ErrorState message={error} onRetry={() => void loadHistory(page)} /> : null}
+      {!isLoading && !error && history?.content.length === 0 ? <EmptyState /> : null}
+      {!isLoading && !error && history && history.content.length > 0 ? (
+        <>
+          <HistorySummary history={history} />
+          <Stack gap="sm">{history.content.map((trip) => <TripCard key={trip.id} trip={trip} />)}</Stack>
+          <Group justify="space-between">
+            <Button disabled={history.page === 0} leftSection={<ChevronLeft size={16} />} onClick={() => setPage((current) => current - 1)} variant="default">Anterior</Button>
+            <Text c="dimmed" size="sm">Página {history.page + 1} de {Math.max(history.totalPages, 1)}</Text>
+            <Button disabled={history.last} onClick={() => setPage((current) => current + 1)} rightSection={<ChevronRight size={16} />}>Siguiente</Button>
+          </Group>
+        </>
+      ) : null}
+    </Stack>
+  );
 }
 
-function HistorySummary({ history }: { history: PagedResponse<TripResponse> }) {
+function HistorySummary({ history }: Readonly<{ history: PagedResponse<TripResponse> }>) {
   const durations = history.content.map((trip) => trip.durationSeconds).filter((value): value is number => value !== null);
   const average = durations.length === 0 ? null : Math.round(durations.reduce((sum, value) => sum + value, 0) / durations.length);
   return (
@@ -67,8 +88,8 @@ function HistorySummary({ history }: { history: PagedResponse<TripResponse> }) {
 
 function LoadingState() { return <Paper className={classes.statePanel} radius="md" p="xl"><Stack align="center"><Loader color="citypassUrbanBlue" /><Text c="dimmed">Cargando tus viajes...</Text></Stack></Paper>; }
 function EmptyState() { return <Paper className={classes.statePanel} radius="md" p="xl"><Text c="dimmed">Todavía no tenés viajes finalizados.</Text></Paper>; }
-function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) { return <RetryErrorAlert message={message} onRetry={onRetry} title="No se pudo cargar el historial" />; }
-function TripCard({ trip }: { trip: TripResponse }) {
+function ErrorState({ message, onRetry }: Readonly<{ message: string; onRetry: () => void }>) { return <RetryErrorAlert message={message} onRetry={onRetry} title="No se pudo cargar el historial" />; }
+function TripCard({ trip }: Readonly<{ trip: TripResponse }>) {
   const isCompleted = trip.status === 'COMPLETED';
   return (
     <Paper className={classes.tripCard} radius="md" p="md">
@@ -96,13 +117,42 @@ function TripCard({ trip }: { trip: TripResponse }) {
   );
 }
 
-function Metric({ icon: Icon, label, value }: { icon?: typeof Activity; label: string; value: string }) {
+function Metric({ icon: Icon, label, value }: Readonly<{ icon?: typeof Activity; label: string; value: string }>) {
   return <div className={classes.metric}>{Icon ? <Icon className={classes.metricIcon} size={17} /> : null}<div><Text fw={750}>{value}</Text><Text c="dimmed" size="xs">{label}</Text></div></div>;
 }
-function historyErrorMessage(error: unknown) { if (!isAxiosError(error)) return 'No pudimos cargar tus viajes. Intentá nuevamente.'; if (error.response?.status === 400) return 'La solicitud del historial no es válida.'; if (error.response?.status === 404) return 'No se encontró el usuario.'; return 'No pudimos cargar tus viajes. Intentá nuevamente.'; }
+function historyErrorMessage(error: unknown) {
+  if (!isAxiosError(error)) {
+    return 'No pudimos cargar tus viajes. Intentá nuevamente.';
+  }
+
+  if (error.response?.status === 400) {
+    return 'La solicitud del historial no es válida.';
+  }
+
+  if (error.response?.status === 404) {
+    return 'No se encontró el usuario.';
+  }
+
+  return 'No pudimos cargar tus viajes. Intentá nuevamente.';
+}
 function formatDate(value: string) { return new Intl.DateTimeFormat('es-AR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: argentinaTimeZone }).format(new Date(value)); }
 function formatTime(value: string) { return `${new Intl.DateTimeFormat('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: argentinaTimeZone }).format(new Date(value))} hs`; }
 function formatTripEnd(startedAt: string, endedAt: string) {
   return formatDate(startedAt) === formatDate(endedAt) ? formatTime(endedAt) : `${formatDate(endedAt)}, ${formatTime(endedAt)}`;
 }
-function formatDuration(seconds: number | null) { if (seconds === null) return 'Sin información'; if (seconds < 60) return `${seconds} s`; const minutes = Math.floor(seconds / 60); if (minutes < 60) return `${minutes} min`; return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')} min`; }
+function formatDuration(seconds: number | null) {
+  if (seconds === null) {
+    return 'Sin información';
+  }
+
+  if (seconds < 60) {
+    return `${seconds} s`;
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) {
+    return `${minutes} min`;
+  }
+
+  return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')} min`;
+}

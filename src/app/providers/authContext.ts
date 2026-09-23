@@ -1,7 +1,9 @@
 import { createContext, useContext } from 'react';
+import type { AuthUser } from '../../config/demoAuth';
 
 export type AuthContextValue = {
   isAuthenticated: boolean;
+  user: AuthUser | null;
   login: (email: string, password: string) => boolean;
   logout: () => void;
 };

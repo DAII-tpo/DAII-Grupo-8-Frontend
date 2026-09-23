@@ -17,10 +17,10 @@ import { AlertCircle, Bike, Clock3, MapPin, Play, Route } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
+import { useAuth } from '../../app/providers/authContext';
 import { MobilityFeatureBanner } from '../../components/mobility/MobilityFeatureBanner';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
-import { currentUserId } from '../../config/currentUser';
 import { bikeService } from '../../services/bikes/bikeService';
 import { stationService } from '../../services/stations/stationService';
 import { tripService } from '../../services/trips/tripService';
@@ -33,6 +33,8 @@ import pageClasses from '../../styles/mobilityPage.module.css';
 import classes from './Bicycles.module.css';
 
 export function BicyclesPage() {
+  const { user } = useAuth();
+  const userId = user?.userId ?? null;
   return (
     <Stack className={pageClasses.page} gap="lg">
       <MobilityPageHeader
@@ -50,7 +52,7 @@ export function BicyclesPage() {
         tone="sky"
       />
 
-      {currentUserId === null ? <MissingUserConfiguration /> : <TripManager userId={currentUserId} />}
+      {userId === null ? <MissingUserConfiguration /> : <TripManager userId={userId} />}
     </Stack>
   );
 }
@@ -58,7 +60,7 @@ export function BicyclesPage() {
 function MissingUserConfiguration() {
   return (
     <Alert color="orange" icon={<AlertCircle size={18} />} title="Falta configurar el usuario temporal">
-      Configurá VITE_DEMO_USER_ID con el ID de un usuario existente en el backend para consultar o iniciar viajes.
+      No se pudo obtener el usuario autenticado para consultar o iniciar viajes.
     </Alert>
   );
 }
@@ -67,7 +69,7 @@ type TripManagerProps = {
   userId: number;
 };
 
-function TripManager({ userId }: TripManagerProps) {
+function TripManager({ userId }: Readonly<TripManagerProps>) {
   const [activeTrip, setActiveTrip] = useState<TripResponse | null>(null);
   const [completedTrip, setCompletedTrip] = useState<TripResponse | null>(null);
   const [isLoadingActiveTrip, setIsLoadingActiveTrip] = useState(true);
@@ -123,7 +125,7 @@ type StartTripFlowProps = {
   userId: number;
 };
 
-function StartTripFlow({ onTripStarted, userId }: StartTripFlowProps) {
+function StartTripFlow({ onTripStarted, userId }: Readonly<StartTripFlowProps>) {
   const [stations, setStations] = useState<Station[]>([]);
   const [isLoadingStations, setIsLoadingStations] = useState(true);
   const [stationsError, setStationsError] = useState(false);
@@ -289,7 +291,35 @@ type ActiveTripPanelProps = {
   userId: number;
 };
 
-function ActiveTripPanel({ onTripCompleted, trip, userId }: ActiveTripPanelProps) {
+function ActiveTripPanel({ onTripCompleted, trip, userId }: Readonly<ActiveTripPanelProps>) {
+  return (
+    <Paper className={classes.activeTripPanel} radius="md" p="lg">
+      <Stack gap="md">
+        <Group className={classes.activeTripHeader} justify="space-between" wrap="wrap">
+          <Group gap="md" wrap="nowrap">
+            <div className={classes.activeTripIcon}><Bike size={25} /></div>
+            <div>
+              <Text className={classes.activeTripEyebrow}>RECORRIDO EN CURSO</Text>
+              <Title className={classes.activeTripTitle} order={2}>Tenés un viaje activo</Title>
+              <Text c="dimmed" size="sm">Elegí dónde devolver la bicicleta cuando llegues a destino.</Text>
+            </div>
+          </Group>
+          <Badge color="citypassUrbanGreen" size="lg" variant="filled">En curso</Badge>
+        </Group>
+        <SimpleGrid className={classes.activeMetrics} cols={{ base: 1, sm: 3 }} spacing="sm">
+          <TripMetric icon={Bike} label="Bicicleta" value={trip.bikeCode} />
+          <TripMetric icon={MapPin} label="Estación de origen" value={trip.originStationName} />
+          <TripMetric icon={Clock3} label="Inicio" value={formatDateTime(trip.startedAt)} />
+        </SimpleGrid>
+        <ReturnStationFlow onTripCompleted={onTripCompleted} trip={trip} userId={userId} />
+      </Stack>
+    </Paper>
+  );
+}
+
+type ReturnStationFlowProps = Readonly<ActiveTripPanelProps>;
+
+function ReturnStationFlow({ onTripCompleted, trip, userId }: ReturnStationFlowProps) {
   const [stations, setStations] = useState<Station[]>([]);
   const [isLoadingStations, setIsLoadingStations] = useState(true);
   const [stationsError, setStationsError] = useState(false);
@@ -358,91 +388,84 @@ function ActiveTripPanel({ onTripCompleted, trip, userId }: ActiveTripPanelProps
     }
   };
 
+  if (isLoadingStations) {
+    return <LoadingPanel message="Cargando estaciones destino..." />;
+  }
+
+  if (stationsError) {
+    return <RetryErrorAlert message="Verificá que el backend esté disponible e intentá nuevamente." onRetry={() => void loadStations()} title="No se pudieron cargar las estaciones" />;
+  }
+
+  if (stations.length === 0) {
+    return <Alert color="orange" icon={<AlertCircle size={18} />} title="No hay estaciones destino disponibles">No hay estaciones disponibles para devolver la bicicleta en este momento.</Alert>;
+  }
+
+  return <DestinationStationForm availability={availability} availabilityError={availabilityError} endTripError={endTripError} isConfirming={isConfirming} isEndingTrip={isEndingTrip} isLoadingAvailability={isLoadingAvailability} onConfirm={() => setIsConfirming(true)} onEndTrip={() => void endTrip()} onSelectDestination={(value) => void selectDestination(value)} onCancelConfirmation={() => setIsConfirming(false)} selectedStationId={selectedStationId} stations={stations} />;
+}
+
+type DestinationStationFormProps = Readonly<{
+  availability: StationAvailability | null;
+  availabilityError: string | null;
+  endTripError: string | null;
+  isConfirming: boolean;
+  isEndingTrip: boolean;
+  isLoadingAvailability: boolean;
+  onCancelConfirmation: () => void;
+  onConfirm: () => void;
+  onEndTrip: () => void;
+  onSelectDestination: (value: string) => void;
+  selectedStationId: number | null;
+  stations: Station[];
+}>;
+
+function DestinationStationForm({ availability, availabilityError, endTripError, isConfirming, isEndingTrip, isLoadingAvailability, onCancelConfirmation, onConfirm, onEndTrip, onSelectDestination, selectedStationId, stations }: DestinationStationFormProps) {
+  const hasNoSlots = availability?.availableSlots === 0;
+  const canConfirm = availability !== null && !isConfirming;
+  const shouldShowConfirmation = isConfirming && availability !== null && availability.availableSlots > 0;
+
   return (
-    <Paper className={classes.activeTripPanel} radius="md" p="lg">
-      <Stack gap="md">
-        <Group className={classes.activeTripHeader} justify="space-between" wrap="wrap">
-          <Group gap="md" wrap="nowrap">
-            <div className={classes.activeTripIcon}><Bike size={25} /></div>
-            <div>
-              <Text className={classes.activeTripEyebrow}>RECORRIDO EN CURSO</Text>
-              <Title className={classes.activeTripTitle} order={2}>Tenés un viaje activo</Title>
-              <Text c="dimmed" size="sm">Elegí dónde devolver la bicicleta cuando llegues a destino.</Text>
-            </div>
-          </Group>
-          <Badge color="citypassUrbanGreen" size="lg" variant="filled">En curso</Badge>
+    <Stack gap="md">
+      <NativeSelect aria-label="Estación destino" onChange={(event) => onSelectDestination(event.currentTarget.value)} value={selectedStationId?.toString() ?? ''}>
+        <option value="">Seleccioná una estación destino</option>
+        {stations.map((station) => <option key={station.id} value={station.id}>{station.name}{station.address ? ` - ${station.address}` : ''}</option>)}
+      </NativeSelect>
+      {selectedStationId === null ? <Text c="dimmed" size="sm">Seleccioná una estación para consultar sus espacios disponibles.</Text> : null}
+      {isLoadingAvailability ? <LoadingPanel message="Consultando espacios disponibles..." /> : null}
+      {availabilityError ? <Alert color="red" icon={<AlertCircle size={18} />} title="No se pudo consultar la disponibilidad">{availabilityError}</Alert> : null}
+      {availability ? <DestinationAvailability availability={availability} /> : null}
+      {hasNoSlots ? <Alert color="orange" icon={<AlertCircle size={18} />} title="No hay espacios disponibles">Esta estación no cuenta con anclajes libres para devolver la bicicleta.</Alert> : null}
+      {canConfirm ? <Button disabled={hasNoSlots} onClick={onConfirm}>Confirmar devolución</Button> : null}
+      {shouldShowConfirmation ? <ReturnConfirmation availableSlots={availability.availableSlots} endTripError={endTripError} isEndingTrip={isEndingTrip} onCancel={onCancelConfirmation} onEndTrip={onEndTrip} stationName={availability.stationName} /> : null}
+    </Stack>
+  );
+}
+
+type ReturnConfirmationProps = Readonly<{
+  availableSlots: number;
+  endTripError: string | null;
+  isEndingTrip: boolean;
+  onCancel: () => void;
+  onEndTrip: () => void;
+  stationName: string;
+}>;
+
+function ReturnConfirmation({ availableSlots, endTripError, isEndingTrip, onCancel, onEndTrip, stationName }: ReturnConfirmationProps) {
+  return (
+    <Paper className={classes.confirmationPanel} radius="sm" p="md">
+      <Stack gap="sm">
+        <Text fw={700}>Confirmá la devolución en {stationName}</Text>
+        <Text c="dimmed" size="sm">Espacios disponibles: {availableSlots}</Text>
+        {endTripError ? <Alert color="red" icon={<AlertCircle size={18} />} title="No se pudo finalizar el viaje">{endTripError}</Alert> : null}
+        <Group>
+          <Button variant="default" onClick={onCancel}>Cancelar</Button>
+          <Button color="citypassUrbanGreen" loading={isEndingTrip} onClick={onEndTrip}>Finalizar viaje</Button>
         </Group>
-        <SimpleGrid className={classes.activeMetrics} cols={{ base: 1, sm: 3 }} spacing="sm">
-          <TripMetric icon={Bike} label="Bicicleta" value={trip.bikeCode} />
-          <TripMetric icon={MapPin} label="Estación de origen" value={trip.originStationName} />
-          <TripMetric icon={Clock3} label="Inicio" value={formatDateTime(trip.startedAt)} />
-        </SimpleGrid>
-
-        {isLoadingStations ? <LoadingPanel message="Cargando estaciones destino..." /> : null}
-        {stationsError ? (
-          <RetryErrorAlert
-            message="Verificá que el backend esté disponible e intentá nuevamente."
-            onRetry={() => void loadStations()}
-            title="No se pudieron cargar las estaciones"
-          />
-        ) : null}
-        {!isLoadingStations && !stationsError && stations.length === 0 ? (
-          <Alert color="orange" icon={<AlertCircle size={18} />} title="No hay estaciones destino disponibles">
-            No hay estaciones disponibles para devolver la bicicleta en este momento.
-          </Alert>
-        ) : null}
-        {!isLoadingStations && !stationsError && stations.length > 0 ? (
-          <Stack gap="md">
-            <NativeSelect
-              aria-label="Estación destino"
-              onChange={(event) => void selectDestination(event.currentTarget.value)}
-              value={selectedStationId?.toString() ?? ''}
-            >
-              <option value="">Seleccioná una estación destino</option>
-              {stations.map((station) => (
-                <option key={station.id} value={station.id}>
-                  {station.name}{station.address ? ` - ${station.address}` : ''}
-                </option>
-              ))}
-            </NativeSelect>
-
-            {selectedStationId === null ? <Text c="dimmed" size="sm">Seleccioná una estación para consultar sus espacios disponibles.</Text> : null}
-            {isLoadingAvailability ? <LoadingPanel message="Consultando espacios disponibles..." /> : null}
-            {availabilityError ? <Alert color="red" icon={<AlertCircle size={18} />} title="No se pudo consultar la disponibilidad">{availabilityError}</Alert> : null}
-            {availability ? <DestinationAvailability availability={availability} /> : null}
-            {availability?.availableSlots === 0 ? (
-              <Alert color="orange" icon={<AlertCircle size={18} />} title="No hay espacios disponibles">
-                Esta estación no cuenta con anclajes libres para devolver la bicicleta.
-              </Alert>
-            ) : null}
-            {availability && !isConfirming ? (
-              <Button disabled={availability.availableSlots === 0} onClick={() => setIsConfirming(true)}>
-                Confirmar devolución
-              </Button>
-            ) : null}
-            {isConfirming && availability && availability.availableSlots > 0 ? (
-              <Paper className={classes.confirmationPanel} radius="sm" p="md">
-                <Stack gap="sm">
-                  <Text fw={700}>Confirmá la devolución en {availability.stationName}</Text>
-                  <Text c="dimmed" size="sm">Espacios disponibles: {availability.availableSlots}</Text>
-                  {endTripError ? <Alert color="red" icon={<AlertCircle size={18} />} title="No se pudo finalizar el viaje">{endTripError}</Alert> : null}
-                  <Group>
-                    <Button variant="default" onClick={() => setIsConfirming(false)}>Cancelar</Button>
-                    <Button color="citypassUrbanGreen" loading={isEndingTrip} onClick={() => void endTrip()}>
-                      Finalizar viaje
-                    </Button>
-                  </Group>
-                </Stack>
-              </Paper>
-            ) : null}
-          </Stack>
-        ) : null}
       </Stack>
     </Paper>
   );
 }
 
-function DestinationAvailability({ availability }: { availability: StationAvailability }) {
+function DestinationAvailability({ availability }: Readonly<{ availability: StationAvailability }>) {
   return (
     <Paper className={classes.availabilityPanel} radius="sm" p="md">
       <Stack gap="sm">
@@ -462,7 +485,7 @@ type CompletedTripPanelProps = {
   trip: TripResponse;
 };
 
-function CompletedTripPanel({ onStartAnother, trip }: CompletedTripPanelProps) {
+function CompletedTripPanel({ onStartAnother, trip }: Readonly<CompletedTripPanelProps>) {
   return (
     <Paper className={classes.completedTripPanel} radius="md" p="lg">
       <Stack gap="md">
@@ -493,7 +516,7 @@ type TripMetricProps = {
   value: string;
 };
 
-function TripMetric({ icon: Icon, label, value }: TripMetricProps) {
+function TripMetric({ icon: Icon, label, value }: Readonly<TripMetricProps>) {
   return (
     <div className={classes.tripMetric}>
       {Icon ? <Icon className={classes.tripMetricIcon} size={18} /> : null}
@@ -503,7 +526,7 @@ function TripMetric({ icon: Icon, label, value }: TripMetricProps) {
   );
 }
 
-function LoadingPanel({ message }: { message: string }) {
+function LoadingPanel({ message }: Readonly<{ message: string }>) {
   return (
     <Paper className={classes.statePanel} radius="md" p="xl">
       <Stack align="center" gap="sm">
