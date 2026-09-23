@@ -196,7 +196,7 @@ export function AdministrationPage() {
   );
 }
 
-function AdministrationSummary({ bikes, incidents, maintenance, stations }: { bikes: BikeResponse[]; incidents: AdminIncidentResponse[]; maintenance: MaintenanceResponse[]; stations: Station[] }) {
+function AdministrationSummary({ bikes, incidents, maintenance, stations }: Readonly<{ bikes: BikeResponse[]; incidents: AdminIncidentResponse[]; maintenance: MaintenanceResponse[]; stations: Station[] }>) {
   const openIncidents = incidents.filter((incident) => incident.status === 'OPEN' || incident.status === 'UNDER_REVIEW').length;
   const activeMaintenance = maintenance.filter((item) => item.status === 'PENDING' || item.status === 'IN_PROGRESS').length;
   const activeStations = stations.filter((station) => station.status === 'ACTIVE').length;
@@ -222,14 +222,16 @@ function AdministrationSummary({ bikes, incidents, maintenance, stations }: { bi
 type ChartTone = 'blue' | 'green' | 'amber' | 'red';
 type ChartDatum = { label: string; value: number };
 
-function AdminMetric({ icon: Icon, label, tone, value }: { icon: typeof AlertCircle; label: string; tone: ChartTone; value: number }) {
-  return <Paper className={`${classes.metricCard} ${classes[`tone${capitalize(tone)}`]}`} radius="md" p="md"><div className={classes.metricIcon}><Icon size={21} /></div><Text className={classes.metricLabel}>{label}</Text><Text className={classes.metricNumber}>{value}</Text></Paper>;
+function AdminMetric({ icon: Icon, label, tone, value }: Readonly<{ icon: typeof AlertCircle; label: string; tone: ChartTone; value: number }>) {
+  const metricToneClass = toneClass(tone);
+  return <Paper className={`${classes.metricCard} ${metricToneClass}`} radius="md" p="md"><div className={classes.metricIcon}><Icon size={21} /></div><Text className={classes.metricLabel}>{label}</Text><Text className={classes.metricNumber}>{value}</Text></Paper>;
 }
 
-function AdminBarChart({ data, description, title, tone }: { data: ChartDatum[]; description: string; title: string; tone: ChartTone }) {
+function AdminBarChart({ data, description, title, tone }: Readonly<{ data: ChartDatum[]; description: string; title: string; tone: ChartTone }>) {
   const max = Math.max(1, ...data.map((item) => item.value));
+  const chartToneClass = toneClass(tone);
   return (
-    <Paper aria-label={title} className={`${classes.chartCard} ${classes[`tone${capitalize(tone)}`]}`} radius="md" p="lg" role="img">
+    <Paper aria-label={title} className={`${classes.chartCard} ${chartToneClass}`} radius="md" p="lg" role="img">
       <Title className={classes.chartTitle} order={2}>{title}</Title>
       <Text c="dimmed" size="sm">{description}</Text>
       <Stack className={classes.barChart} gap="sm" mt="lg">
@@ -239,7 +241,7 @@ function AdminBarChart({ data, description, title, tone }: { data: ChartDatum[];
   );
 }
 
-function BikeStatusChart({ bikes, compact = false }: { bikes: BikeResponse[]; compact?: boolean }) {
+function BikeStatusChart({ bikes, compact = false }: Readonly<{ bikes: BikeResponse[]; compact?: boolean }>) {
   const data: Array<ChartDatum & { color: string }> = [
     { label: 'Disponibles', value: countBikes(bikes, 'AVAILABLE'), color: 'var(--citypass-urban-green)' },
     { label: 'En uso', value: countBikes(bikes, 'IN_USE'), color: 'var(--citypass-urban-blue)' },
@@ -254,7 +256,7 @@ function BikeStatusChart({ bikes, compact = false }: { bikes: BikeResponse[]; co
   return <Paper aria-label="Distribución de bicicletas por estado" className={`${classes.chartCard} ${classes.toneBlue}`} radius="md" p="lg" role="img"><Title className={classes.chartTitle} order={2}>Bicicletas por estado</Title><Text c="dimmed" size="sm">Composición de las bicicletas cargadas en estaciones.</Text><div className={`${classes.donutLayout} ${compact ? classes.donutCompact : ''}`}><div className={classes.donut} style={{ background }}><div><Text className={classes.donutTotal}>{total}</Text><Text c="dimmed" size="xs">Total</Text></div></div><Stack gap="xs">{data.map((item) => <Group gap="xs" justify="space-between" key={item.label} wrap="nowrap"><Group gap="xs" wrap="nowrap"><span className={classes.legendDot} style={{ background: item.color }} /><Text size="sm">{item.label}</Text></Group><Text fw={800} size="sm">{item.value}</Text></Group>)}</Stack></div></Paper>;
 }
 
-function StationCapacityChart({ bikes, stations }: { bikes: BikeResponse[]; stations: Station[] }) {
+function StationCapacityChart({ bikes, stations }: Readonly<{ bikes: BikeResponse[]; stations: Station[] }>) {
   const [query, setQuery] = useState('');
   const visibleStations = useMemo(() => {
     const normalizedQuery = normalizeSearch(query);
@@ -306,32 +308,33 @@ function maintenanceChartData(maintenance: MaintenanceResponse[]): ChartDatum[] 
 
 function countBikes(bikes: BikeResponse[], status: BikeStatus) { return bikes.filter((bike) => bike.status === status).length; }
 function capitalize(value: string) { return `${value.charAt(0).toUpperCase()}${value.slice(1)}`; }
+function toneClass(tone: ChartTone) { return classes[`tone${capitalize(tone)}`]; }
 function normalizeSearch(value: string) { return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('es-AR'); }
 
 function LoadingState() {
   return <Paper className={classes.statePanel} radius="md" p="xl"><Stack align="center"><Loader color="citypassUrbanBlue" /><Text c="dimmed">Cargando información administrativa...</Text></Stack></Paper>;
 }
 
-function LoadError({ message, onRetry }: { message: string; onRetry: () => void }) {
+function LoadError({ message, onRetry }: Readonly<{ message: string; onRetry: () => void }>) {
   return <RetryErrorAlert message={message} onRetry={onRetry} title="No se pudo cargar la administración" />;
 }
 
-function IncidentsPanel({ incidents, onUpdate, pendingAction }: { incidents: AdminIncidentResponse[]; onUpdate: (id: number, status: IncidentStatus) => Promise<void>; pendingAction: string | null }) {
+function IncidentsPanel({ incidents, onUpdate, pendingAction }: Readonly<{ incidents: AdminIncidentResponse[]; onUpdate: (id: number, status: IncidentStatus) => Promise<void>; pendingAction: string | null }>) {
   if (incidents.length === 0) return <EmptyState message="No hay incidencias registradas." />;
 
   return <Paper className={classes.tablePanel} radius="md" p="md"><ScrollArea><Table miw={900} verticalSpacing="sm"><Table.Thead><Table.Tr><Table.Th>ID</Table.Th><Table.Th>Bicicleta</Table.Th><Table.Th>Tipo</Table.Th><Table.Th>Descripción</Table.Th><Table.Th>Usuario</Table.Th><Table.Th>Fecha</Table.Th><Table.Th>Estado</Table.Th><Table.Th>Acciones</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{incidents.map((incident) => <IncidentRow incident={incident} key={incident.id} onUpdate={onUpdate} pending={pendingAction === `incident-${incident.id}`} />)}</Table.Tbody></Table></ScrollArea></Paper>;
 }
 
-function IncidentRow({ incident, onUpdate, pending }: { incident: AdminIncidentResponse; onUpdate: (id: number, status: IncidentStatus) => Promise<void>; pending: boolean }) {
+function IncidentRow({ incident, onUpdate, pending }: Readonly<{ incident: AdminIncidentResponse; onUpdate: (id: number, status: IncidentStatus) => Promise<void>; pending: boolean }>) {
   const transitions = nextIncidentStatuses(incident.status);
   return <Table.Tr><Table.Td>{incident.id}</Table.Td><Table.Td>{incident.bikeCode}</Table.Td><Table.Td>{incident.incidentTypeName}</Table.Td><Table.Td>{incident.description}</Table.Td><Table.Td>{incident.reportedByUserEmail}</Table.Td><Table.Td>{formatDateTime(incident.reportedAt)}</Table.Td><Table.Td><StatusBadge status={incident.status} /></Table.Td><Table.Td><Group gap="xs" wrap="nowrap">{transitions.map((status) => <Button disabled={pending} key={status} loading={pending} onClick={() => void onUpdate(incident.id, status)} size="compact-sm" variant="light">{incidentStatusLabels[status]}</Button>)}</Group></Table.Td></Table.Tr>;
 }
 
-function MaintenancePanel({ incidents, maintenance, onComplete, onCreate, pendingAction }: { incidents: AdminIncidentResponse[]; maintenance: MaintenanceResponse[]; onComplete: (id: number, resolution: string) => Promise<void>; onCreate: (incident: AdminIncidentResponse, description: string) => Promise<void>; pendingAction: string | null }) {
+function MaintenancePanel({ incidents, maintenance, onComplete, onCreate, pendingAction }: Readonly<{ incidents: AdminIncidentResponse[]; maintenance: MaintenanceResponse[]; onComplete: (id: number, resolution: string) => Promise<void>; onCreate: (incident: AdminIncidentResponse, description: string) => Promise<void>; pendingAction: string | null }>) {
   return <Stack gap="lg"><CreateMaintenanceForm incidents={incidents} isSubmitting={pendingAction === 'create-maintenance'} onCreate={onCreate} />{maintenance.length === 0 ? <EmptyState message="No hay mantenimientos registrados." /> : <Paper className={classes.tablePanel} radius="md" p="md"><ScrollArea><Table miw={800} verticalSpacing="sm"><Table.Thead><Table.Tr><Table.Th>ID</Table.Th><Table.Th>Bicicleta</Table.Th><Table.Th>Incidencia</Table.Th><Table.Th>Detalle</Table.Th><Table.Th>Inicio</Table.Th><Table.Th>Estado</Table.Th><Table.Th>Finalizar</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{maintenance.map((item) => <MaintenanceRow item={item} key={item.id} onComplete={onComplete} pending={pendingAction === `maintenance-${item.id}`} />)}</Table.Tbody></Table></ScrollArea></Paper>}</Stack>;
 }
 
-function CreateMaintenanceForm({ incidents, isSubmitting, onCreate }: { incidents: AdminIncidentResponse[]; isSubmitting: boolean; onCreate: (incident: AdminIncidentResponse, description: string) => Promise<void> }) {
+function CreateMaintenanceForm({ incidents, isSubmitting, onCreate }: Readonly<{ incidents: AdminIncidentResponse[]; isSubmitting: boolean; onCreate: (incident: AdminIncidentResponse, description: string) => Promise<void> }>) {
   const [incidentId, setIncidentId] = useState('');
   const [description, setDescription] = useState('');
   const incident = useMemo(() => incidents.find((item) => item.id === Number(incidentId)), [incidentId, incidents]);
@@ -339,18 +342,28 @@ function CreateMaintenanceForm({ incidents, isSubmitting, onCreate }: { incident
   return <Paper className={classes.formPanel} radius="md" p="lg"><Stack gap="md"><div><Title className={classes.sectionTitle} order={2}>Enviar bicicleta a mantenimiento</Title><Text c="dimmed" size="sm">Seleccioná una incidencia para asociar la bicicleta real reportada.</Text></div><NativeSelect aria-label="Incidencia para mantenimiento" data={[{ label: 'Seleccioná una incidencia', value: '' }, ...incidents.map((item) => ({ label: `#${item.id} · ${item.bikeCode} · ${item.incidentTypeName}`, value: String(item.id) }))]} label="Incidencia" onChange={(event) => setIncidentId(event.currentTarget.value)} value={incidentId} />{incident ? <Text size="sm">Bicicleta: <strong>{incident.bikeCode}</strong></Text> : null}<Textarea aria-label="Detalle de mantenimiento" description={`${description.length}/${maxTextLength}`} label="Detalle" maxLength={maxTextLength} minRows={3} onChange={(event) => setDescription(event.currentTarget.value)} value={description} /><Button disabled={!valid} loading={isSubmitting} onClick={() => incident && void onCreate(incident, description.trim())}>Iniciar mantenimiento</Button></Stack></Paper>;
 }
 
-function MaintenanceRow({ item, onComplete, pending }: { item: MaintenanceResponse; onComplete: (id: number, resolution: string) => Promise<void>; pending: boolean }) {
+function MaintenanceRow({ item, onComplete, pending }: Readonly<{ item: MaintenanceResponse; onComplete: (id: number, resolution: string) => Promise<void>; pending: boolean }>) {
   const [resolution, setResolution] = useState('');
   const canComplete = item.status === 'IN_PROGRESS' && resolution.trim().length > 0;
   return <Table.Tr><Table.Td>{item.id}</Table.Td><Table.Td>{item.bikeCode}</Table.Td><Table.Td>{item.incidentId ?? 'Sin incidencia'}</Table.Td><Table.Td>{item.description}</Table.Td><Table.Td>{formatDateTime(item.startedAt)}</Table.Td><Table.Td><StatusBadge status={item.status} /></Table.Td><Table.Td>{item.status === 'IN_PROGRESS' ? <Group gap="xs" wrap="nowrap"><Textarea aria-label={`Resolución mantenimiento ${item.id}`} maxLength={maxTextLength} onChange={(event) => setResolution(event.currentTarget.value)} placeholder="Resolución" value={resolution} /><Button disabled={!canComplete} loading={pending} onClick={() => void onComplete(item.id, resolution.trim())} size="compact-sm">Finalizar</Button></Group> : item.resolution ?? 'Sin resolución'}</Table.Td></Table.Tr>;
 }
 
-function EmptyState({ message }: { message: string }) {
+function EmptyState({ message }: Readonly<{ message: string }>) {
   return <Paper className={classes.statePanel} radius="md" p="xl"><Text c="dimmed">{message}</Text></Paper>;
 }
 
-function StatusBadge({ status }: { status: IncidentStatus | MaintenanceResponse['status'] }) {
-  return <Badge color={status === 'RESOLVED' || status === 'COMPLETED' ? 'citypassUrbanGreen' : status === 'REJECTED' || status === 'CANCELLED' ? 'red' : 'citypassUrbanBlue'}>{incidentStatusLabels[status as IncidentStatus] ?? maintenanceStatusLabels[status as keyof typeof maintenanceStatusLabels]}</Badge>;
+function StatusBadge({ status }: Readonly<{ status: IncidentStatus | MaintenanceResponse['status'] }>) {
+  return <Badge color={statusColor(status)}>{statusLabel(status)}</Badge>;
+}
+
+function statusColor(status: IncidentStatus | MaintenanceResponse['status']) {
+  if (status === 'RESOLVED' || status === 'COMPLETED') return 'citypassUrbanGreen';
+  if (status === 'REJECTED' || status === 'CANCELLED') return 'red';
+  return 'citypassUrbanBlue';
+}
+
+function statusLabel(status: IncidentStatus | MaintenanceResponse['status']) {
+  return incidentStatusLabels[status as IncidentStatus] ?? maintenanceStatusLabels[status as keyof typeof maintenanceStatusLabels];
 }
 
 function nextIncidentStatuses(status: IncidentStatus) {

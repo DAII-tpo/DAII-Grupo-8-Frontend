@@ -118,6 +118,9 @@ export function MobilityPage() {
   }, []);
 
   const lastTrip = useMemo(() => history?.content[0] ?? null, [history]);
+  const activeTripSummary = tripSummaryValue(isLoading, activeTrip);
+  const nearbyBikesSummary = nearbyBikesSummaryValue(locationState, nearbyStation);
+  const historySummary = historySummaryValue(isLoading, history);
 
   return (
     <Stack className={pageClasses.page} gap="lg">
@@ -138,10 +141,10 @@ export function MobilityPage() {
       <ActiveTripCard activeTrip={activeTrip} isLoading={isLoading} />
 
       <SimpleGrid cols={{ base: 1, xs: 2, lg: 4 }} spacing="md">
-        <SummaryCard icon={Route} label="Viaje actual" tone="blue" value={isLoading ? 'Cargando...' : activeTrip ? 'En curso' : 'Sin viaje activo'} />
+        <SummaryCard icon={Route} label="Viaje actual" tone="blue" value={activeTripSummary} />
         <SummaryCard icon={Navigation} label="Estación más cercana" tone="green" value={locationSummary(locationState, nearbyStation)} />
-        <SummaryCard icon={Bike} label="Bicicletas cerca" tone="sky" value={nearbyStation ? String(nearbyStation.availableBikes) : locationState === 'loading' ? 'Buscando...' : '—'} />
-        <SummaryCard icon={History} label="Viajes realizados" tone="amber" value={history ? String(history.totalElements) : isLoading ? 'Cargando...' : '—'} />
+        <SummaryCard icon={Bike} label="Bicicletas cerca" tone="sky" value={nearbyBikesSummary} />
+        <SummaryCard icon={History} label="Viajes realizados" tone="amber" value={historySummary} />
       </SimpleGrid>
 
       <section aria-labelledby="quick-actions-title">
@@ -164,7 +167,7 @@ export function MobilityPage() {
   );
 }
 
-function ActiveTripCard({ activeTrip, isLoading }: { activeTrip: TripResponse | null; isLoading: boolean }) {
+function ActiveTripCard({ activeTrip, isLoading }: Readonly<{ activeTrip: TripResponse | null; isLoading: boolean }>) {
   if (isLoading) {
     return (
       <Paper className={classes.heroCard} radius="lg" p="xl">
@@ -209,9 +212,11 @@ function ActiveTripCard({ activeTrip, isLoading }: { activeTrip: TripResponse | 
   );
 }
 
-function SummaryCard({ icon: Icon, label, tone, value }: { icon: QuickAction['icon']; label: string; tone: Tone; value: string }) {
+function SummaryCard({ icon: Icon, label, tone, value }: Readonly<{ icon: QuickAction['icon']; label: string; tone: Tone; value: string }>) {
+  const summaryToneClass = toneClass(tone);
+
   return (
-    <Paper className={`${classes.summaryCard} ${classes[`tone${capitalize(tone)}`]}`} radius="md" p="md">
+    <Paper className={`${classes.summaryCard} ${summaryToneClass}`} radius="md" p="md">
       <div className={classes.summaryIcon}><Icon size={21} /></div>
       <Text className={classes.summaryLabel}>{label}</Text>
       <Text className={classes.summaryValue}>{value}</Text>
@@ -219,11 +224,12 @@ function SummaryCard({ icon: Icon, label, tone, value }: { icon: QuickAction['ic
   );
 }
 
-function QuickActionCard({ action }: { action: QuickAction }) {
+function QuickActionCard({ action }: Readonly<{ action: QuickAction }>) {
   const Icon = action.icon;
+  const actionToneClass = toneClass(action.tone);
   return (
     <NavLink className={classes.quickActionLink} to={action.path}>
-      <Paper className={`${classes.quickAction} ${classes[`tone${capitalize(action.tone)}`]}`} radius="md" p="md">
+      <Paper className={`${classes.quickAction} ${actionToneClass}`} radius="md" p="md">
         <Group align="flex-start" justify="space-between" wrap="nowrap">
           <div className={classes.quickActionIcon}><Icon size={21} /></div>
           <ArrowRight className={classes.quickActionArrow} size={18} />
@@ -235,7 +241,7 @@ function QuickActionCard({ action }: { action: QuickAction }) {
   );
 }
 
-function RecentTripCard({ trip, isLoading }: { trip: TripResponse | null; isLoading: boolean }) {
+function RecentTripCard({ trip, isLoading }: Readonly<{ trip: TripResponse | null; isLoading: boolean }>) {
   return (
     <Paper className={classes.detailCard} radius="md" p="lg">
       <Group justify="space-between" mb="md">
@@ -264,7 +270,7 @@ function RecentTripCard({ trip, isLoading }: { trip: TripResponse | null; isLoad
   );
 }
 
-function NearbyStationCard({ locationState, station, stationCount }: { locationState: LocationState; station: NearbyStation | null; stationCount: number | null }) {
+function NearbyStationCard({ locationState, station, stationCount }: Readonly<{ locationState: LocationState; station: NearbyStation | null; stationCount: number | null }>) {
   return (
     <Paper className={classes.detailCard} radius="md" p="lg">
       <Group justify="space-between" mb="md">
@@ -299,7 +305,7 @@ function NearbyStationCard({ locationState, station, stationCount }: { locationS
   );
 }
 
-function DetailMetric({ label, value }: { label: string; value: string }) {
+function DetailMetric({ label, value }: Readonly<{ label: string; value: string }>) {
   return <div><Text className={classes.metricValue}>{value}</Text><Text c="dimmed" size="xs">{label}</Text></div>;
 }
 
@@ -307,6 +313,25 @@ function locationSummary(state: LocationState, station: NearbyStation | null) {
   if (state === 'loading') return 'Buscando...';
   if (state === 'unavailable') return 'Activá ubicación';
   return station ? formatDistance(station.distanceMeters) : 'Sin estaciones cerca';
+}
+
+function tripSummaryValue(isLoading: boolean, activeTrip: TripResponse | null) {
+  if (isLoading) return 'Cargando...';
+  return activeTrip ? 'En curso' : 'Sin viaje activo';
+}
+
+function nearbyBikesSummaryValue(locationState: LocationState, station: NearbyStation | null) {
+  if (station) return String(station.availableBikes);
+  return locationState === 'loading' ? 'Buscando...' : '—';
+}
+
+function historySummaryValue(isLoading: boolean, history: PagedResponse<TripResponse> | null) {
+  if (history) return String(history.totalElements);
+  return isLoading ? 'Cargando...' : '—';
+}
+
+function toneClass(tone: Tone) {
+  return classes[`tone${capitalize(tone)}`];
 }
 
 function formatDistance(distanceMeters: number) {

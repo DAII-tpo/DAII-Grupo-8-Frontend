@@ -1,5 +1,5 @@
 import { Alert, Button, PasswordInput, Stack, Text, TextInput, Title } from '@mantine/core';
-import type { FormEvent } from 'react';
+import type { FormEventHandler } from 'react';
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -22,7 +22,7 @@ export function LoginPage() {
   const state = location.state as LoginLocationState | null;
   const redirectTo = state?.from?.pathname ?? '/';
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit: FormEventHandler<HTMLFormElement> = (event) => {
     event.preventDefault();
     setError('');
 
