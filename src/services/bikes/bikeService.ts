@@ -4,6 +4,11 @@ import { httpClient } from '../http/httpClient';
 const bikesPath = '/api/v1/bikes';
 
 export const bikeService = {
+  async getAll(): Promise<BikeResponse[]> {
+    const response = await httpClient.get<BikeResponse[]>(bikesPath);
+    return response.data;
+  },
+
   async getAvailable(stationId: number): Promise<BikeResponse[]> {
     const response = await httpClient.get<BikeResponse[]>(`${bikesPath}/available`, {
       params: { stationId },

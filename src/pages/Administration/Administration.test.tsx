@@ -1,5 +1,5 @@
 import { MantineProvider } from '@mantine/core';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -16,7 +16,7 @@ vi.mock('../../app/providers/authContext', () => ({
 vi.mock('../../services/incidents/incidentService', () => ({ incidentService: { getAll: vi.fn(), updateStatus: vi.fn() } }));
 vi.mock('../../services/maintenance/maintenanceService', () => ({ maintenanceService: { getAll: vi.fn(), create: vi.fn(), complete: vi.fn() } }));
 vi.mock('../../services/stations/stationService', () => ({ stationService: { getAll: vi.fn() } }));
-vi.mock('../../services/bikes/bikeService', () => ({ bikeService: { getByStation: vi.fn() } }));
+vi.mock('../../services/bikes/bikeService', () => ({ bikeService: { getAll: vi.fn(), getByStation: vi.fn() } }));
 vi.mock('./StationManagement', () => ({ StationManagement: () => <div>Gestión de estaciones</div> }));
 vi.mock('./BikeManagement', () => ({ BikeManagement: () => <div>Gestión de bicicletas</div> }));
 
@@ -64,6 +64,7 @@ function httpError(status: number) {
 
 beforeEach(() => {
   vi.mocked(stationService.getAll).mockResolvedValue([]);
+  vi.mocked(bikeService.getAll).mockResolvedValue([]);
   vi.mocked(bikeService.getByStation).mockResolvedValue([]);
 });
 
@@ -87,12 +88,23 @@ describe('AdministrationPage', () => {
       updatedAt: '2026-09-01T12:00:00Z',
       deletedAt: null,
     }]);
-    vi.mocked(bikeService.getByStation).mockResolvedValueOnce([{
+    vi.mocked(bikeService.getAll).mockResolvedValueOnce([{
       id: 1,
       code: 'BIKE-001',
       stationId: 2,
       stationName: 'Estacion Centro',
       status: 'AVAILABLE',
+      model: null,
+      purchaseDate: null,
+      lastMaintenanceAt: null,
+      createdAt: '2026-09-01T12:00:00Z',
+      updatedAt: '2026-09-01T12:00:00Z',
+    }, {
+      id: 2,
+      code: 'BIKE-002',
+      stationId: null,
+      stationName: null,
+      status: 'IN_USE',
       model: null,
       purchaseDate: null,
       lastMaintenanceAt: null,
@@ -105,7 +117,23 @@ describe('AdministrationPage', () => {
     expect(await screen.findByRole('img', { name: 'Estado de incidencias' })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Distribución de bicicletas por estado' })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Ocupación de estaciones' })).toBeInTheDocument();
-    expect(bikeService.getByStation).toHaveBeenCalledWith(2);
+    expect(within(screen.getByRole('img', { name: 'Distribución de bicicletas por estado' })).getByText('2')).toBeInTheDocument();
+    expect(screen.getByText('1 / 20')).toBeInTheDocument();
+    expect(incidentService.getAll).toHaveBeenCalledTimes(1);
+    expect(maintenanceService.getAll).toHaveBeenCalledTimes(1);
+    expect(stationService.getAll).toHaveBeenCalledTimes(1);
+    expect(bikeService.getAll).toHaveBeenCalledTimes(1);
+    expect(bikeService.getByStation).not.toHaveBeenCalled();
+  });
+
+  it('muestra el error general y permite reintentar si falla la carga global de bicicletas', async () => {
+    mockData();
+    vi.mocked(bikeService.getAll).mockRejectedValueOnce(httpError(500));
+
+    renderPage();
+
+    expect(await screen.findByText('No se pudo cargar la administración')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
   });
 
   it('permite buscar en la ocupación sin ocultar estaciones por cantidad', async () => {
@@ -246,7 +274,7 @@ describe('AdministrationPage', () => {
     await screen.findByRole('img', { name: 'Estado de incidencias' });
 
     const initialRequestCounts = {
-      bikes: vi.mocked(bikeService.getByStation).mock.calls.length,
+      bikes: vi.mocked(bikeService.getAll).mock.calls.length,
       incidents: vi.mocked(incidentService.getAll).mock.calls.length,
       maintenance: vi.mocked(maintenanceService.getAll).mock.calls.length,
       stations: vi.mocked(stationService.getAll).mock.calls.length,
@@ -261,7 +289,7 @@ describe('AdministrationPage', () => {
     expect(screen.getByText('Estaciones con mayor demanda')).toBeInTheDocument();
     expect(screen.getByText('Predicción de disponibilidad')).toBeInTheDocument();
     expect(screen.getByText('Alertas operativas')).toBeInTheDocument();
-    expect(vi.mocked(bikeService.getByStation).mock.calls).toHaveLength(initialRequestCounts.bikes);
+    expect(vi.mocked(bikeService.getAll).mock.calls).toHaveLength(initialRequestCounts.bikes);
     expect(vi.mocked(incidentService.getAll).mock.calls).toHaveLength(initialRequestCounts.incidents);
     expect(vi.mocked(maintenanceService.getAll).mock.calls).toHaveLength(initialRequestCounts.maintenance);
     expect(vi.mocked(stationService.getAll).mock.calls).toHaveLength(initialRequestCounts.stations);
