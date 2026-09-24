@@ -40,6 +40,33 @@
 .toneAmber { --chart-accent: var(--citypass-amber); }
 .toneRed { --chart-accent: var(--citypass-emergency-red); }
 
+.toneSky { --chart-accent: var(--citypass-sky-blue); }
+
+.analyticsSectionTitle { color: var(--citypass-night-blue); font-size: 1.1rem; }
+.analyticsMetric,
+.analyticsPanel { --chart-accent: var(--citypass-urban-blue); border: 1px solid color-mix(in srgb, var(--chart-accent) 24%, white); background: white; box-shadow: 0 10px 28px rgb(20 36 48 / 6%); }
+.analyticsMetric { border-top: 4px solid var(--chart-accent); }
+.analyticsMetricLabel { color: var(--citypass-medium-gray); font-size: 0.8rem; font-weight: 700; }
+.analyticsMetricValue { color: var(--citypass-night-blue); font-size: 1.6rem; font-weight: 850; line-height: 1; }
+.analyticsPanelIcon { color: var(--chart-accent); }
+.analyticsContent { margin-top: 1.25rem; }
+.analyticsBarRow { display: grid; grid-template-columns: 8rem minmax(0, 1fr) 2.5rem; gap: 0.75rem; align-items: center; }
+.analyticsBarFill { height: 100%; border-radius: inherit; background: var(--chart-accent); }
+.hourlyChart { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.4rem; height: 13.5rem; align-items: end; }
+.hourlyColumn { display: flex; height: 100%; min-width: 0; flex-direction: column; align-items: center; justify-content: end; }
+.hourlyBars { display: flex; width: 100%; height: 10rem; align-items: end; justify-content: center; gap: 0.2rem; }
+.hourlyStarted,
+.hourlyCompleted { width: min(0.8rem, 38%); min-height: 0.3rem; border-radius: 3px 3px 0 0; }
+.hourlyStarted { background: var(--citypass-urban-blue); }
+.hourlyCompleted { background: var(--citypass-urban-green); }
+.hourlyStartedLegend,
+.hourlyCompletedLegend { display: inline-block; width: 0.55rem; height: 0.55rem; border-radius: 50%; }
+.hourlyStartedLegend { background: var(--citypass-urban-blue); }
+.hourlyCompletedLegend { background: var(--citypass-urban-green); }
+.hourlyLabel { font-size: 0.65rem; white-space: nowrap; }
+.rankingRow { display: grid; grid-template-columns: 1.4rem 1fr auto; gap: 0.75rem; align-items: center; border-bottom: 1px solid var(--citypass-cement); padding: 0.55rem 0; }
+.rankingRow:last-child { border-bottom: 0; }
+
 .metricIcon {
   display: grid;
   width: 42px;
@@ -81,5 +108,8 @@
 @media (max-width: 42rem) {
   .barRow { grid-template-columns: 1fr 2rem; }
   .barTrack { grid-column: 1 / -1; grid-row: 2; }
+  .analyticsBarRow { grid-template-columns: 1fr 2.5rem; }
+  .analyticsBarRow .barTrack { grid-column: 1 / -1; grid-row: 2; }
+  .hourlyChart { gap: 0.2rem; }
   .donutLayout { grid-template-columns: 1fr; }
 }
