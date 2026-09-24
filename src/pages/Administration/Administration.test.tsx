@@ -238,4 +238,32 @@ describe('AdministrationPage', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Bicicletas' }));
     expect(screen.getByText('Gestión de bicicletas')).toBeInTheDocument();
   });
+
+  it('muestra la analítica demostrativa sin realizar requests adicionales', async () => {
+    mockData();
+    renderPage();
+
+    await screen.findByRole('img', { name: 'Estado de incidencias' });
+
+    const initialRequestCounts = {
+      bikes: vi.mocked(bikeService.getByStation).mock.calls.length,
+      incidents: vi.mocked(incidentService.getAll).mock.calls.length,
+      maintenance: vi.mocked(maintenanceService.getAll).mock.calls.length,
+      stations: vi.mocked(stationService.getAll).mock.calls.length,
+    };
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Analítica' }));
+
+    expect(await screen.findByText('Datos demostrativos')).toBeInTheDocument();
+    expect(screen.getByText('Total de bicicletas')).toBeInTheDocument();
+    expect(screen.getByText('Bicicletas por estación')).toBeInTheDocument();
+    expect(screen.getByText('Viajes por hora')).toBeInTheDocument();
+    expect(screen.getByText('Estaciones con mayor demanda')).toBeInTheDocument();
+    expect(screen.getByText('Predicción de disponibilidad')).toBeInTheDocument();
+    expect(screen.getByText('Alertas operativas')).toBeInTheDocument();
+    expect(vi.mocked(bikeService.getByStation).mock.calls).toHaveLength(initialRequestCounts.bikes);
+    expect(vi.mocked(incidentService.getAll).mock.calls).toHaveLength(initialRequestCounts.incidents);
+    expect(vi.mocked(maintenanceService.getAll).mock.calls).toHaveLength(initialRequestCounts.maintenance);
+    expect(vi.mocked(stationService.getAll).mock.calls).toHaveLength(initialRequestCounts.stations);
+  });
 });

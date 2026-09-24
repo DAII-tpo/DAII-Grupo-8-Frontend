@@ -12,6 +12,7 @@ import { incidentService } from '../../services/incidents/incidentService';
 import { maintenanceService } from '../../services/maintenance/maintenanceService';
 import { stationService } from '../../services/stations/stationService';
 import { BikeManagement } from './BikeManagement';
+import { AnalyticsDashboard } from './AnalyticsDashboard';
 import { StationManagement } from './StationManagement';
 import type { AdminIncidentResponse, IncidentStatus } from '../../types/incident';
 import type { MaintenanceResponse } from '../../types/maintenance';
@@ -161,6 +162,7 @@ export function AdministrationPage() {
           <Tabs classNames={{ list: mobilityNavigationClasses.tabsList }} defaultValue="summary" keepMounted={false}>
             <Tabs.List>
               <Tabs.Tab value="summary">Resumen</Tabs.Tab>
+              <Tabs.Tab value="analytics">Analítica</Tabs.Tab>
               <Tabs.Tab value="incidents">Incidencias</Tabs.Tab>
               <Tabs.Tab value="maintenance">Mantenimiento</Tabs.Tab>
               <Tabs.Tab value="stations">Estaciones</Tabs.Tab>
@@ -168,6 +170,9 @@ export function AdministrationPage() {
             </Tabs.List>
             <Tabs.Panel pt="md" value="summary">
               <AdministrationSummary bikes={bikes} incidents={incidents} maintenance={maintenance} stations={stations} />
+            </Tabs.Panel>
+            <Tabs.Panel pt="md" value="analytics">
+              <AnalyticsDashboard />
             </Tabs.Panel>
             <Tabs.Panel pt="md" value="incidents">
               <Stack gap="lg">
