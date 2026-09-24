@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { stationService } from '../../services/stations/stationService';
 import { tripService } from '../../services/trips/tripService';
+import { warmUpRecommendationService } from '../../services/recommendationWarmupService';
 import { mantineTheme } from '../../styles/theme';
 import { MobilityPage } from './index';
 
@@ -18,6 +19,10 @@ vi.mock('../../services/stations/stationService', () => ({
 
 vi.mock('../../services/trips/tripService', () => ({
   tripService: { getActive: vi.fn(), getHistory: vi.fn() },
+}));
+
+vi.mock('../../services/recommendationWarmupService', () => ({
+  warmUpRecommendationService: vi.fn(),
 }));
 
 const nearbyStation = {
@@ -75,8 +80,8 @@ function CurrentPath() {
   return <output data-testid="current-path">{location.pathname}</output>;
 }
 
-function renderPage() {
-  return render(
+function MobilityRoute() {
+  return (
     <MemoryRouter initialEntries={['/movilidad']}>
       <MantineProvider theme={mantineTheme}>
         <Routes>
@@ -85,8 +90,12 @@ function renderPage() {
           <Route path="/movilidad/estaciones" element={<CurrentPath />} />
         </Routes>
       </MantineProvider>
-    </MemoryRouter>,
+    </MemoryRouter>
   );
+}
+
+function renderPage() {
+  return render(<MobilityRoute />);
 }
 
 beforeEach(() => {
@@ -95,6 +104,7 @@ beforeEach(() => {
   vi.mocked(stationService.getNearby).mockResolvedValue([nearbyStation]);
   vi.mocked(tripService.getActive).mockResolvedValue(null);
   vi.mocked(tripService.getHistory).mockResolvedValue({ content: [completedTrip], page: 0, size: 1, totalElements: 4, totalPages: 4, last: false });
+  vi.mocked(warmUpRecommendationService).mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -103,6 +113,25 @@ afterEach(() => {
 });
 
 describe('MobilityPage', () => {
+  it('dispara un warm-up una sola vez mientras la pantalla permanece montada', async () => {
+    const { rerender } = renderPage();
+
+    expect(warmUpRecommendationService).toHaveBeenCalledOnce();
+    rerender(<MobilityRoute />);
+
+    expect(warmUpRecommendationService).toHaveBeenCalledOnce();
+    expect(await screen.findByText('No tenés un viaje en curso')).toBeInTheDocument();
+  });
+
+  it('mantiene el tablero disponible si el warm-up falla', async () => {
+    vi.mocked(warmUpRecommendationService).mockRejectedValueOnce(new Error('Service unavailable'));
+
+    renderPage();
+
+    expect(await screen.findByText('No tenés un viaje en curso')).toBeInTheDocument();
+    expect(screen.queryByText('Parte del resumen no está disponible')).not.toBeInTheDocument();
+  });
+
   it('muestra un tablero ciudadano con datos reales y acciones rápidas', async () => {
     getCurrentPosition.mockImplementationOnce((success) => success({ coords: { latitude: -34.6037, longitude: -58.3816 } } as GeolocationPosition));
 

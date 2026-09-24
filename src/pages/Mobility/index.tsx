@@ -28,6 +28,7 @@ import { NavLink } from 'react-router-dom';
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
 import { useAuth } from '../../app/providers/authContext';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
+import { warmUpRecommendationService } from '../../services/recommendationWarmupService';
 import { stationService } from '../../services/stations/stationService';
 import { tripService } from '../../services/trips/tripService';
 import pageClasses from '../../styles/mobilityPage.module.css';
@@ -65,6 +66,10 @@ export function MobilityPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [hasSummaryError, setHasSummaryError] = useState(false);
   const [locationState, setLocationState] = useState<LocationState>('loading');
+
+  useEffect(() => {
+    warmUpRecommendationService().catch(() => undefined);
+  }, []);
 
   const loadDashboard = useCallback(async () => {
     if (userId === null) {

@@ -21,9 +21,11 @@ Crear un archivo `.env` tomando como referencia `.env.example`:
 
 ```env
 VITE_API_BASE_URL=http://localhost:8080
+VITE_RECOMMENDATION_SERVICE_URL=https://movilidad-recommendation.onrender.com
 ```
 
 El login demo asigna el `X-User-Id` de la sesión autenticada: USER usa `1` y ADMIN usa `2`.
+`VITE_RECOMMENDATION_SERVICE_URL` es opcional y se usa para el warm-up no bloqueante del servicio de recomendaciones.
 
 ## Ejecucion local
 
