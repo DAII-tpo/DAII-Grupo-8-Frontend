@@ -68,18 +68,16 @@ export function AdministrationPage() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const [loadedIncidents, loadedMaintenance, loadedStations] = await Promise.all([
+      const [loadedIncidents, loadedMaintenance, loadedStations, loadedBikes] = await Promise.all([
         incidentService.getAll(userId),
         maintenanceService.getAll(userId),
         stationService.getAll(),
+        bikeService.getAll(),
       ]);
-      const bikeResults = await Promise.allSettled(
-        loadedStations.map((station) => bikeService.getByStation(station.id)),
-      );
       setIncidents(loadedIncidents);
       setMaintenance(loadedMaintenance);
       setStations(loadedStations);
-      setBikes(bikeResults.flatMap((result) => result.status === 'fulfilled' ? result.value : []));
+      setBikes(loadedBikes);
     } catch (error) {
       setLoadError(administrationErrorMessage(error));
     } finally {

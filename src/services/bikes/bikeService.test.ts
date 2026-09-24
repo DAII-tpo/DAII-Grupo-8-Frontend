@@ -8,6 +8,15 @@ vi.mock('../http/httpClient', () => ({
 }));
 
 describe('bikeService', () => {
+  it('obtiene todas las bicicletas sin headers adicionales', async () => {
+    const bikes = [{ id: 1, code: 'BIKE-001', stationId: null, stationName: null, status: 'IN_USE' as const, model: null, purchaseDate: null, lastMaintenanceAt: null, createdAt: '2026-09-01T10:00:00Z', updatedAt: '2026-09-01T10:00:00Z' }];
+    const get = vi.mocked(httpClient.get);
+    get.mockResolvedValueOnce({ data: bikes });
+
+    await expect(bikeService.getAll()).resolves.toEqual(bikes);
+    expect(get).toHaveBeenCalledWith('/api/v1/bikes');
+  });
+
   it('obtiene las bicicletas disponibles de una estación', async () => {
     const bikes = [{
       id: 1,
