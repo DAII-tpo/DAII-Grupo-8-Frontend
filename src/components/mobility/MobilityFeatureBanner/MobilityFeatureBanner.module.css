@@ -1,0 +1,46 @@
+.banner {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, white);
+  background: linear-gradient(118deg, color-mix(in srgb, var(--accent) 14%, white), white 72%);
+  box-shadow: 0 10px 28px rgb(20 36 48 / 6%);
+}
+
+.banner::after {
+  position: absolute;
+  top: -3.5rem;
+  right: -2rem;
+  width: 10rem;
+  height: 10rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  content: '';
+}
+
+.blue { --accent: var(--citypass-urban-blue); }
+.green { --accent: var(--citypass-urban-green); }
+.amber { --accent: var(--citypass-amber); }
+.red { --accent: var(--citypass-emergency-red); }
+.sky { --accent: #5e9fce; }
+
+.icon {
+  z-index: 1;
+  display: grid;
+  width: 50px;
+  height: 50px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 0.85rem;
+  color: white;
+  background: var(--accent);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.label { color: var(--accent); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.11em; text-transform: uppercase; }
+.title { color: var(--citypass-night-blue); font-size: 1.08rem; line-height: 1.25; }
+.description { margin-top: 0.2rem; color: var(--citypass-medium-gray); font-size: 0.88rem; }
+
+@media (max-width: 36rem) {
+  .banner { padding: 1rem !important; }
+  .icon { width: 44px; height: 44px; }
+}

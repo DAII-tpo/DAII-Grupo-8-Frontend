@@ -1,58 +1,105 @@
-.title {
-  color: var(--citypass-night-blue);
-  font-size: 1.8rem;
-  line-height: 1.2;
-}
-
-.subtitle {
-  color: var(--citypass-medium-gray);
-  font-size: 0.95rem;
-}
-
 .statusBadge {
   color: white;
   background: var(--citypass-urban-green);
 }
 
-.areaCard {
-  min-height: 76px;
-  border: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 58%, white);
+.heroCard {
+  position: relative;
+  min-height: 220px;
+  overflow: hidden;
+  color: white;
+  background: linear-gradient(125deg, #164a83 0%, var(--citypass-urban-blue) 55%, #4383bf 100%);
+  box-shadow: 0 18px 42px rgb(20 67 116 / 18%);
+}
+
+.heroActive { background: linear-gradient(125deg, #164d48 0%, var(--citypass-urban-green) 55%, #62a387 100%); }
+.heroIdle { background: linear-gradient(125deg, #123f72 0%, var(--citypass-urban-blue) 58%, #4383bf 100%); }
+.heroContent { position: relative; z-index: 2; max-width: 47rem; }
+.heroTitle { color: white; font-size: clamp(1.55rem, 3vw, 2.15rem); line-height: 1.15; }
+.heroText { max-width: 38rem; color: rgb(255 255 255 / 87%); }
+.heroBadge { align-self: flex-start; color: #143f72; background: rgb(255 255 255 / 90%); }
+.activeBadge { align-self: flex-start; color: #164d48; background: rgb(255 255 255 / 90%); }
+.heroPrimaryButton { color: #174b82; background: white; }
+.heroPrimaryButton:hover { color: #123f72; background: #f3f8fc; }
+.heroSecondaryButton { color: white; border-color: rgb(255 255 255 / 72%); }
+.heroSecondaryButton:hover { color: white; border-color: white; background: rgb(255 255 255 / 10%); }
+
+.heroDecoration {
+  position: absolute;
+  right: 3rem;
+  bottom: -1.2rem;
+  color: rgb(255 255 255 / 14%);
+  transform: rotate(-7deg);
+}
+
+.tripMeta { color: rgb(255 255 255 / 88%); }
+.tripMeta p { display: inline-flex; align-items: center; gap: 0.4rem; }
+
+.summaryCard,
+.quickAction,
+.detailCard {
+  border: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 54%, white);
   background: white;
+  box-shadow: 0 8px 26px rgb(20 36 48 / 5%);
 }
 
-.areaCardLink {
-  display: block;
-  border-radius: 0.5rem;
-}
-
-.areaCardLink:hover .areaCard,
-.areaCardActive .areaCard {
-  border-color: var(--citypass-urban-blue);
-}
-
-.areaCardLink:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--citypass-urban-blue) 42%, white);
-  outline-offset: 2px;
-}
-
-.areaIcon {
+.summaryCard { position: relative; min-height: 136px; overflow: hidden; border-top-width: 4px; }
+.summaryIcon,
+.quickActionIcon,
+.detailIcon {
   display: grid;
-  width: 40px;
-  height: 40px;
-  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
   place-items: center;
-  border-radius: 0.5rem;
-  color: var(--citypass-urban-green);
-  background: color-mix(in srgb, var(--citypass-sky-blue) 42%, white);
+  border-radius: 0.75rem;
 }
 
-.areaTitle {
-  color: var(--citypass-night-blue);
-  font-size: 0.88rem;
-  font-weight: 700;
-}
+.summaryLabel { margin-top: 0.9rem; color: var(--citypass-medium-gray); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
+.summaryValue { margin-top: 0.2rem; color: var(--citypass-night-blue); font-size: 1.12rem; font-weight: 800; line-height: 1.25; }
+.toneBlue { border-top-color: var(--citypass-urban-blue); }
+.toneBlue .summaryIcon,
+.toneBlue .quickActionIcon { color: var(--citypass-urban-blue); background: color-mix(in srgb, var(--citypass-sky-blue) 42%, white); }
+.toneGreen { border-top-color: var(--citypass-urban-green); }
+.toneGreen .summaryIcon,
+.toneGreen .quickActionIcon { color: var(--citypass-urban-green); background: color-mix(in srgb, var(--citypass-urban-green) 15%, white); }
+.toneSky { border-top-color: #69a7d5; }
+.toneSky .summaryIcon,
+.toneSky .quickActionIcon { color: #276c9f; background: color-mix(in srgb, var(--citypass-sky-blue) 48%, white); }
+.toneAmber { border-top-color: var(--citypass-amber); }
+.toneAmber .summaryIcon,
+.toneAmber .quickActionIcon { color: #a86812; background: color-mix(in srgb, var(--citypass-amber) 17%, white); }
 
-.areaValue {
-  color: var(--citypass-medium-gray);
-  font-size: 0.84rem;
+.sectionTitle,
+.detailTitle { color: var(--citypass-night-blue); }
+.sectionTitle { font-size: 1.15rem; }
+.detailTitle { font-size: 1.08rem; }
+.quickActionLink { display: block; border-radius: 0.75rem; }
+.quickAction { min-height: 150px; border-top-width: 3px; transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease; }
+.quickAction:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgb(20 36 48 / 10%); }
+.quickActionLink:focus-visible { outline: 3px solid color-mix(in srgb, var(--citypass-urban-blue) 40%, white); outline-offset: 3px; }
+.quickActionArrow { color: var(--citypass-medium-gray); transition: transform 160ms ease; }
+.quickAction:hover .quickActionArrow { transform: translateX(3px); }
+.quickActionTitle { margin-top: 0.9rem; color: var(--citypass-night-blue); font-weight: 800; }
+.detailCard { display: flex; min-height: 220px; flex-direction: column; }
+.detailIconBlue { color: var(--citypass-urban-blue); background: color-mix(in srgb, var(--citypass-sky-blue) 40%, white); }
+.detailIconGreen { color: var(--citypass-urban-green); background: color-mix(in srgb, var(--citypass-urban-green) 15%, white); }
+.eyebrow { color: var(--citypass-medium-gray); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+.routeText { color: var(--citypass-night-blue); font-size: 1rem; font-weight: 750; }
+.routeText span { margin: 0 0.25rem; color: var(--citypass-urban-blue); }
+.metricValue { color: var(--citypass-night-blue); font-size: 1rem; font-weight: 800; }
+.detailBody { flex: 1; }
+.detailBody .inlineButton { margin-top: auto; }
+.detailMetrics > div {
+  min-width: 7.2rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.65rem;
+  background: color-mix(in srgb, var(--citypass-sky-blue) 12%, white);
+}
+.inlineButton { align-self: flex-start; margin-left: -0.75rem; color: var(--citypass-urban-blue); }
+
+@media (max-width: 48rem) {
+  .heroCard { min-height: 260px; padding: 1.25rem !important; }
+  .heroDecoration { right: -1rem; opacity: 0.7; }
+  .heroContent { max-width: 100%; }
+  .detailCard { min-height: auto; }
 }

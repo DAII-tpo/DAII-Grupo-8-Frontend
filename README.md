@@ -21,10 +21,11 @@ Crear un archivo `.env` tomando como referencia `.env.example`:
 
 ```env
 VITE_API_BASE_URL=http://localhost:8080
-VITE_DEMO_USER_ID=ID_DE_UN_USUARIO_EXISTENTE
+VITE_RECOMMENDATION_SERVICE_URL=https://movilidad-recommendation.onrender.com
 ```
 
-`VITE_DEMO_USER_ID` se utiliza temporalmente para enviar el header `X-User-Id` al consultar o iniciar viajes. Debe corresponder a un usuario existente en el backend y será reemplazado por la identidad provista por Login Federado.
+El login demo asigna el `X-User-Id` de la sesión autenticada: USER usa `1` y ADMIN usa `2`.
+`VITE_RECOMMENDATION_SERVICE_URL` es opcional y se usa para el warm-up no bloqueante del servicio de recomendaciones.
 
 ## Ejecucion local
 
@@ -37,8 +38,8 @@ npm run dev
 Hasta integrar el Login Federado, el frontend usa credenciales hardcodeadas solo para esta etapa:
 
 ```text
-Usuario: demo@citypass.com
-Clave: citypass123
+Usuario: user@citypass.com | Clave: citypass123 | Rol: USER
+Usuario: admin@citypass.com | Clave: citypass123 | Rol: ADMIN
 ```
 
 ## Validaciones

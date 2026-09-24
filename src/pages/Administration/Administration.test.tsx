@@ -1,16 +1,22 @@
 import { MantineProvider } from '@mantine/core';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { bikeService } from '../../services/bikes/bikeService';
 import { incidentService } from '../../services/incidents/incidentService';
 import { maintenanceService } from '../../services/maintenance/maintenanceService';
+import { stationService } from '../../services/stations/stationService';
 import { mantineTheme } from '../../styles/theme';
 import { AdministrationPage } from './index';
 
-vi.mock('../../config/currentUser', () => ({ currentUserId: 7 }));
+vi.mock('../../app/providers/authContext', () => ({
+  useAuth: () => ({ user: { email: 'admin@citypass.com', role: 'ADMIN', userId: 2 } }),
+}));
 vi.mock('../../services/incidents/incidentService', () => ({ incidentService: { getAll: vi.fn(), updateStatus: vi.fn() } }));
 vi.mock('../../services/maintenance/maintenanceService', () => ({ maintenanceService: { getAll: vi.fn(), create: vi.fn(), complete: vi.fn() } }));
+vi.mock('../../services/stations/stationService', () => ({ stationService: { getAll: vi.fn() } }));
+vi.mock('../../services/bikes/bikeService', () => ({ bikeService: { getAll: vi.fn(), getByStation: vi.fn() } }));
 vi.mock('./StationManagement', () => ({ StationManagement: () => <div>Gestión de estaciones</div> }));
 vi.mock('./BikeManagement', () => ({ BikeManagement: () => <div>Gestión de bicicletas</div> }));
 
@@ -56,22 +62,116 @@ function httpError(status: number) {
   return Object.assign(new Error('Request failed'), { isAxiosError: true, response: { status } });
 }
 
+beforeEach(() => {
+  vi.mocked(stationService.getAll).mockResolvedValue([]);
+  vi.mocked(bikeService.getAll).mockResolvedValue([]);
+  vi.mocked(bikeService.getByStation).mockResolvedValue([]);
+});
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
 });
 
 describe('AdministrationPage', () => {
-  it('carga incidencias reales y mantiene activa la navegación de Administración', async () => {
+  it('construye los gráficos administrativos con estaciones y bicicletas reales', async () => {
+    mockData();
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([{
+      id: 2,
+      name: 'Estacion Centro',
+      address: 'Av. Corrientes 100',
+      latitude: -34.6037,
+      longitude: -58.3816,
+      capacity: 20,
+      status: 'ACTIVE',
+      createdAt: '2026-09-01T12:00:00Z',
+      updatedAt: '2026-09-01T12:00:00Z',
+      deletedAt: null,
+    }]);
+    vi.mocked(bikeService.getAll).mockResolvedValueOnce([{
+      id: 1,
+      code: 'BIKE-001',
+      stationId: 2,
+      stationName: 'Estacion Centro',
+      status: 'AVAILABLE',
+      model: null,
+      purchaseDate: null,
+      lastMaintenanceAt: null,
+      createdAt: '2026-09-01T12:00:00Z',
+      updatedAt: '2026-09-01T12:00:00Z',
+    }, {
+      id: 2,
+      code: 'BIKE-002',
+      stationId: null,
+      stationName: null,
+      status: 'IN_USE',
+      model: null,
+      purchaseDate: null,
+      lastMaintenanceAt: null,
+      createdAt: '2026-09-01T12:00:00Z',
+      updatedAt: '2026-09-01T12:00:00Z',
+    }]);
+
+    renderPage();
+
+    expect(await screen.findByRole('img', { name: 'Estado de incidencias' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Distribución de bicicletas por estado' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Ocupación de estaciones' })).toBeInTheDocument();
+    expect(within(screen.getByRole('img', { name: 'Distribución de bicicletas por estado' })).getByText('2')).toBeInTheDocument();
+    expect(screen.getByText('1 / 20')).toBeInTheDocument();
+    expect(incidentService.getAll).toHaveBeenCalledTimes(1);
+    expect(maintenanceService.getAll).toHaveBeenCalledTimes(1);
+    expect(stationService.getAll).toHaveBeenCalledTimes(1);
+    expect(bikeService.getAll).toHaveBeenCalledTimes(1);
+    expect(bikeService.getByStation).not.toHaveBeenCalled();
+  });
+
+  it('muestra el error general y permite reintentar si falla la carga global de bicicletas', async () => {
+    mockData();
+    vi.mocked(bikeService.getAll).mockRejectedValueOnce(httpError(500));
+
+    renderPage();
+
+    expect(await screen.findByText('No se pudo cargar la administración')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
+  });
+
+  it('permite buscar en la ocupación sin ocultar estaciones por cantidad', async () => {
+    mockData();
+    const stations = Array.from({ length: 10 }, (_, index) => ({
+      id: index + 1,
+      name: index === 9 ? 'Estación Décima' : `Estación ${index + 1}`,
+      address: `Calle ${index + 1}`,
+      latitude: -34.6,
+      longitude: -58.38,
+      capacity: 20,
+      status: 'ACTIVE' as const,
+      createdAt: '2026-09-01T12:00:00Z',
+      updatedAt: '2026-09-01T12:00:00Z',
+      deletedAt: null,
+    }));
+    vi.mocked(stationService.getAll).mockResolvedValueOnce(stations);
+
+    renderPage();
+
+    expect(await screen.findByText('10 de 10 estaciones')).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Buscar estación en ocupación' }), { target: { value: 'decima' } });
+    expect(screen.getByText('1 de 10 estaciones')).toBeInTheDocument();
+    expect(screen.getByText('Estación Décima')).toBeInTheDocument();
+  });
+
+  it('carga incidencias reales dentro de la administración de Movilidad', async () => {
     mockData();
 
     renderPage();
 
+    expect(await screen.findByRole('img', { name: 'Estado de incidencias' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Incidencias' }));
     expect(await screen.findByText('Rueda desinflada')).toBeInTheDocument();
     expect(screen.getByText('user@citypass.com')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Administracion' })).toHaveAttribute('data-active', 'true');
-    expect(incidentService.getAll).toHaveBeenCalledWith(7);
-    expect(maintenanceService.getAll).toHaveBeenCalledWith(7);
+    expect(screen.getByRole('heading', { name: 'Administración de Movilidad' })).toBeInTheDocument();
+    expect(incidentService.getAll).toHaveBeenCalledWith(2);
+    expect(maintenanceService.getAll).toHaveBeenCalledWith(2);
   });
 
   it('muestra un estado vacío para incidencias', async () => {
@@ -80,6 +180,8 @@ describe('AdministrationPage', () => {
 
     renderPage();
 
+    await screen.findByRole('img', { name: 'Estado de incidencias' });
+    fireEvent.click(screen.getByRole('tab', { name: 'Incidencias' }));
     expect(await screen.findByText('No hay incidencias registradas.')).toBeInTheDocument();
   });
 
@@ -89,11 +191,13 @@ describe('AdministrationPage', () => {
 
     renderPage();
 
+    await screen.findByRole('img', { name: 'Estado de incidencias' });
+    fireEvent.click(screen.getByRole('tab', { name: 'Incidencias' }));
     fireEvent.click(await screen.findByRole('button', { name: 'En revisión' }));
 
     expect(await screen.findByText('El estado de la incidencia fue actualizado.')).toBeInTheDocument();
-    expect(incidentService.updateStatus).toHaveBeenCalledWith(7, 8, { status: 'UNDER_REVIEW' });
-    expect(screen.getByText('En revisión')).toBeInTheDocument();
+    expect(incidentService.updateStatus).toHaveBeenCalledWith(2, 8, { status: 'UNDER_REVIEW' });
+    expect(screen.getAllByText('En revisión')).toHaveLength(2);
   });
 
   it('crea un mantenimiento asociado a una incidencia real', async () => {
@@ -108,7 +212,7 @@ describe('AdministrationPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Iniciar mantenimiento' }));
 
     expect(await screen.findByText('La bicicleta fue enviada a mantenimiento.')).toBeInTheDocument();
-    expect(maintenanceService.create).toHaveBeenCalledWith(7, {
+    expect(maintenanceService.create).toHaveBeenCalledWith(2, {
       bikeId: 1,
       incidentId: 8,
       description: 'Revisar rueda',
@@ -131,8 +235,8 @@ describe('AdministrationPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Finalizar' }));
 
     expect(await screen.findByText('El mantenimiento fue finalizado.')).toBeInTheDocument();
-    expect(maintenanceService.complete).toHaveBeenCalledWith(7, 3, { resolution: 'Rueda reparada' });
-    expect(screen.getByText('Completado')).toBeInTheDocument();
+    expect(maintenanceService.complete).toHaveBeenCalledWith(2, 3, { resolution: 'Rueda reparada' });
+    expect(screen.getAllByText('Completado')).toHaveLength(2);
   });
 
   it('mantiene los datos visibles si falla una actualización', async () => {
@@ -141,6 +245,8 @@ describe('AdministrationPage', () => {
 
     renderPage();
 
+    await screen.findByRole('img', { name: 'Estado de incidencias' });
+    fireEvent.click(screen.getByRole('tab', { name: 'Incidencias' }));
     fireEvent.click(await screen.findByRole('button', { name: 'En revisión' }));
 
     expect(await screen.findByText('La operación no puede realizarse con el estado actual.')).toBeInTheDocument();
@@ -151,12 +257,41 @@ describe('AdministrationPage', () => {
     mockData();
     renderPage();
 
-    await screen.findByText('Rueda desinflada');
+    await screen.findByRole('img', { name: 'Estado de incidencias' });
     expect(screen.getByRole('tab', { name: 'Incidencias' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Mantenimiento' })).toBeInTheDocument();
-    fireEvent.click(screen.getAllByRole('tab', { name: 'Estaciones' })[1]);
+    fireEvent.click(screen.getByRole('tab', { name: 'Estaciones' }));
     expect(screen.getByText('Gestión de estaciones')).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Ocupación de estaciones' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Bicicletas' }));
     expect(screen.getByText('Gestión de bicicletas')).toBeInTheDocument();
+  });
+
+  it('muestra la analítica demostrativa sin realizar requests adicionales', async () => {
+    mockData();
+    renderPage();
+
+    await screen.findByRole('img', { name: 'Estado de incidencias' });
+
+    const initialRequestCounts = {
+      bikes: vi.mocked(bikeService.getAll).mock.calls.length,
+      incidents: vi.mocked(incidentService.getAll).mock.calls.length,
+      maintenance: vi.mocked(maintenanceService.getAll).mock.calls.length,
+      stations: vi.mocked(stationService.getAll).mock.calls.length,
+    };
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Analítica' }));
+
+    expect(await screen.findByText('Datos demostrativos')).toBeInTheDocument();
+    expect(screen.getByText('Total de bicicletas')).toBeInTheDocument();
+    expect(screen.getByText('Bicicletas por estación')).toBeInTheDocument();
+    expect(screen.getByText('Viajes por hora')).toBeInTheDocument();
+    expect(screen.getByText('Estaciones con mayor demanda')).toBeInTheDocument();
+    expect(screen.getByText('Predicción de disponibilidad')).toBeInTheDocument();
+    expect(screen.getByText('Alertas operativas')).toBeInTheDocument();
+    expect(vi.mocked(bikeService.getAll).mock.calls).toHaveLength(initialRequestCounts.bikes);
+    expect(vi.mocked(incidentService.getAll).mock.calls).toHaveLength(initialRequestCounts.incidents);
+    expect(vi.mocked(maintenanceService.getAll).mock.calls).toHaveLength(initialRequestCounts.maintenance);
+    expect(vi.mocked(stationService.getAll).mock.calls).toHaveLength(initialRequestCounts.stations);
   });
 });

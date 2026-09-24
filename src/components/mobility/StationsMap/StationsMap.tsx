@@ -1,15 +1,18 @@
 import 'leaflet/dist/leaflet.css';
 
-import { Alert, Badge, Group, Loader, Paper, Stack, Text, Title, UnstyledButton } from '@mantine/core';
+import { Alert, Group, Loader, Paper, Stack, Text, Title, UnstyledButton } from '@mantine/core';
 import { divIcon } from 'leaflet';
 import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet';
-import { AlertCircle, Bike, MapPin, Navigation } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { AlertCircle, Bike, LocateFixed, MapPin, Navigation, Sparkles } from 'lucide-react';
+import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 
+import { useAuth } from '../../../app/providers/authContext';
 import { stationService } from '../../../services/stations/stationService';
+import { tripService } from '../../../services/trips/tripService';
 import type { NearbyStation } from '../../../types/nearbyStation';
 import type { Station } from '../../../types/station';
 import type { StationAvailability } from '../../../types/stationAvailability';
+import type { RecommendationPurpose, StationRecommendation } from '../../../types/stationRecommendation';
 
 import classes from './StationsMap.module.css';
 
@@ -27,10 +30,16 @@ type MapStation = {
   name: string;
 };
 
-function createStationIcon(isSelected: boolean) {
+function createStationIcon(isSelected: boolean, isRecommended: boolean) {
+  const markerClasses = [
+    classes.stationMarker,
+    isSelected ? classes.stationMarkerSelected : null,
+    isRecommended ? classes.stationMarkerRecommended : null,
+  ].filter(Boolean).join(' ');
+
   return divIcon({
     className: classes.stationMarkerHost,
-    html: `<span class="${classes.stationMarker}${isSelected ? ` ${classes.stationMarkerSelected}` : ''}" aria-hidden="true"><svg viewBox="0 0 24 24" role="img"><circle cx="6" cy="17" r="3.25"/><circle cx="18" cy="17" r="3.25"/><path d="m6 17 4-7 3 7m-7 0h7l4-7m-8 0h4m-5-3h3"/></svg></span>`,
+    html: `<span class="${markerClasses}" aria-hidden="true"><svg viewBox="0 0 24 24" role="img"><circle cx="6" cy="17" r="3.25"/><circle cx="18" cy="17" r="3.25"/><path d="m6 17 4-7 3 7m-7 0h7l4-7m-8 0h4m-5-3h3"/></svg></span>`,
     iconAnchor: [22, 22],
     iconSize: [44, 44],
   });
@@ -64,11 +73,94 @@ function toRegisteredMapStation(station: Station): MapStation {
   };
 }
 
-type StationsMapProps = {
+type StationsMapProps = Readonly<{
   showHeading?: boolean;
-};
+}>;
+
+type MapDataSetters = Readonly<{
+  setBackendError: Dispatch<SetStateAction<boolean>>;
+  setIsBackendLoading: Dispatch<SetStateAction<boolean>>;
+  setIsRecommendationLoading: Dispatch<SetStateAction<boolean>>;
+  setRecommendationPurpose: Dispatch<SetStateAction<RecommendationPurpose>>;
+  setRecommendation: Dispatch<SetStateAction<StationRecommendation | null>>;
+  setHasRecommendationError: Dispatch<SetStateAction<boolean>>;
+  setStations: Dispatch<SetStateAction<MapStation[]>>;
+}>;
+
+async function loadFallbackStations({ setBackendError, setIsBackendLoading, setStations }: MapDataSetters) {
+  setIsBackendLoading(true);
+  setBackendError(false);
+
+  try {
+    const fallbackStations = await stationService.getAll();
+    setStations(fallbackStations.map(toRegisteredMapStation));
+  } catch {
+    setBackendError(true);
+  } finally {
+    setIsBackendLoading(false);
+  }
+}
+
+async function loadNearbyStations(location: Coordinates, { setBackendError, setIsBackendLoading, setStations }: MapDataSetters) {
+  setIsBackendLoading(true);
+  setBackendError(false);
+
+  try {
+    const [registeredStations, nearbyStations] = await Promise.all([
+      stationService.getAll(),
+      stationService.getNearby({ lat: location[0], lng: location[1] }),
+    ]);
+    const nearbyById = new Map(
+      nearbyStations.map((station) => [station.stationId, toNearbyMapStation(station)]),
+    );
+
+    setStations(registeredStations.map(
+      (station) => nearbyById.get(station.id) ?? toRegisteredMapStation(station),
+    ));
+  } catch {
+    setBackendError(true);
+  } finally {
+    setIsBackendLoading(false);
+  }
+}
+
+async function recommendationPurposeForUser(userId: number | null): Promise<RecommendationPurpose> {
+  if (userId === null) return 'PICKUP';
+
+  try {
+    const activeTrip = await tripService.getActive(userId);
+    return activeTrip ? 'DROPOFF' : 'PICKUP';
+  } catch {
+    return 'PICKUP';
+  }
+}
+
+async function loadRecommendation(
+  location: Coordinates,
+  userId: number | null,
+  { setHasRecommendationError, setIsRecommendationLoading, setRecommendation, setRecommendationPurpose }: MapDataSetters,
+) {
+  setIsRecommendationLoading(true);
+  setHasRecommendationError(false);
+
+  try {
+    const purpose = await recommendationPurposeForUser(userId);
+    setRecommendationPurpose(purpose);
+    setRecommendation(await stationService.getRecommendation(location[0], location[1], purpose));
+  } catch {
+    setHasRecommendationError(true);
+  } finally {
+    setIsRecommendationLoading(false);
+  }
+}
+
+function runInBackground(task: Promise<void>) {
+  task.catch(() => undefined);
+}
 
 export function StationsMap({ showHeading = true }: StationsMapProps) {
+  const { user } = useAuth();
+  const userId = user?.userId ?? null;
   const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
   const [stations, setStations] = useState<MapStation[]>([]);
   const [isGeolocationLoading, setIsGeolocationLoading] = useState(true);
@@ -79,49 +171,26 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
   const [selectedAvailability, setSelectedAvailability] = useState<StationAvailability | null>(null);
   const [isAvailabilityLoading, setIsAvailabilityLoading] = useState(false);
   const [hasAvailabilityError, setHasAvailabilityError] = useState(false);
+  const [recommendation, setRecommendation] = useState<StationRecommendation | null>(null);
+  const [isRecommendationLoading, setIsRecommendationLoading] = useState(false);
+  const [hasRecommendationError, setHasRecommendationError] = useState(false);
+  const [recommendationPurpose, setRecommendationPurpose] = useState<RecommendationPurpose>('PICKUP');
 
   useEffect(() => {
-    const loadFallbackStations = async () => {
-      setIsBackendLoading(true);
-      setBackendError(false);
-
-      try {
-        const fallbackStations = await stationService.getAll();
-        setStations(fallbackStations.map(toRegisteredMapStation));
-      } catch {
-        setBackendError(true);
-      } finally {
-        setIsBackendLoading(false);
-      }
-    };
-
-    const loadNearbyStations = async (location: Coordinates) => {
-      setIsBackendLoading(true);
-      setBackendError(false);
-
-      try {
-        const [registeredStations, nearbyStations] = await Promise.all([
-          stationService.getAll(),
-          stationService.getNearby({ lat: location[0], lng: location[1] }),
-        ]);
-        const nearbyById = new Map(
-          nearbyStations.map((station) => [station.stationId, toNearbyMapStation(station)]),
-        );
-
-        setStations(registeredStations.map(
-          (station) => nearbyById.get(station.id) ?? toRegisteredMapStation(station),
-        ));
-      } catch {
-        setBackendError(true);
-      } finally {
-        setIsBackendLoading(false);
-      }
+    const setters: MapDataSetters = {
+      setBackendError,
+      setHasRecommendationError,
+      setIsBackendLoading,
+      setIsRecommendationLoading,
+      setRecommendation,
+      setRecommendationPurpose,
+      setStations,
     };
 
     const showFallback = (message: string) => {
       setGeolocationError(message);
       setIsGeolocationLoading(false);
-      void loadFallbackStations();
+      runInBackground(loadFallbackStations(setters));
     };
 
     if (!navigator.geolocation) {
@@ -134,13 +203,14 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
         const location: Coordinates = [position.coords.latitude, position.coords.longitude];
         setUserLocation(location);
         setIsGeolocationLoading(false);
-        void loadNearbyStations(location);
+        runInBackground(loadNearbyStations(location, setters));
+        runInBackground(loadRecommendation(location, userId, setters));
       },
       () => {
         showFallback('No se pudo obtener tu ubicación. Se muestran todas las estaciones registradas.');
       },
     );
-  }, []);
+  }, [userId]);
 
   const selectStation = async (station: MapStation) => {
     setSelectedStation(station);
@@ -162,11 +232,16 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
     }
   };
 
+  const handleStationSelection = (station: MapStation) => {
+    selectStation(station).catch(() => undefined);
+  };
+
   const firstStationCenter: Coordinates | null = stations[0]
     ? [stations[0].latitude, stations[0].longitude]
     : null;
   const mapCenter = userLocation ?? firstStationCenter;
   const nearbyStations = stations.filter((station) => station.distanceMeters !== null);
+  const recommendedStationId = recommendation?.status === 'RECOMMENDED' ? recommendation.station?.stationId : null;
 
   return (
     <Stack gap="lg">
@@ -194,6 +269,7 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
                 <MapViewport center={mapCenter} />
+                {userLocation ? <RecenterToUserControl location={userLocation} /> : null}
                 {userLocation ? (
                   <CircleMarker center={userLocation} className={classes.userMarker} pathOptions={{ color: '#2F5CA6', fillColor: '#2F5CA6', fillOpacity: 1 }} radius={8}>
                     <Tooltip direction="top">Tu ubicación</Tooltip>
@@ -201,8 +277,8 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
                 ) : null}
                 {stations.map((station) => (
                   <Marker
-                    eventHandlers={{ click: () => void selectStation(station) }}
-                    icon={createStationIcon(selectedStation?.id === station.id)}
+                    eventHandlers={{ click: () => handleStationSelection(station) }}
+                    icon={createStationIcon(selectedStation?.id === station.id, recommendedStationId === station.id)}
                     key={station.id}
                     position={[station.latitude, station.longitude]}
                   >
@@ -216,13 +292,14 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
           </Paper>
 
           <Stack gap="md">
+          <RecommendationPanel error={hasRecommendationError} loading={isRecommendationLoading} purpose={recommendationPurpose} recommendation={recommendation} />
           <StationDetails
             availability={selectedAvailability}
             hasAvailabilityError={hasAvailabilityError}
             isAvailabilityLoading={isAvailabilityLoading}
             station={selectedStation}
           />
-          {userLocation ? <NearbyStations stations={nearbyStations} onSelectStation={selectStation} /> : null}
+           {userLocation ? <NearbyStations stations={nearbyStations} onSelectStation={handleStationSelection} /> : null}
           </Stack>
         </div>
       ) : null}
@@ -231,7 +308,33 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
   );
 }
 
-function MapViewport({ center }: { center: Coordinates }) {
+function RecommendationPanel({ error, loading, purpose, recommendation }: Readonly<{ error: boolean; loading: boolean; purpose: RecommendationPurpose; recommendation: StationRecommendation | null }>) {
+  const isReturn = purpose === 'DROPOFF';
+  const recommendedTitle = isReturn
+    ? 'Estación recomendada para devolver la bicicleta'
+    : 'Estación recomendada para retirar una bicicleta';
+  const fallbackTitle = isReturn
+    ? 'Alternativa sugerida para devolver la bicicleta'
+    : 'Alternativa sugerida para retirar una bicicleta';
+
+  if (loading) return <Paper className={classes.recommendationPanel} radius="md" p="md"><Group gap="sm"><Loader size="sm" /><Text size="sm">Buscando la mejor estación para {isReturn ? 'devolver la bicicleta' : 'retirar una bicicleta'}...</Text></Group></Paper>;
+  if (error) return <Alert color="gray" title="Recomendación no disponible">Podés continuar usando el mapa y elegir cualquier estación.</Alert>;
+  if (!recommendation) return null;
+  if (recommendation.status === 'NO_RECOMMENDATION') return <Alert color="blue" title="Sin recomendación disponible">{recommendation.message}</Alert>;
+  if (!recommendation.station) return null;
+
+  const isModel = recommendation.source === 'MODEL';
+  const title = isModel ? recommendedTitle : fallbackTitle;
+  return <Paper className={classes.recommendationPanel} radius="md" p="md"><Stack gap="xs">
+    <Group gap="xs">{isModel ? <Sparkles size={18} /> : <MapPin size={18} />}<Text fw={700}>{title}</Text></Group>
+    <Text fw={700}>{recommendation.station.stationName}</Text>
+    {recommendation.station.address ? <Text c="dimmed" size="sm">{recommendation.station.address}</Text> : null}
+    <Group gap="md"><Text size="sm">{recommendation.station.distanceMeters} m</Text><Text size="sm">{recommendation.station.availableBikes} bicicletas</Text><Text size="sm">{recommendation.station.availableSlots} espacios</Text></Group>
+    <Text size="sm">{recommendation.message}</Text>
+  </Stack></Paper>;
+}
+
+function MapViewport({ center }: Readonly<{ center: Coordinates }>) {
   const map = useMap();
 
   useEffect(() => {
@@ -241,7 +344,23 @@ function MapViewport({ center }: { center: Coordinates }) {
   return null;
 }
 
-function LoadingState({ message }: { message: string }) {
+function RecenterToUserControl({ location }: Readonly<{ location: Coordinates }>) {
+  const map = useMap();
+
+  return (
+    <button
+      aria-label="Ir a mi ubicación"
+      className={classes.recenterControl}
+      onClick={() => map.setView(location, 17)}
+      title="Ir a mi ubicación"
+      type="button"
+    >
+      <LocateFixed aria-hidden="true" size={20} />
+    </button>
+  );
+}
+
+function LoadingState({ message }: Readonly<{ message: string }>) {
   return (
     <Paper className={classes.statePanel} radius="md" p="xl">
       <Stack align="center" gap="sm">
@@ -261,12 +380,12 @@ function EmptyMapState() {
   );
 }
 
-type StationDetailsProps = {
+type StationDetailsProps = Readonly<{
   availability: StationAvailability | null;
   hasAvailabilityError: boolean;
   isAvailabilityLoading: boolean;
   station: MapStation | null;
-};
+}>;
 
 function StationDetails({ availability, hasAvailabilityError, isAvailabilityLoading, station }: StationDetailsProps) {
   if (!station) {
@@ -300,14 +419,21 @@ function StationDetails({ availability, hasAvailabilityError, isAvailabilityLoad
 
         {isAvailabilityLoading ? <Group gap="sm"><Loader color="citypassUrbanBlue" size="sm" /><Text c="dimmed" size="sm">Consultando disponibilidad...</Text></Group> : null}
         {hasAvailabilityError ? <Alert color="red" title="No se pudo consultar la disponibilidad">La estación seleccionada no está disponible o ocurrió un error al consultar el backend.</Alert> : null}
-        {availableBikes === 0 ? <Alert color="orange" icon={<Bike size={18} />} title="No hay bicicletas disponibles">Esta estación no cuenta con bicicletas disponibles en este momento.</Alert> : null}
-        {station.distanceMeters === null ? <Badge variant="light" color="citypassUrbanBlue">Estación registrada</Badge> : null}
+        {availableBikes === 0 ? (
+          <output className={classes.unavailableNotice}>
+            <Bike size={20} />
+            <div>
+              <Text fw={750} size="sm">No hay bicicletas disponibles</Text>
+              <Text size="xs">Esta estación no cuenta con bicicletas disponibles en este momento.</Text>
+            </div>
+          </output>
+        ) : null}
       </Stack>
     </Paper>
   );
 }
 
-function Metric({ label, value }: { label: string; value: number | string }) {
+function Metric({ label, value }: Readonly<{ label: string; value: number | string }>) {
   return (
     <div className={classes.metric}>
       <Text className={classes.metricValue}>{value}</Text>
@@ -316,10 +442,10 @@ function Metric({ label, value }: { label: string; value: number | string }) {
   );
 }
 
-type NearbyStationsProps = {
+type NearbyStationsProps = Readonly<{
   onSelectStation: (station: MapStation) => void;
   stations: MapStation[];
-};
+}>;
 
 function NearbyStations({ onSelectStation, stations }: NearbyStationsProps) {
   return (
@@ -330,7 +456,7 @@ function NearbyStations({ onSelectStation, stations }: NearbyStationsProps) {
       ) : (
         <Stack gap="xs" mt="sm">
           {stations.map((station) => (
-            <UnstyledButton aria-label={`Seleccionar ${station.name}`} className={classes.nearbyStation} key={station.id} onClick={() => void onSelectStation(station)}>
+            <UnstyledButton aria-label={`Seleccionar ${station.name}`} className={classes.nearbyStation} key={station.id} onClick={() => onSelectStation(station)}>
               <Group justify="space-between" wrap="nowrap">
                 <div>
                   <Text className={classes.nearbyName}>{station.name}</Text>

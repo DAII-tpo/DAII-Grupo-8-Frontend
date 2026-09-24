@@ -3,6 +3,7 @@ import type { NearbyStation } from '../../types/nearbyStation';
 import type { Station } from '../../types/station';
 import type { StationRequest } from '../../types/station';
 import type { StationAvailability } from '../../types/stationAvailability';
+import type { RecommendationPurpose, StationRecommendation } from '../../types/stationRecommendation';
 
 const stationsPath = '/api/v1/stations';
 
@@ -33,6 +34,11 @@ export const stationService = {
         ...(limit === undefined ? {} : { limit }),
       },
     });
+    return response.data;
+  },
+
+  async getRecommendation(lat: number, lng: number, purpose: RecommendationPurpose): Promise<StationRecommendation> {
+    const response = await httpClient.get<StationRecommendation>(`${stationsPath}/recommendation`, { params: { lat, lng, purpose } });
     return response.data;
   },
 

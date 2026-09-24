@@ -44,7 +44,8 @@
   min-height: clamp(30rem, 66vh, 44rem);
   overflow: clip;
   border-radius: 0.75rem;
-  box-shadow: 0 12px 32px rgba(20, 36, 48, 0.08);
+  border-top: 4px solid var(--citypass-urban-blue);
+  box-shadow: 0 14px 34px rgba(20, 36, 48, 0.1);
 }
 
 .map {
@@ -52,6 +53,33 @@
   height: clamp(30rem, 66vh, 44rem);
   max-width: 100%;
   width: 100%;
+}
+
+.recenterControl {
+  position: absolute;
+  z-index: 1000;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 65%, white);
+  border-radius: 0.35rem;
+  color: var(--citypass-night-blue);
+  background: white;
+  box-shadow: 0 4px 12px rgb(20 36 48 / 20%);
+  cursor: pointer;
+}
+
+.recenterControl:hover {
+  color: white;
+  background: var(--citypass-urban-blue);
+}
+
+.recenterControl:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--citypass-urban-blue) 48%, white);
+  outline-offset: 2px;
 }
 
 .emptyMap {
@@ -69,6 +97,7 @@
   align-self: start;
   border-radius: 0.75rem;
   box-shadow: 0 8px 24px rgba(20, 36, 48, 0.06);
+  border-top: 4px solid var(--citypass-urban-green);
 }
 
 .nearbyPanel {
@@ -76,6 +105,12 @@
   background: white;
   border-radius: 0.75rem;
   box-shadow: 0 8px 24px rgba(20, 36, 48, 0.06);
+}
+
+.recommendationPanel {
+  border: 1px solid color-mix(in srgb, var(--citypass-urban-green) 45%, white);
+  border-top: 4px solid var(--citypass-urban-green);
+  background: color-mix(in srgb, var(--citypass-urban-green) 7%, white);
 }
 
 .detailsTitle,
@@ -105,6 +140,19 @@
 .emptyIcon {
   color: var(--citypass-urban-green);
 }
+
+.unavailableNotice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--citypass-emergency-red) 28%, white);
+  border-radius: 0.65rem;
+  padding: 0.8rem;
+  color: #a52f39;
+  background: color-mix(in srgb, var(--citypass-emergency-red) 9%, white);
+}
+
+.unavailableNotice > svg { flex: 0 0 auto; margin-top: 0.05rem; }
 
 .nearbyStation {
   border-radius: 0.35rem;
@@ -166,6 +214,11 @@
 .stationMarkerSelected {
   background: var(--citypass-urban-green);
   transform: rotate(-45deg) scale(1.12);
+}
+
+.stationMarkerRecommended {
+  background: var(--citypass-urban-green);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--citypass-urban-green) 28%, transparent), 0 5px 14px rgb(20 36 48 / 35%);
 }
 
 @media (max-width: 62rem) {

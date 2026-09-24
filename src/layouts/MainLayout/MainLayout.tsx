@@ -17,6 +17,7 @@ import {
   Menu,
   MessageSquare,
   Settings,
+  ShieldCheck,
   Siren,
   Trees,
   Trash2,
@@ -59,10 +60,18 @@ const accountNavigationItems: NavigationItem[] = [
   { icon: LogOut, label: 'Cerrar Sesión', path: '/login', action: 'logout' },
 ];
 
+const managementNavigationItems: NavigationItem[] = [
+  {
+    icon: ShieldCheck,
+    label: 'Movilidad',
+    path: '/movilidad/administracion',
+  },
+];
+
 export function MainLayout() {
   const [mobileOpened, { toggle: toggleMobile }] = useDisclosure(false);
   const [sidebarOpened, { toggle: toggleSidebar }] = useDisclosure(true);
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const menuIcon = sidebarOpened ? <X size={28} /> : <Menu size={32} />;
@@ -117,8 +126,8 @@ export function MainLayout() {
           <Group className={classes.userSummary} gap="sm" wrap="nowrap">
             <Avatar className={classes.avatar} radius="xl">UD</Avatar>
             <div className={classes.userCopy}>
-              <Text className={classes.userName}>Usuario demo</Text>
-              <Text className={classes.userRole}>Ciudadano</Text>
+              <Text className={classes.userName}>{user?.email ?? 'Usuario demo'}</Text>
+              <Text className={classes.userRole}>{user?.role === 'ADMIN' ? 'Administrador' : 'Ciudadano'}</Text>
             </div>
           </Group>
         </Group>
@@ -149,6 +158,25 @@ export function MainLayout() {
               />
             ))}
           </div>
+          {user?.role === 'ADMIN' ? (
+            <>
+              <Text className={classes.sectionLabel}>Gestión</Text>
+              <div className={classes.managementSection}>
+                {managementNavigationItems.map((item) => (
+                  <NavigationLink
+                    key={item.path}
+                    item={item}
+                    pathname={location.pathname}
+                    onNavigate={() => {
+                      if (mobileOpened) {
+                        toggleMobile();
+                      }
+                    }}
+                  />
+                ))}
+              </div>
+            </>
+          ) : null}
           <Text className={classes.sectionLabel}>Cuenta</Text>
           <div className={classes.accountSection}>
             {accountNavigationItems.map((item) => (
@@ -192,8 +220,9 @@ function NavigationLink({ item, onNavigate, pathname }: NavigationLinkProps) {
     item.path === '/'
       ? pathname === item.path
       : item.path === '/movilidad'
-        ? pathname === item.path
-          || pathname.startsWith('/movilidad/')
+        ? (pathname === item.path
+          || pathname.startsWith('/movilidad/'))
+          && !pathname.startsWith('/movilidad/administracion')
         : pathname.startsWith(item.path);
 
   return (

@@ -7,7 +7,9 @@ import { tripService } from '../../services/trips/tripService';
 import { mantineTheme } from '../../styles/theme';
 import { HistoryPage } from './index';
 
-vi.mock('../../config/currentUser', () => ({ currentUserId: 7 }));
+vi.mock('../../app/providers/authContext', () => ({
+  useAuth: () => ({ user: { email: 'user@citypass.com', role: 'USER', userId: 1 } }),
+}));
 vi.mock('../../services/trips/tripService', () => ({ tripService: { getHistory: vi.fn() } }));
 
 const trip = { id: 3, status: 'COMPLETED' as const, bikeId: 1, bikeCode: 'BIKE-001', originStationId: 2, originStationName: 'Plaza Norte', destinationStationId: 4, destinationStationName: 'Parque Sur', startedAt: '2026-09-17T14:00:00Z', endedAt: '2026-09-17T15:05:00Z', durationSeconds: 3900 };
@@ -24,10 +26,14 @@ describe('HistoryPage', () => {
     renderPage();
     expect(await screen.findByText(/Plaza Norte/)).toBeInTheDocument();
     expect(screen.getByText('Parque Sur', { exact: false })).toBeInTheDocument();
-    expect(screen.getByText('1 h 05 min')).toBeInTheDocument();
+    expect(screen.getAllByText('1 h 05 min')).toHaveLength(2);
+    expect(screen.getByText('Completado')).toBeInTheDocument();
+    expect(screen.getByText('17 de septiembre de 2026')).toBeInTheDocument();
+    expect(screen.getByText('11:00 hs')).toBeInTheDocument();
+    expect(screen.getByText('12:05 hs')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Anterior' })).toBeDisabled();
     expect(screen.getByRole('tab', { name: 'Historial' })).toHaveAttribute('data-active', 'true');
-    expect(tripService.getHistory).toHaveBeenCalledWith(7, 0, 10);
+    expect(tripService.getHistory).toHaveBeenCalledWith(1, 0, 10);
   });
 
   it('muestra el estado vacío para un usuario sin viajes', async () => {
@@ -50,7 +56,7 @@ describe('HistoryPage', () => {
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: 'Siguiente' }));
     expect(await screen.findByText(/Centro/)).toBeInTheDocument();
-    expect(tripService.getHistory).toHaveBeenLastCalledWith(7, 1, 10);
+    expect(tripService.getHistory).toHaveBeenLastCalledWith(1, 1, 10);
     expect(screen.getByRole('button', { name: 'Siguiente' })).toBeDisabled();
   });
 });

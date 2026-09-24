@@ -14,10 +14,21 @@
 
 .statePanel,
 .formPanel,
-.successPanel {
+.successPanel,
+.emptyState {
   border: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 58%, white);
   background: white;
+  box-shadow: 0 10px 28px rgb(20 36 48 / 6%);
 }
+
+.formPanel,
+.successPanel,
+.statePanel,
+.emptyState {
+  width: 100%;
+}
+
+.formPanel { border-top: 4px solid var(--citypass-emergency-red); }
 
 .statePanel {
   display: grid;
@@ -27,8 +38,49 @@
 
 .successPanel {
   border-color: color-mix(in srgb, var(--citypass-urban-green) 45%, white);
+  border-top: 4px solid var(--citypass-urban-green);
 }
 
 .successIcon {
   color: var(--citypass-urban-green);
+}
+
+.emptyState {
+  display: grid;
+  min-height: 200px;
+  place-items: center;
+  text-align: center;
+}
+
+.emptyStateIcon { color: var(--citypass-emergency-red); }
+.emptyStateTitle { color: var(--citypass-night-blue); font-size: 1.2rem; }
+
+.locationState {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 58%, white);
+  background: color-mix(in srgb, var(--citypass-sky-blue) 15%, white);
+}
+
+.stationRecommendation {
+  border: 1px solid color-mix(in srgb, var(--citypass-urban-green) 38%, white);
+  background: linear-gradient(120deg, color-mix(in srgb, var(--citypass-urban-green) 9%, white), white);
+}
+
+.stationIcon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: white;
+  background: var(--citypass-urban-green);
+}
+
+.stationDistance { margin-top: 0.45rem; color: var(--citypass-urban-green); font-weight: 750; }
+
+@media (max-width: 36rem) {
+  .emptyState { min-height: 190px; padding: 1.25rem !important; }
 }

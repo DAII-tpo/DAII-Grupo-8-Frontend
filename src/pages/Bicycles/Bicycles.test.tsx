@@ -9,7 +9,9 @@ import { tripService } from '../../services/trips/tripService';
 import { mantineTheme } from '../../styles/theme';
 import { BicyclesPage } from './index';
 
-vi.mock('../../config/currentUser', () => ({ currentUserId: 7 }));
+vi.mock('../../app/providers/authContext', () => ({
+  useAuth: () => ({ user: { email: 'user@citypass.com', role: 'USER', userId: 1 } }),
+}));
 vi.mock('../../services/bikes/bikeService', () => ({ bikeService: { getAvailable: vi.fn() } }));
 vi.mock('../../services/stations/stationService', () => ({ stationService: { getAll: vi.fn(), getAvailability: vi.fn() } }));
 vi.mock('../../services/trips/tripService', () => ({ tripService: { end: vi.fn(), getActive: vi.fn(), start: vi.fn() } }));
@@ -26,6 +28,12 @@ const station = {
   updatedAt: '2026-09-01T10:00:00Z',
   deletedAt: null,
 };
+
+const unorderedStations = [
+  { ...station, id: 3, name: 'Zoológico' },
+  station,
+  { ...station, id: 1, name: 'Álamo' },
+];
 
 const bike = {
   id: 1,
@@ -121,7 +129,7 @@ describe('BicyclesPage', () => {
     renderPage();
 
     expect(await screen.findByRole('combobox', { name: 'Estación de origen' })).toBeInTheDocument();
-    expect(tripService.getActive).toHaveBeenCalledWith(7);
+    expect(tripService.getActive).toHaveBeenCalledWith(1);
     expect(screen.getByRole('tab', { name: 'Bicicletas/Viajes' })).toHaveAttribute('data-active', 'true');
   });
 
@@ -131,6 +139,7 @@ describe('BicyclesPage', () => {
     renderPage();
 
     expect(await screen.findByText('Tenés un viaje activo')).toBeInTheDocument();
+    expect(screen.getByText('En curso')).toBeInTheDocument();
     expect(screen.getByText('BIKE-001')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Iniciar viaje' })).not.toBeInTheDocument();
     expect(await screen.findByRole('combobox', { name: 'Estación destino' })).toBeInTheDocument();
@@ -197,7 +206,7 @@ describe('BicyclesPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Finalizar viaje' }));
 
     expect(await screen.findByText('Viaje finalizado')).toBeInTheDocument();
-    expect(tripService.end).toHaveBeenCalledWith(7, 3, { destinationStationId: 2 });
+    expect(tripService.end).toHaveBeenCalledWith(1, 3, { destinationStationId: 2 });
     expect(screen.getAllByText('Estacion Centro')).toHaveLength(2);
     expect(screen.getByText('30 min 0 s')).toBeInTheDocument();
   });
@@ -283,6 +292,36 @@ describe('BicyclesPage', () => {
     expect(bikeService.getAvailable).toHaveBeenCalledWith(2);
   });
 
+  it('ordena las estaciones de origen y conserva el stationId seleccionado', async () => {
+    vi.mocked(tripService.getActive).mockResolvedValueOnce(null);
+    vi.mocked(stationService.getAll).mockResolvedValueOnce(unorderedStations);
+    vi.mocked(bikeService.getAvailable).mockResolvedValueOnce([]);
+
+    renderPage();
+
+    const originSelector = await screen.findByRole('combobox', { name: 'Estación de origen' }) as HTMLSelectElement;
+    expect(Array.from(originSelector.options).map((option) => option.value)).toEqual(['', '1', '2', '3']);
+
+    fireEvent.change(originSelector, { target: { value: '1' } });
+
+    expect(bikeService.getAvailable).toHaveBeenCalledWith(1);
+  });
+
+  it('ordena las estaciones de destino y consulta la disponibilidad del stationId elegido', async () => {
+    vi.mocked(tripService.getActive).mockResolvedValueOnce(activeTrip);
+    vi.mocked(stationService.getAll).mockResolvedValueOnce(unorderedStations);
+    vi.mocked(stationService.getAvailability).mockResolvedValueOnce({ ...stationAvailability, stationId: 1, stationName: 'Álamo' });
+
+    renderPage();
+
+    const destinationSelector = await screen.findByRole('combobox', { name: 'Estación destino' }) as HTMLSelectElement;
+    expect(Array.from(destinationSelector.options).map((option) => option.value)).toEqual(['', '1', '2', '3']);
+
+    fireEvent.change(destinationSelector, { target: { value: '1' } });
+
+    expect(stationService.getAvailability).toHaveBeenCalledWith(1);
+  });
+
   it('informa cuando la estación no tiene bicicletas disponibles', async () => {
     mockNoActiveTrip();
     vi.mocked(bikeService.getAvailable).mockResolvedValueOnce([]);
@@ -318,7 +357,7 @@ describe('BicyclesPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Iniciar viaje' }));
 
     expect(await screen.findByText('Tenés un viaje activo')).toBeInTheDocument();
-    expect(tripService.start).toHaveBeenCalledWith(7, { bikeId: 1 });
+    expect(tripService.start).toHaveBeenCalledWith(1, { bikeId: 1 });
   });
 
   it('muestra un error entendible si no puede iniciar el viaje', async () => {
