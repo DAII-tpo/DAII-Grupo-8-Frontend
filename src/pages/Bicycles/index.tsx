@@ -219,6 +219,8 @@ function StartTripFlow({ onTripStarted, userId }: Readonly<StartTripFlowProps>) 
     );
   }
 
+  const sortedStations = sortStationsByName(stations);
+
   return (
     <Stack gap="md">
       <Paper className={classes.selectionPanel} radius="md" p="md">
@@ -233,7 +235,7 @@ function StartTripFlow({ onTripStarted, userId }: Readonly<StartTripFlowProps>) 
             value={selectedStationId?.toString() ?? ''}
           >
             <option value="">Seleccioná una estación</option>
-            {stations.map((station) => (
+            {sortedStations.map((station) => (
               <option key={station.id} value={station.id}>
                 {station.name}{station.address ? ` - ${station.address}` : ''}
               </option>
@@ -422,12 +424,13 @@ function DestinationStationForm({ availability, availabilityError, endTripError,
   const hasNoSlots = availability?.availableSlots === 0;
   const canConfirm = availability !== null && !isConfirming;
   const shouldShowConfirmation = isConfirming && availability !== null && availability.availableSlots > 0;
+  const sortedStations = sortStationsByName(stations);
 
   return (
     <Stack gap="md">
       <NativeSelect aria-label="Estación destino" onChange={(event) => onSelectDestination(event.currentTarget.value)} value={selectedStationId?.toString() ?? ''}>
         <option value="">Seleccioná una estación destino</option>
-        {stations.map((station) => <option key={station.id} value={station.id}>{station.name}{station.address ? ` - ${station.address}` : ''}</option>)}
+        {sortedStations.map((station) => <option key={station.id} value={station.id}>{station.name}{station.address ? ` - ${station.address}` : ''}</option>)}
       </NativeSelect>
       {selectedStationId === null ? <Text c="dimmed" size="sm">Seleccioná una estación para consultar sus espacios disponibles.</Text> : null}
       {isLoadingAvailability ? <LoadingPanel message="Consultando espacios disponibles..." /> : null}
@@ -586,6 +589,12 @@ function endTripErrorMessage(error: unknown) {
     return 'La devolución no puede completarse. Verificá que la estación esté activa y tenga espacios disponibles.';
   }
   return 'No fue posible finalizar el viaje. Intentá nuevamente.';
+}
+
+function sortStationsByName(stations: readonly Station[]) {
+  return [...stations].sort((firstStation, secondStation) => (
+    firstStation.name.localeCompare(secondStation.name, 'es', { sensitivity: 'base' })
+  ));
 }
 
 function statusOf(error: unknown) {

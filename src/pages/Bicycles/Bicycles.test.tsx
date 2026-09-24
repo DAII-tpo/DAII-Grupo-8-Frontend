@@ -29,6 +29,12 @@ const station = {
   deletedAt: null,
 };
 
+const unorderedStations = [
+  { ...station, id: 3, name: 'Zoológico' },
+  station,
+  { ...station, id: 1, name: 'Álamo' },
+];
+
 const bike = {
   id: 1,
   code: 'BIKE-001',
@@ -284,6 +290,36 @@ describe('BicyclesPage', () => {
 
     expect(await screen.findByRole('radio', { name: 'BIKE-001 - City Bike' })).toBeInTheDocument();
     expect(bikeService.getAvailable).toHaveBeenCalledWith(2);
+  });
+
+  it('ordena las estaciones de origen y conserva el stationId seleccionado', async () => {
+    vi.mocked(tripService.getActive).mockResolvedValueOnce(null);
+    vi.mocked(stationService.getAll).mockResolvedValueOnce(unorderedStations);
+    vi.mocked(bikeService.getAvailable).mockResolvedValueOnce([]);
+
+    renderPage();
+
+    const originSelector = await screen.findByRole('combobox', { name: 'Estación de origen' }) as HTMLSelectElement;
+    expect(Array.from(originSelector.options).map((option) => option.value)).toEqual(['', '1', '2', '3']);
+
+    fireEvent.change(originSelector, { target: { value: '1' } });
+
+    expect(bikeService.getAvailable).toHaveBeenCalledWith(1);
+  });
+
+  it('ordena las estaciones de destino y consulta la disponibilidad del stationId elegido', async () => {
+    vi.mocked(tripService.getActive).mockResolvedValueOnce(activeTrip);
+    vi.mocked(stationService.getAll).mockResolvedValueOnce(unorderedStations);
+    vi.mocked(stationService.getAvailability).mockResolvedValueOnce({ ...stationAvailability, stationId: 1, stationName: 'Álamo' });
+
+    renderPage();
+
+    const destinationSelector = await screen.findByRole('combobox', { name: 'Estación destino' }) as HTMLSelectElement;
+    expect(Array.from(destinationSelector.options).map((option) => option.value)).toEqual(['', '1', '2', '3']);
+
+    fireEvent.change(destinationSelector, { target: { value: '1' } });
+
+    expect(stationService.getAvailability).toHaveBeenCalledWith(1);
   });
 
   it('informa cuando la estación no tiene bicicletas disponibles', async () => {
