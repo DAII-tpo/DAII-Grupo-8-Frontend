@@ -6,11 +6,13 @@ import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from '
 import { AlertCircle, Bike, LocateFixed, MapPin, Navigation, Sparkles } from 'lucide-react';
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 
+import { useAuth } from '../../../app/providers/authContext';
 import { stationService } from '../../../services/stations/stationService';
+import { tripService } from '../../../services/trips/tripService';
 import type { NearbyStation } from '../../../types/nearbyStation';
 import type { Station } from '../../../types/station';
 import type { StationAvailability } from '../../../types/stationAvailability';
-import type { StationRecommendation } from '../../../types/stationRecommendation';
+import type { RecommendationPurpose, StationRecommendation } from '../../../types/stationRecommendation';
 
 import classes from './StationsMap.module.css';
 
@@ -79,6 +81,7 @@ type MapDataSetters = Readonly<{
   setBackendError: Dispatch<SetStateAction<boolean>>;
   setIsBackendLoading: Dispatch<SetStateAction<boolean>>;
   setIsRecommendationLoading: Dispatch<SetStateAction<boolean>>;
+  setRecommendationPurpose: Dispatch<SetStateAction<RecommendationPurpose>>;
   setRecommendation: Dispatch<SetStateAction<StationRecommendation | null>>;
   setHasRecommendationError: Dispatch<SetStateAction<boolean>>;
   setStations: Dispatch<SetStateAction<MapStation[]>>;
@@ -121,12 +124,29 @@ async function loadNearbyStations(location: Coordinates, { setBackendError, setI
   }
 }
 
-async function loadRecommendation(location: Coordinates, { setHasRecommendationError, setIsRecommendationLoading, setRecommendation }: MapDataSetters) {
+async function recommendationPurposeForUser(userId: number | null): Promise<RecommendationPurpose> {
+  if (userId === null) return 'PICKUP';
+
+  try {
+    const activeTrip = await tripService.getActive(userId);
+    return activeTrip ? 'DROPOFF' : 'PICKUP';
+  } catch {
+    return 'PICKUP';
+  }
+}
+
+async function loadRecommendation(
+  location: Coordinates,
+  userId: number | null,
+  { setHasRecommendationError, setIsRecommendationLoading, setRecommendation, setRecommendationPurpose }: MapDataSetters,
+) {
   setIsRecommendationLoading(true);
   setHasRecommendationError(false);
 
   try {
-    setRecommendation(await stationService.getRecommendation(location[0], location[1], 'PICKUP'));
+    const purpose = await recommendationPurposeForUser(userId);
+    setRecommendationPurpose(purpose);
+    setRecommendation(await stationService.getRecommendation(location[0], location[1], purpose));
   } catch {
     setHasRecommendationError(true);
   } finally {
@@ -139,6 +159,8 @@ function runInBackground(task: Promise<void>) {
 }
 
 export function StationsMap({ showHeading = true }: StationsMapProps) {
+  const { user } = useAuth();
+  const userId = user?.userId ?? null;
   const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
   const [stations, setStations] = useState<MapStation[]>([]);
   const [isGeolocationLoading, setIsGeolocationLoading] = useState(true);
@@ -152,6 +174,7 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
   const [recommendation, setRecommendation] = useState<StationRecommendation | null>(null);
   const [isRecommendationLoading, setIsRecommendationLoading] = useState(false);
   const [hasRecommendationError, setHasRecommendationError] = useState(false);
+  const [recommendationPurpose, setRecommendationPurpose] = useState<RecommendationPurpose>('PICKUP');
 
   useEffect(() => {
     const setters: MapDataSetters = {
@@ -160,6 +183,7 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
       setIsBackendLoading,
       setIsRecommendationLoading,
       setRecommendation,
+      setRecommendationPurpose,
       setStations,
     };
 
@@ -180,13 +204,13 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
         setUserLocation(location);
         setIsGeolocationLoading(false);
         runInBackground(loadNearbyStations(location, setters));
-        runInBackground(loadRecommendation(location, setters));
+        runInBackground(loadRecommendation(location, userId, setters));
       },
       () => {
         showFallback('No se pudo obtener tu ubicación. Se muestran todas las estaciones registradas.');
       },
     );
-  }, []);
+  }, [userId]);
 
   const selectStation = async (station: MapStation) => {
     setSelectedStation(station);
@@ -268,7 +292,7 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
           </Paper>
 
           <Stack gap="md">
-          <RecommendationPanel error={hasRecommendationError} loading={isRecommendationLoading} recommendation={recommendation} />
+          <RecommendationPanel error={hasRecommendationError} loading={isRecommendationLoading} purpose={recommendationPurpose} recommendation={recommendation} />
           <StationDetails
             availability={selectedAvailability}
             hasAvailabilityError={hasAvailabilityError}
@@ -284,15 +308,23 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
   );
 }
 
-function RecommendationPanel({ error, loading, recommendation }: Readonly<{ error: boolean; loading: boolean; recommendation: StationRecommendation | null }>) {
-  if (loading) return <Paper className={classes.recommendationPanel} radius="md" p="md"><Group gap="sm"><Loader size="sm" /><Text size="sm">Buscando la mejor estación para retirar una bicicleta...</Text></Group></Paper>;
+function RecommendationPanel({ error, loading, purpose, recommendation }: Readonly<{ error: boolean; loading: boolean; purpose: RecommendationPurpose; recommendation: StationRecommendation | null }>) {
+  const isReturn = purpose === 'DROPOFF';
+  const recommendedTitle = isReturn
+    ? 'Estación recomendada para devolver la bicicleta'
+    : 'Estación recomendada para retirar una bicicleta';
+  const fallbackTitle = isReturn
+    ? 'Alternativa sugerida para devolver la bicicleta'
+    : 'Alternativa sugerida para retirar una bicicleta';
+
+  if (loading) return <Paper className={classes.recommendationPanel} radius="md" p="md"><Group gap="sm"><Loader size="sm" /><Text size="sm">Buscando la mejor estación para {isReturn ? 'devolver la bicicleta' : 'retirar una bicicleta'}...</Text></Group></Paper>;
   if (error) return <Alert color="gray" title="Recomendación no disponible">Podés continuar usando el mapa y elegir cualquier estación.</Alert>;
   if (!recommendation) return null;
   if (recommendation.status === 'NO_RECOMMENDATION') return <Alert color="blue" title="Sin recomendación disponible">{recommendation.message}</Alert>;
   if (!recommendation.station) return null;
 
   const isModel = recommendation.source === 'MODEL';
-  const title = isModel ? 'Estación recomendada' : 'Alternativa recomendada disponible';
+  const title = isModel ? recommendedTitle : fallbackTitle;
   return <Paper className={classes.recommendationPanel} radius="md" p="md"><Stack gap="xs">
     <Group gap="xs">{isModel ? <Sparkles size={18} /> : <MapPin size={18} />}<Text fw={700}>{title}</Text></Group>
     <Text fw={700}>{recommendation.station.stationName}</Text>
