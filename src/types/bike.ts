@@ -1,4 +1,4 @@
-export type BikeStatus = 'AVAILABLE' | 'IN_USE' | 'MAINTENANCE' | 'OUT_OF_SERVICE' | 'STOLEN';
+export type BikeStatus = 'AVAILABLE' | 'IN_USE' | 'MAINTENANCE' | 'OUT_OF_SERVICE' | 'STOLEN' | 'BLOCKED';
 
 export type BikeResponse = {
   id: number;

@@ -19,10 +19,14 @@
 .heroText { max-width: 38rem; color: rgb(255 255 255 / 87%); }
 .heroBadge { align-self: flex-start; color: #143f72; background: rgb(255 255 255 / 90%); }
 .activeBadge { align-self: flex-start; color: #164d48; background: rgb(255 255 255 / 90%); }
+.heroEmergency { background: linear-gradient(125deg, #7f2620 0%, var(--citypass-emergency-red) 60%, #d77a70 100%); }
+.emergencyBadge { align-self: flex-start; color: #7f2620; background: rgb(255 255 255 / 92%); }
 .heroPrimaryButton { color: #174b82; background: white; }
 .heroPrimaryButton:hover { color: #123f72; background: #f3f8fc; }
 .heroSecondaryButton { color: white; border-color: rgb(255 255 255 / 72%); }
 .heroSecondaryButton:hover { color: white; border-color: white; background: rgb(255 255 255 / 10%); }
+.heroSosButton { color: white; border: 1px solid rgb(255 255 255 / 55%); background: #b33a32; }
+.heroSosButton:hover { color: white; background: #9c312a; }
 
 .heroDecoration {
   position: absolute;

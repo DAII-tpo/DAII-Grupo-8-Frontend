@@ -179,8 +179,9 @@ export function ReportsPage() {
         />
       ) : null}
       {!isLoading && !hasLoadError && !reportedIncident && activeTrip === null ? <NoActiveTripState /> : null}
-      {!isLoading && !hasLoadError && !reportedIncident && activeTrip && types.length === 0 ? <NoTypesState /> : null}
-      {!isLoading && !hasLoadError && !reportedIncident && activeTrip && types.length > 0 ? (
+      {!isLoading && !hasLoadError && !reportedIncident && activeTrip?.status === 'EMERGENCY' ? <EmergencyPausedState /> : null}
+      {!isLoading && !hasLoadError && !reportedIncident && activeTrip?.status === 'ACTIVE' && types.length === 0 ? <NoTypesState /> : null}
+      {!isLoading && !hasLoadError && !reportedIncident && activeTrip?.status === 'ACTIVE' && types.length > 0 ? (
         <ReportForm
           activeTrip={activeTrip}
           description={description}
@@ -231,6 +232,21 @@ function NoActiveTripState() {
         <Title className={classes.emptyStateTitle} order={2}>No tenés ningún viaje activo</Title>
         <Text c="dimmed" maw={440} ta="center">
           Para reportar un problema, primero necesitás tener una bicicleta en uso.
+        </Text>
+      </Stack>
+    </Paper>
+  );
+}
+
+function EmergencyPausedState() {
+  return (
+    <Paper className={classes.emptyState} radius="md" p="xl">
+      <Stack align="center" gap="xs">
+        <ShieldAlert className={classes.emptyStateIcon} size={30} />
+        <Title className={classes.emptyStateTitle} order={2}>Tu viaje está pausado por un pedido de ayuda</Title>
+        <Text c="dimmed" maw={440} ta="center">
+          Emergencias ya tiene los datos de tu viaje. Si la calle tuvo algo que ver, vas a poder reportarlo cuando el
+          incidente se resuelva.
         </Text>
       </Stack>
     </Paper>

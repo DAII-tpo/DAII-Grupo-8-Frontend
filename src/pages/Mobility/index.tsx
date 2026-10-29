@@ -20,18 +20,22 @@ import {
   Navigation,
   ParkingCircle,
   Route,
+  Siren,
 } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 
+import { EmergencyPanel } from '../../components/mobility/EmergencyPanel';
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
 import { useAuth } from '../../app/providers/authContext';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
+import { emergencyService } from '../../services/emergencies/emergencyService';
 import { warmUpRecommendationService } from '../../services/recommendationWarmupService';
 import { stationService } from '../../services/stations/stationService';
 import { tripService } from '../../services/trips/tripService';
 import pageClasses from '../../styles/mobilityPage.module.css';
+import type { EmergencyResponse } from '../../types/emergency';
 import type { NearbyStation } from '../../types/nearbyStation';
 import type { PagedResponse } from '../../types/pagination';
 import type { TripResponse } from '../../types/trip';
@@ -66,6 +70,8 @@ export function MobilityPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [hasSummaryError, setHasSummaryError] = useState(false);
   const [locationState, setLocationState] = useState<LocationState>('loading');
+  const [currentEmergency, setCurrentEmergency] = useState<EmergencyResponse | null>(null);
+  const [isRequestingHelp, setIsRequestingHelp] = useState(false);
 
   useEffect(() => {
     warmUpRecommendationService().catch(() => undefined);
@@ -86,7 +92,13 @@ export function MobilityPage() {
       stationService.getAll(),
     ]);
 
-    if (activeResult.status === 'fulfilled') setActiveTrip(activeResult.value);
+    if (activeResult.status === 'fulfilled') {
+      setActiveTrip(activeResult.value);
+      // Viaje pausado por una emergencia: se retoma la pantalla del pedido de ayuda.
+      setCurrentEmergency(activeResult.value?.status === 'EMERGENCY'
+        ? await emergencyService.getCurrent(userId).catch(() => null)
+        : null);
+    }
     if (historyResult.status === 'fulfilled') setHistory(historyResult.value);
     if (stationsResult.status === 'fulfilled') setStationCount(stationsResult.value.length);
     setHasSummaryError(
@@ -143,7 +155,23 @@ export function MobilityPage() {
         </Alert>
       ) : null}
 
-      <ActiveTripCard activeTrip={activeTrip} isLoading={isLoading} />
+      {activeTrip && userId !== null && (isRequestingHelp || currentEmergency) ? (
+        <EmergencyPanel
+          initialEmergency={currentEmergency}
+          key={`${activeTrip.id}-${currentEmergency?.id ?? 'nuevo'}`}
+          onCancelled={() => {
+            setIsRequestingHelp(false);
+            setCurrentEmergency(null);
+            void loadDashboard();
+          }}
+          onClose={() => setIsRequestingHelp(false)}
+          onEmergencyChange={() => setActiveTrip((trip) => (trip ? { ...trip, status: 'EMERGENCY' } : trip))}
+          trip={activeTrip}
+          userId={userId}
+        />
+      ) : (
+        <ActiveTripCard activeTrip={activeTrip} isLoading={isLoading} onRequestHelp={() => setIsRequestingHelp(true)} />
+      )}
 
       <SimpleGrid cols={{ base: 1, xs: 2, lg: 4 }} spacing="md">
         <SummaryCard icon={Route} label="Viaje actual" tone="blue" value={activeTripSummary} />
@@ -172,7 +200,13 @@ export function MobilityPage() {
   );
 }
 
-function ActiveTripCard({ activeTrip, isLoading }: Readonly<{ activeTrip: TripResponse | null; isLoading: boolean }>) {
+type ActiveTripCardProps = {
+  activeTrip: TripResponse | null;
+  isLoading: boolean;
+  onRequestHelp: () => void;
+};
+
+function ActiveTripCard({ activeTrip, isLoading, onRequestHelp }: Readonly<ActiveTripCardProps>) {
   if (isLoading) {
     return (
       <Paper className={classes.heroCard} radius="lg" p="xl">
@@ -198,6 +232,20 @@ function ActiveTripCard({ activeTrip, isLoading }: Readonly<{ activeTrip: TripRe
     );
   }
 
+  if (activeTrip.status === 'EMERGENCY') {
+    // No se pudo recuperar el detalle de la emergencia: al menos se explica por qué el viaje está pausado.
+    return (
+      <Paper className={`${classes.heroCard} ${classes.heroEmergency}`} radius="lg" p="xl">
+        <div className={classes.heroDecoration} aria-hidden="true"><Siren size={116} strokeWidth={1.2} /></div>
+        <Stack className={classes.heroContent} gap="sm">
+          <Badge className={classes.emergencyBadge}>Emergencia en curso</Badge>
+          <Title className={classes.heroTitle} order={2}>Tu viaje está pausado por un pedido de ayuda</Title>
+          <Text className={classes.heroText}>{activeTrip.bikeCode} quedó bloqueada y el viaje no se cobra mientras Emergencias lo atiende.</Text>
+        </Stack>
+      </Paper>
+    );
+  }
+
   return (
     <Paper className={`${classes.heroCard} ${classes.heroActive}`} radius="lg" p="xl">
       <div className={classes.heroDecoration} aria-hidden="true"><Route size={116} strokeWidth={1.2} /></div>
@@ -211,6 +259,7 @@ function ActiveTripCard({ activeTrip, isLoading }: Readonly<{ activeTrip: TripRe
         <Group mt="xs">
           <Button renderRoot={(props) => <NavLink {...props} to="/movilidad/bicicletas" />} className={classes.heroPrimaryButton} variant="white">Ver viaje activo</Button>
           <Button renderRoot={(props) => <NavLink {...props} to="/movilidad/reportes" />} className={classes.heroSecondaryButton} variant="outline">Reportar problema</Button>
+          <Button className={classes.heroSosButton} leftSection={<Siren size={17} />} onClick={onRequestHelp}>SOS · Pedir ayuda</Button>
         </Group>
       </Stack>
     </Paper>
@@ -322,7 +371,8 @@ function locationSummary(state: LocationState, station: NearbyStation | null) {
 
 function tripSummaryValue(isLoading: boolean, activeTrip: TripResponse | null) {
   if (isLoading) return 'Cargando...';
-  return activeTrip ? 'En curso' : 'Sin viaje activo';
+  if (!activeTrip) return 'Sin viaje activo';
+  return activeTrip.status === 'EMERGENCY' ? 'Pausado · emergencia' : 'En curso';
 }
 
 function nearbyBikesSummaryValue(locationState: LocationState, station: NearbyStation | null) {

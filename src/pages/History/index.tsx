@@ -22,6 +22,7 @@ const tripStatusLabels: Record<TripResponse['status'], string> = {
   COMPLETED: 'Completado',
   CANCELLED: 'Cancelado',
   INCIDENT: 'Con incidencia',
+  EMERGENCY: 'Pausado por emergencia',
 };
 
 export function HistoryPage() {

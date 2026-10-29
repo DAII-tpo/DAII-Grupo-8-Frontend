@@ -66,6 +66,16 @@ afterEach(() => {
 });
 
 describe('ReportsPage', () => {
+  it('con el viaje pausado por una emergencia no muestra el formulario', async () => {
+    vi.mocked(tripService.getActive).mockResolvedValueOnce({ ...activeTrip, status: 'EMERGENCY' });
+    vi.mocked(incidentService.getTypes).mockResolvedValueOnce(types);
+
+    renderPage();
+
+    expect(await screen.findByText('Tu viaje está pausado por un pedido de ayuda')).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Tipo de problema' })).not.toBeInTheDocument();
+  });
+
   it('carga los tipos reales y muestra la bicicleta del viaje activo', async () => {
     mockFormData();
 
