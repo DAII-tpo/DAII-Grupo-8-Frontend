@@ -7,6 +7,7 @@ const navigationItems = [
   { label: 'Inicio', path: '/movilidad', value: 'inicio' },
   { label: 'Mapa', path: '/movilidad/mapa', value: 'mapa' },
   { label: 'Estaciones', path: '/movilidad/estaciones', value: 'estaciones' },
+  { label: 'Eventos', path: '/movilidad/eventos', value: 'eventos' },
   { label: 'Bicicletas/Viajes', path: '/movilidad/bicicletas', value: 'bicicletas' },
   { label: 'Historial', path: '/movilidad/historial', value: 'historial' },
   { label: 'Reportes', path: '/movilidad/reportes', value: 'reportes' },
