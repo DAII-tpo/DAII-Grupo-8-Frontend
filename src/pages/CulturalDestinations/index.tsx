@@ -34,7 +34,7 @@ export function CulturalDestinationsPage() {
     }
   }, []);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => { void Promise.resolve().then(refresh); }, [refresh]);
 
   const viewRecommendation = async (eventId: string) => {
     setSelectedId(eventId);
