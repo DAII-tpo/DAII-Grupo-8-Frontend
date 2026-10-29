@@ -9,6 +9,7 @@ import { MobilityNavigation } from '../../components/mobility/MobilityNavigation
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
 import { incidentService } from '../../services/incidents/incidentService';
+import { tryGetBrowserLocation } from '../../services/location/browserLocation';
 import { stationService } from '../../services/stations/stationService';
 import { tripService } from '../../services/trips/tripService';
 import type { IncidentResponse, IncidentTypeResponse } from '../../types/incident';
@@ -110,10 +111,13 @@ export function ReportsPage() {
     setSubmitError(null);
 
     try {
+      // La ubicación es opcional: si el usuario no la comparte, el reporte sale igual.
+      const location = await tryGetBrowserLocation();
       const incident = await incidentService.report(userId, {
         bikeId: activeTrip.bikeId,
         incidentTypeId: selectedType.id,
         description: description.trim(),
+        ...(location ?? {}),
       });
       setReportedIncident(incident);
       setIsReturnDialogOpen(true);

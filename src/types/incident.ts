@@ -2,6 +2,10 @@ export type IncidentCreateRequest = {
   bikeId: number;
   incidentTypeId: number;
   description: string;
+  /** Ubicación del navegador al reportar; opcional y siempre junto con longitude. */
+  latitude?: number;
+  longitude?: number;
+  accuracyMeters?: number | null;
 };
 
 export type IncidentStatus = 'OPEN' | 'UNDER_REVIEW' | 'RESOLVED' | 'REJECTED';

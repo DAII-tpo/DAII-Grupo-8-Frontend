@@ -1,5 +1,5 @@
 import { MantineProvider } from '@mantine/core';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -179,7 +179,36 @@ describe('ReportsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Enviar reporte' }));
 
     expect(screen.getByRole('button', { name: 'Enviar reporte' })).toBeDisabled();
-    expect(incidentService.report).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar reporte' }));
+    await waitFor(() => expect(incidentService.report).toHaveBeenCalledOnce());
+  });
+
+  it('suma la ubicación del navegador al reporte cuando el usuario la comparte', async () => {
+    mockFormData();
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        getCurrentPosition: (success: PositionCallback) => success({
+          coords: { latitude: -34.6037, longitude: -58.3816, accuracy: 15 },
+        } as GeolocationPosition),
+      },
+    });
+    vi.mocked(incidentService.report).mockReturnValueOnce(new Promise(() => {}));
+
+    renderPage();
+
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Tipo de problema' }), { target: { value: '2' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Descripción' }), { target: { value: 'Bache en la ciclovía' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar reporte' }));
+
+    await waitFor(() => expect(incidentService.report).toHaveBeenCalledWith(1, {
+      bikeId: 1,
+      incidentTypeId: 2,
+      description: 'Bache en la ciclovía',
+      latitude: -34.6037,
+      longitude: -58.3816,
+      accuracyMeters: 15,
+    }));
   });
 
   it('mantiene el formulario usable si el backend rechaza el reporte', async () => {

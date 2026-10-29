@@ -4,6 +4,7 @@ import { CircleAlert, CircleCheck, Clock3, MapPin, Phone, Siren } from 'lucide-r
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { emergencyService } from '../../../services/emergencies/emergencyService';
+import { getBrowserLocation } from '../../../services/location/browserLocation';
 import type { EmergencyResponse } from '../../../types/emergency';
 import type { TripResponse } from '../../../types/trip';
 
@@ -80,12 +81,7 @@ export function EmergencyPanel({
     setError(null);
     setIsLocating(true);
     try {
-      const position = await currentPosition();
-      const created = await emergencyService.report(userId, trip.id, {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-        accuracyMeters: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : null,
-      });
+      const created = await emergencyService.report(userId, trip.id, await getBrowserLocation());
       const start = Date.now();
       setDeadlines({
         cancelAt: start + created.cancelWindowSeconds * 1_000,
@@ -404,20 +400,6 @@ function secondsLeft(deadline: number, now: number) {
 function locationText(accuracyMeters: number | null) {
   if (accuracyMeters === null) return 'Ubicación compartida';
   return `Ubicación compartida (precisión ${Math.round(accuracyMeters)} m)`;
-}
-
-function currentPosition() {
-  return new Promise<GeolocationPosition>((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('geolocation-unavailable'));
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
-      enableHighAccuracy: true,
-      maximumAge: 30_000,
-      timeout: 10_000,
-    });
-  });
 }
 
 function requestHelpErrorMessage(error: unknown) {
