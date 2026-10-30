@@ -9,4 +9,5 @@ export type CulturalDestination = {
   endsAt: string;
   maxCapacity: number;
   registrations: number;
+  expectedDemand?: number;
 };

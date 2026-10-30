@@ -87,3 +87,10 @@ it('actualizar descarta la recomendación si el evento ya no está disponible', 
   await screen.findByText('Sin próximos eventos disponibles');
   expect(screen.queryByText('Estación Parque')).not.toBeInTheDocument();
 });
+
+it('muestra la demanda máxima recibida para un evento con cupo completo', async () => {
+  vi.mocked(service.upcoming).mockResolvedValue([{ ...event, expectedDemand: 100 }]);
+  mount();
+  expect(await screen.findByText('Cupo completo')).toBeInTheDocument();
+  expect(screen.getByText('Demanda de referencia: 100 asistentes')).toBeInTheDocument();
+});

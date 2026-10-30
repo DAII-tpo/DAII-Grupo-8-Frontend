@@ -102,6 +102,10 @@ export function CulturalDestinationsPage() {
                 <Text size="sm">{event.address ?? event.zone ?? 'Ubicación registrada'}</Text>
               </Group>
               <Text size="sm" c="dimmed">Inscriptos: {event.registrations} · Cupo: {event.maxCapacity}</Text>
+              <Text size="sm">Demanda de referencia: {event.expectedDemand ?? event.registrations} asistentes</Text>
+              {event.maxCapacity > 0 && (event.expectedDemand ?? event.registrations) >= event.maxCapacity && (
+                <Badge color="orange" variant="light">Cupo completo</Badge>
+              )}
               <Button
                 leftSection={<Navigation size={17} />}
                 onClick={() => void viewRecommendation(event.eventId)}
