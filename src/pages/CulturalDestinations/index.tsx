@@ -1,6 +1,6 @@
 import { Alert, Badge, Button, Group, Loader, Paper, SimpleGrid, Stack, Text, Title } from '@mantine/core';
 import { CalendarDays, CircleAlert, MapPin, Navigation, RefreshCw } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { culturalDestinationService } from '../../services/destinations/culturalDestinationService';
@@ -21,7 +21,13 @@ export function CulturalDestinationsPage() {
   const [recommendLoading, setRecommendLoading] = useState(false);
   const [recommendError, setRecommendError] = useState(false);
 
+  const recommendationRequest = useRef(0);
+
   const refresh = useCallback(async () => {
+    recommendationRequest.current += 1;
+    setSelectedId(null);
+    setRecommendation(null);
+    setRecommendLoading(false);
     setLoading(true);
     setError(false);
     try {
@@ -37,16 +43,18 @@ export function CulturalDestinationsPage() {
   useEffect(() => { void Promise.resolve().then(refresh); }, [refresh]);
 
   const viewRecommendation = async (eventId: string) => {
+    const requestId = ++recommendationRequest.current;
     setSelectedId(eventId);
     setRecommendation(null);
     setRecommendError(false);
     setRecommendLoading(true);
     try {
-      setRecommendation(await culturalDestinationService.recommendation(eventId));
+      const result = await culturalDestinationService.recommendation(eventId);
+      if (requestId === recommendationRequest.current) setRecommendation(result);
     } catch {
-      setRecommendError(true);
+      if (requestId === recommendationRequest.current) setRecommendError(true);
     } finally {
-      setRecommendLoading(false);
+      if (requestId === recommendationRequest.current) setRecommendLoading(false);
     }
   };
 

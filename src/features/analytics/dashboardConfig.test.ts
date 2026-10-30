@@ -63,3 +63,23 @@ describe('parseAnalyticsDashboardConfig', () => {
     expect(parseAnalyticsDashboardConfig('', '')).toEqual({ dashboards: [], errors: [] });
   });
 });
+
+
+describe('entradas de configuración incompletas', () => {
+  it('descarta entradas que no son objetos y URLs malformadas', () => {
+    const result = parseAnalyticsDashboardConfig('not a url', JSON.stringify([
+      null, [], 3, 'dashboard', { id: 'ok', title: 'OK', url: 'not a url' },
+    ]));
+    expect(result.dashboards).toEqual([]);
+    expect(result.errors).toHaveLength(6);
+  });
+  it('omite descripciones vacías y normaliza textos y URL', () => {
+    const result = parseAnalyticsDashboardConfig('', JSON.stringify([
+      { id: 'uno', title: ' Uno ', url: ' https://bi.example/uno ', description: '   ' },
+      { id: 'dos', title: 'Dos', url: 'https://bi.example/dos', description: ' Resumen ' },
+    ]));
+    expect(result.errors).toEqual([]);
+    expect(result.dashboards[0]).toEqual({ id: 'uno', title: 'Uno', url: 'https://bi.example/uno' });
+    expect(result.dashboards[1].description).toBe('Resumen');
+  });
+});
