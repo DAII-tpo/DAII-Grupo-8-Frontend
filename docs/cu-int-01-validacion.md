@@ -39,3 +39,12 @@ entorno y ejecutar CI en la rama de feature, sin mergear.
 BI debe entregar URLs reales y permitir embedding mediante CSP/frame policy.
 Espacios debe publicar los eventos reales y entregar ReservaConfirmada con su
 schema definitivo. Las pruebas de UI usan mocks HTTP; no son E2E con otros grupos.
+
+## Seguimiento de CI
+
+El run 40979290850 del commit bb7fd78 falló en tests, antes de cobertura y Sonar.
+Se reprodujo con Node 22.23.4: las 141 assertions pasaban, pero Mantine dejaba un
+error asíncrono porque JSDOM no implementa scrollIntoView. Se añadió ese mock de
+API de navegador al setup de tests. La repetición con Node 22 pasó sin errores
+no manejados y conserva líneas 87,60 % y ramas 80 %. Lint, tipos y build también
+se verificaron con Node 22. No se desactivaron assertions ni se ignoraron errores.
