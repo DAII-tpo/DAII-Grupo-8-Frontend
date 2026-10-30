@@ -11,6 +11,8 @@ import { HomePage } from '../../pages/Home';
 import { LoginPage } from '../../pages/Login';
 import { MapPage } from '../../pages/Map';
 import { MobilityPage } from '../../pages/Mobility';
+import { MobilityAnalyticsPage } from '../../pages/MobilityAnalytics';
+import { CulturalDestinationsPage } from '../../pages/CulturalDestinations';
 import { ReportsPage } from '../../pages/Reports';
 import { StationsPage } from '../../pages/Stations';
 import { RequireAuth } from './RequireAuth';
@@ -38,6 +40,8 @@ export const router = createBrowserRouter([
       { path: 'movilidad/viaje-activo', element: <ActiveTripPage /> },
       { path: 'movilidad/historial', element: <HistoryPage /> },
       { path: 'movilidad/reportes', element: <ReportsPage /> },
+      { path: 'movilidad/analitica', element: <MobilityAnalyticsPage /> },
+      { path: 'movilidad/eventos', element: <CulturalDestinationsPage /> },
       {
         path: 'movilidad/administracion',
         element: <RequireRole role="ADMIN"><AdministrationPage /></RequireRole>,
