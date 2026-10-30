@@ -13,7 +13,7 @@ import {
   Title,
 } from '@mantine/core';
 import { isAxiosError } from 'axios';
-import { AlertCircle, Bike, Clock3, MapPin, Play, Route } from 'lucide-react';
+import { AlertCircle, Bike, Clock3, MapPin, Play, Route, Siren } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
@@ -294,6 +294,7 @@ type ActiveTripPanelProps = {
 };
 
 function ActiveTripPanel({ onTripCompleted, trip, userId }: Readonly<ActiveTripPanelProps>) {
+  const isPausedByEmergency = trip.status === 'EMERGENCY';
   return (
     <Paper className={classes.activeTripPanel} radius="md" p="lg">
       <Stack gap="md">
@@ -303,17 +304,29 @@ function ActiveTripPanel({ onTripCompleted, trip, userId }: Readonly<ActiveTripP
             <div>
               <Text className={classes.activeTripEyebrow}>RECORRIDO EN CURSO</Text>
               <Title className={classes.activeTripTitle} order={2}>Tenés un viaje activo</Title>
-              <Text c="dimmed" size="sm">Elegí dónde devolver la bicicleta cuando llegues a destino.</Text>
+              <Text c="dimmed" size="sm">
+                {isPausedByEmergency
+                  ? 'Pediste ayuda durante el viaje: queda pausado hasta que Emergencias lo resuelva.'
+                  : 'Elegí dónde devolver la bicicleta cuando llegues a destino.'}
+              </Text>
             </div>
           </Group>
-          <Badge color="citypassUrbanGreen" size="lg" variant="filled">En curso</Badge>
+          {isPausedByEmergency
+            ? <Badge color="red" size="lg" variant="filled">Pausado por emergencia</Badge>
+            : <Badge color="citypassUrbanGreen" size="lg" variant="filled">En curso</Badge>}
         </Group>
         <SimpleGrid className={classes.activeMetrics} cols={{ base: 1, sm: 3 }} spacing="sm">
           <TripMetric icon={Bike} label="Bicicleta" value={trip.bikeCode} />
           <TripMetric icon={MapPin} label="Estación de origen" value={trip.originStationName} />
           <TripMetric icon={Clock3} label="Inicio" value={formatDateTime(trip.startedAt)} />
         </SimpleGrid>
-        <ReturnStationFlow onTripCompleted={onTripCompleted} trip={trip} userId={userId} />
+        {isPausedByEmergency ? (
+          <Alert color="red" icon={<Siren size={18} />} title="No hace falta devolver la bicicleta">
+            La bicicleta quedó bloqueada y el viaje no se cobra mientras Emergencias atiende tu pedido de ayuda.
+          </Alert>
+        ) : (
+          <ReturnStationFlow onTripCompleted={onTripCompleted} trip={trip} userId={userId} />
+        )}
       </Stack>
     </Paper>
   );
