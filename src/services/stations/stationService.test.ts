@@ -48,7 +48,7 @@ describe('stationService', () => {
     get.mockResolvedValueOnce({ data: availability });
 
     await expect(stationService.getAvailability(1)).resolves.toEqual(availability);
-    expect(get).toHaveBeenCalledWith('/api/v1/stations/1/availability');
+    expect(get).toHaveBeenCalledWith('/api/v1/stations/1/availability', { skipAuth: true });
   });
 
   it('obtiene estaciones cercanas con las coordenadas indicadas', async () => {
@@ -71,6 +71,7 @@ describe('stationService', () => {
 
     await expect(stationService.getNearby({ lat: -34.6037, lng: -58.3816 })).resolves.toEqual(stations);
     expect(get).toHaveBeenCalledWith('/api/v1/stations/nearby', {
+      skipAuth: true,
       params: { lat: -34.6037, lng: -58.3816 },
     });
   });

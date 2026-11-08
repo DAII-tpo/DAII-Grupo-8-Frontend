@@ -11,7 +11,7 @@ import { mantineTheme } from '../../styles/theme';
 import { MobilityPage } from './index';
 
 vi.mock('../../app/providers/authContext', () => ({
-  useAuth: () => ({ user: { email: 'user@citypass.com', role: 'USER', userId: 1 } }),
+  useAuth: () => ({ user: { email: 'ana@example.com', role: 'USER', userId: 1 } }),
 }));
 
 vi.mock('../../services/stations/stationService', () => ({
@@ -149,7 +149,7 @@ describe('MobilityPage', () => {
     expect(screen.getAllByText('7')).toHaveLength(2);
     expect(screen.getByText('Último viaje')).toBeInTheDocument();
     expect(stationService.getNearby).toHaveBeenCalledWith({ lat: -34.6037, lng: -58.3816, limit: 1 });
-    expect(tripService.getHistory).toHaveBeenCalledWith(1, 0, 1);
+    expect(tripService.getHistory).toHaveBeenCalledWith(0, 1);
   });
 
   it('destaca el viaje activo y habilita el acceso al reporte', async () => {
@@ -204,7 +204,7 @@ describe('MobilityPage', () => {
 
     expect(await screen.findByText('Alerta enviada a Emergencias')).toBeInTheDocument();
     expect(screen.getByText('Pausado · emergencia')).toBeInTheDocument();
-    expect(emergencyService.getCurrent).toHaveBeenCalledWith(1);
+    expect(emergencyService.getCurrent).toHaveBeenCalledWith();
   });
 
   it('explica el viaje pausado aunque no pueda recuperar la emergencia', async () => {

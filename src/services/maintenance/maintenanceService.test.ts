@@ -28,23 +28,21 @@ describe('maintenanceService', () => {
     post.mockResolvedValueOnce({ data: maintenance });
     patch.mockResolvedValueOnce({ data: { ...maintenance, status: 'COMPLETED', resolution: 'Rueda reparada' } });
 
-    await expect(maintenanceService.getAll(7)).resolves.toEqual([maintenance]);
-    await expect(maintenanceService.create(7, {
+    await expect(maintenanceService.getAll()).resolves.toEqual([maintenance]);
+    await expect(maintenanceService.create({
       bikeId: 1,
       incidentId: 8,
       description: 'Revisar rueda',
     })).resolves.toEqual(maintenance);
-    await expect(maintenanceService.complete(7, 3, { resolution: 'Rueda reparada' })).resolves.toMatchObject({
+    await expect(maintenanceService.complete(3, { resolution: 'Rueda reparada' })).resolves.toMatchObject({
       status: 'COMPLETED',
     });
-    expect(get).toHaveBeenCalledWith('/api/v1/maintenance', { headers: { 'X-User-Id': 7 } });
+    expect(get).toHaveBeenCalledWith('/api/v1/maintenance');
     expect(post).toHaveBeenCalledWith('/api/v1/maintenance', {
       bikeId: 1,
       incidentId: 8,
       description: 'Revisar rueda',
-    }, { headers: { 'X-User-Id': 7 } });
-    expect(patch).toHaveBeenCalledWith('/api/v1/maintenance/3/complete', { resolution: 'Rueda reparada' }, {
-      headers: { 'X-User-Id': 7 },
     });
+    expect(patch).toHaveBeenCalledWith('/api/v1/maintenance/3/complete', { resolution: 'Rueda reparada' });
   });
 });

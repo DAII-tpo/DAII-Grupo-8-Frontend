@@ -22,10 +22,12 @@ Crear un archivo `.env` tomando como referencia `.env.example`:
 ```env
 VITE_API_BASE_URL=http://localhost:8080
 VITE_RECOMMENDATION_SERVICE_URL=https://movilidad-recommendation.onrender.com
+VITE_FEDERATED_AUTH_BASE_URL=https://api.citypass-login.pp.ua
+VITE_FEDERATED_CLIENT_ID=citypass-movilidad-web
 ```
 
-El login demo asigna el `X-User-Id` de la sesión autenticada: USER usa `1` y ADMIN usa `2`.
 `VITE_RECOMMENDATION_SERVICE_URL` es opcional y se usa para el warm-up no bloqueante del servicio de recomendaciones.
+Las credenciales y tokens se gestionan mediante los flujos de autenticación ciudadano y federado. No se deben configurar secretos en el frontend.
 
 ## Ejecucion local
 
@@ -33,14 +35,9 @@ El login demo asigna el `X-User-Id` de la sesión autenticada: USER usa `1` y AD
 npm run dev
 ```
 
-## Login demo temporal
+## Acceso
 
-Hasta integrar el Login Federado, el frontend usa credenciales hardcodeadas solo para esta etapa:
-
-```text
-Usuario: user@citypass.com | Clave: citypass123 | Rol: USER
-Usuario: admin@citypass.com | Clave: citypass123 | Rol: ADMIN
-```
+`/login` ofrece acceso ciudadano, registro de ciudadano e ingreso de personal municipal. La administración se muestra solo al personal del módulo Movilidad que pertenece a los grupos `admin` o `delegados`.
 
 ## Validaciones
 

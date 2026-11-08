@@ -40,7 +40,7 @@ export const router = createBrowserRouter([
       { path: 'movilidad/reportes', element: <ReportsPage /> },
       {
         path: 'movilidad/administracion',
-        element: <RequireRole role="ADMIN"><AdministrationPage /></RequireRole>,
+        element: <RequireRole><AdministrationPage /></RequireRole>,
       },
       { path: 'residuos', element: <PlaceholderPage title="Residuos" /> },
       { path: 'reclamos', element: <PlaceholderPage title="Reclamos" /> },

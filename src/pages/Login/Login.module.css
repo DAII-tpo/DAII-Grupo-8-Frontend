@@ -1,0 +1,22 @@
+.login { width: 100%; }
+.title { color: var(--citypass-night-blue); font-size: clamp(2.35rem, 3vw, 3.25rem); font-weight: 600; letter-spacing: -0.025em; line-height: 1.14; }
+.subtitle { margin-top: 0.7rem; color: var(--citypass-medium-gray); font-size: clamp(1.05rem, 1.45vw, 1.3rem); font-weight: 400; line-height: 1.35; }
+.tabs { margin-top: 1rem; }
+.tabsList { gap: 0.35rem; border-bottom: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 70%, white); }
+.tab { color: var(--citypass-medium-gray); font-weight: 600; }
+.form { padding-top: 1.6rem; }
+.form :global([data-variant='default']) {
+  --input-height: 3.35rem;
+  --input-size: 3.35rem;
+  --input-line-height: calc(3.35rem - 2px);
+  --input-padding-y: 0;
+  --input-right-section-size: calc(3.35rem - 2px);
+}
+.form :global(label) { color: var(--citypass-night-blue); font-size: 1rem; font-weight: 500; }
+.form :global(input) { height: 3.35rem; min-height: 3.35rem; padding-top: 0; padding-bottom: 0; border: 1px solid #d1d7de; border-radius: 0.55rem; color: var(--citypass-graphite); font-size: 1.05rem; font-weight: 400; line-height: calc(3.35rem - 2px); }
+.form :global(input:focus) { border-color: var(--citypass-urban-blue); box-shadow: 0 0 0 3px color-mix(in srgb, var(--citypass-urban-blue) 20%, transparent); }
+.forgotPassword { display: block; color: var(--citypass-urban-blue); font-size: 1rem; font-weight: 500; text-align: right; }
+.forgotPassword:hover { text-decoration: underline; }.forgotPassword:focus-visible { outline: 3px solid color-mix(in srgb, var(--citypass-urban-blue) 40%, white); outline-offset: 3px; border-radius: 0.2rem; }
+.submitButton { width: 100%; height: 3.65rem; border-radius: 0.55rem; background: #426cac; font-size: 1.05rem; font-weight: 600; }.submitButton:not([data-disabled]):hover { background: #315c9e; }
+
+@media (max-width: 52em) { .title { font-size: 2.15rem; }.tab { padding-right: 0.55rem; padding-left: 0.55rem; font-size: 0.82rem; }.form :global(input) { min-height: 3.25rem; } }

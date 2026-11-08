@@ -53,7 +53,7 @@ export function ReportsPage() {
     try {
       const [loadedTypes, trip] = await Promise.all([
         incidentService.getTypes(),
-        tripService.getActive(userId),
+        tripService.getActive(),
       ]);
       setTypes(loadedTypes);
       setActiveTrip(trip);
@@ -113,7 +113,7 @@ export function ReportsPage() {
     try {
       // La ubicación es opcional: si el usuario no la comparte, el reporte sale igual.
       const location = await tryGetBrowserLocation();
-      const incident = await incidentService.report(userId, {
+      const incident = await incidentService.report({
         bikeId: activeTrip.bikeId,
         incidentTypeId: selectedType.id,
         description: description.trim(),
@@ -134,7 +134,7 @@ export function ReportsPage() {
     setIsReturningBike(true);
     setReturnError(null);
     try {
-      await tripService.end(userId, activeTrip.id, { destinationStationId: recommendedStation.stationId });
+      await tripService.end(activeTrip.id, { destinationStationId: recommendedStation.stationId });
       setReturnedStationName(recommendedStation.stationName);
       setActiveTrip(null);
       setIsReturnDialogOpen(false);

@@ -65,7 +65,6 @@ function renderPanel(initialEmergency: EmergencyResponse | null = null) {
         onClose={onClose}
         onEmergencyChange={onEmergencyChange}
         trip={trip}
-        userId={1}
       />
     </MantineProvider>,
   );
@@ -119,7 +118,7 @@ describe('EmergencyPanel', () => {
 
     await holdSos();
 
-    expect(emergencyService.report).toHaveBeenCalledWith(1, 3, {
+    expect(emergencyService.report).toHaveBeenCalledWith(3, {
       latitude: -34.6037,
       longitude: -58.3816,
       accuracyMeters: 12.4,
@@ -142,7 +141,7 @@ describe('EmergencyPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Fue un error, cancelar' }));
     await advance(0);
 
-    expect(emergencyService.cancel).toHaveBeenCalledWith(1, 91);
+    expect(emergencyService.cancel).toHaveBeenCalledWith(91);
     expect(onCancelled).toHaveBeenCalledOnce();
   });
 
@@ -176,7 +175,7 @@ describe('EmergencyPanel', () => {
     fireEvent.click(submit);
     await advance(0);
 
-    expect(emergencyService.submitTriage).toHaveBeenCalledWith(1, 91, {
+    expect(emergencyService.submitTriage).toHaveBeenCalledWith(91, {
       canMove: false,
       bleeding: false,
       vehicleInvolved: false,

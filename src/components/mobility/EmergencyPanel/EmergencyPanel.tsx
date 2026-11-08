@@ -20,7 +20,6 @@ type Phase = 'confirm' | 'locating' | 'countdown' | 'triage' | 'sending' | 'repo
 
 
 type EmergencyPanelProps = {
-  userId: number;
   trip: TripResponse;
   /** Emergencia en curso al recargar la página; null para un pedido nuevo. */
   initialEmergency: EmergencyResponse | null;
@@ -34,7 +33,6 @@ type EmergencyPanelProps = {
  * Los plazos los controla el backend; acá solo se muestran. Si se cierra la página, el aviso sale igual.
  */
 export function EmergencyPanel({
-  userId,
   trip,
   initialEmergency,
   onClose,
@@ -68,20 +66,20 @@ export function EmergencyPanel({
   useEffect(() => {
     if (phase !== 'sending') return undefined;
     const timer = globalThis.setInterval(() => {
-      emergencyService.getCurrent(userId)
+      emergencyService.getCurrent()
         .then((current) => {
           if (current?.status === 'REPORTED') updateEmergency(current);
         })
         .catch(() => undefined);
     }, sendingPollMilliseconds);
     return () => globalThis.clearInterval(timer);
-  }, [phase, updateEmergency, userId]);
+  }, [phase, updateEmergency]);
 
   const requestHelp = async () => {
     setError(null);
     setIsLocating(true);
     try {
-      const created = await emergencyService.report(userId, trip.id, await getBrowserLocation());
+      const created = await emergencyService.report(trip.id, await getBrowserLocation());
       const start = Date.now();
       setDeadlines({
         cancelAt: start + created.cancelWindowSeconds * 1_000,
@@ -101,7 +99,7 @@ export function EmergencyPanel({
     setIsBusy(true);
     setError(null);
     try {
-      await emergencyService.cancel(userId, emergency.id);
+      await emergencyService.cancel(emergency.id);
       onCancelled();
     } catch (cancelError) {
       setError(statusOf(cancelError) === 409
@@ -117,7 +115,7 @@ export function EmergencyPanel({
     setIsBusy(true);
     setError(null);
     try {
-      updateEmergency(await emergencyService.submitTriage(userId, emergency.id, answers));
+      updateEmergency(await emergencyService.submitTriage(emergency.id, answers));
     } catch (triageError) {
       if (statusOf(triageError) === 409) {
         // Venció el plazo o ya se envió: el backend avisa igual.

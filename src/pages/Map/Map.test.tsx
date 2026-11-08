@@ -33,7 +33,7 @@ vi.mock('../../services/stations/stationService', () => ({
   },
 }));
 vi.mock('../../app/providers/authContext', () => ({
-  useAuth: () => ({ user: { email: 'user@citypass.com', role: 'USER', userId: 1 } }),
+  useAuth: () => ({ user: { email: 'ana@example.com', role: 'USER', userId: 1 } }),
 }));
 vi.mock('../../services/trips/tripService', () => ({ tripService: { getActive: vi.fn() } }));
 
@@ -133,7 +133,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
+  vi.resetAllMocks();
 });
 
 describe('MapPage', () => {
@@ -207,6 +207,18 @@ describe('MapPage', () => {
     expect(await screen.findByRole('button', { name: 'Estacion Parque' })).toBeInTheDocument();
     expect(stationService.getAll).toHaveBeenCalledOnce();
     expect(screen.getByText('No se encontraron estaciones activas dentro del radio de búsqueda.')).toBeInTheDocument();
+  });
+
+  it('mantiene el mapa con estaciones cercanas si el catálogo requiere otra autenticación', async () => {
+    mockLocationSuccess();
+    vi.mocked(stationService.getAll).mockRejectedValueOnce(new Error('401'));
+    vi.mocked(stationService.getNearby).mockResolvedValueOnce([nearbyStation]);
+
+    renderPage();
+
+    expect(await screen.findByRole('button', { name: 'Estacion Centro' })).toBeInTheDocument();
+    expect(screen.getByTestId('map')).toBeInTheDocument();
+    expect(screen.queryByText('No se pudieron cargar las estaciones')).not.toBeInTheDocument();
   });
 
   it('usa estaciones registradas sin llamar nearby cuando la geolocalización es denegada', async () => {
@@ -325,7 +337,7 @@ describe('MapPage', () => {
 
     expect(await screen.findByText('Estación recomendada para devolver la bicicleta')).toBeInTheDocument();
     expect(stationService.getRecommendation).toHaveBeenCalledWith(-34.6037, -58.3816, 'DROPOFF');
-    expect(tripService.getActive).toHaveBeenCalledWith(1);
+    expect(tripService.getActive).toHaveBeenCalledWith();
     expect(tripService.getActive).toHaveBeenCalledTimes(1);
     expect(stationService.getRecommendation).toHaveBeenCalledTimes(1);
   });

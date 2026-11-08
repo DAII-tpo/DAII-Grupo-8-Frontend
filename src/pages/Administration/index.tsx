@@ -40,7 +40,7 @@ const maintenanceStatusLabels = {
 
 export function AdministrationPage() {
   const { user } = useAuth();
-  const userId = user?.userId ?? null;
+  const hasAuthenticatedUser = user !== null;
   const [incidents, setIncidents] = useState<AdminIncidentResponse[]>([]);
   const [maintenance, setMaintenance] = useState<MaintenanceResponse[]>([]);
   const [stations, setStations] = useState<Station[]>([]);
@@ -59,7 +59,7 @@ export function AdministrationPage() {
   }, [bikes]);
 
   const loadAdministrationData = useCallback(async () => {
-    if (userId === null) {
+    if (!hasAuthenticatedUser) {
       setLoadError('No hay un usuario configurado para realizar operaciones administrativas.');
       setIsLoading(false);
       return;
@@ -69,8 +69,8 @@ export function AdministrationPage() {
     setLoadError(null);
     try {
       const [loadedIncidents, loadedMaintenance, loadedStations, loadedBikes] = await Promise.all([
-        incidentService.getAll(userId),
-        maintenanceService.getAll(userId),
+        incidentService.getAll(),
+        maintenanceService.getAll(),
         stationService.getAll(),
         bikeService.getAll(),
       ]);
@@ -83,20 +83,20 @@ export function AdministrationPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [userId]);
+  }, [hasAuthenticatedUser]);
 
   useEffect(() => {
     void Promise.resolve().then(loadAdministrationData);
   }, [loadAdministrationData]);
 
   const updateIncident = async (incidentId: number, status: IncidentStatus) => {
-    if (userId === null) return;
+    if (!hasAuthenticatedUser) return;
     const actionId = `incident-${incidentId}`;
     setPendingAction(actionId);
     setActionError(null);
     setActionSuccess(null);
     try {
-      const updated = await incidentService.updateStatus(userId, incidentId, { status });
+      const updated = await incidentService.updateStatus(incidentId, { status });
       setIncidents((current) => current.map((incident) => incident.id === updated.id ? updated : incident));
       setActionSuccess('El estado de la incidencia fue actualizado.');
     } catch (error) {
@@ -107,12 +107,12 @@ export function AdministrationPage() {
   };
 
   const createMaintenance = async (incident: AdminIncidentResponse, description: string) => {
-    if (userId === null) return;
+    if (!hasAuthenticatedUser) return;
     setPendingAction('create-maintenance');
     setActionError(null);
     setActionSuccess(null);
     try {
-      const created = await maintenanceService.create(userId, {
+      const created = await maintenanceService.create({
         bikeId: incident.bikeId,
         incidentId: incident.id,
         description,
@@ -127,13 +127,13 @@ export function AdministrationPage() {
   };
 
   const completeMaintenance = async (maintenanceId: number, resolution: string) => {
-    if (userId === null) return;
+    if (!hasAuthenticatedUser) return;
     const actionId = `maintenance-${maintenanceId}`;
     setPendingAction(actionId);
     setActionError(null);
     setActionSuccess(null);
     try {
-      const updated = await maintenanceService.complete(userId, maintenanceId, { resolution });
+      const updated = await maintenanceService.complete(maintenanceId, { resolution });
       setMaintenance((current) => current.map((item) => item.id === updated.id ? updated : item));
       setActionSuccess('El mantenimiento fue finalizado.');
     } catch (error) {

@@ -8,7 +8,7 @@ import { mantineTheme } from '../../styles/theme';
 import { HistoryPage } from './index';
 
 vi.mock('../../app/providers/authContext', () => ({
-  useAuth: () => ({ user: { email: 'user@citypass.com', role: 'USER', userId: 1 } }),
+  useAuth: () => ({ user: { email: 'ana@example.com', role: 'USER', userId: 1 } }),
 }));
 vi.mock('../../services/trips/tripService', () => ({ tripService: { getHistory: vi.fn() } }));
 
@@ -33,7 +33,7 @@ describe('HistoryPage', () => {
     expect(screen.getByText('12:05 hs')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Anterior' })).toBeDisabled();
     expect(screen.getByRole('tab', { name: 'Historial' })).toHaveAttribute('data-active', 'true');
-    expect(tripService.getHistory).toHaveBeenCalledWith(1, 0, 10);
+    expect(tripService.getHistory).toHaveBeenCalledWith(0, 10);
   });
 
   it('muestra el estado vacío para un usuario sin viajes', async () => {
@@ -56,7 +56,7 @@ describe('HistoryPage', () => {
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: 'Siguiente' }));
     expect(await screen.findByText(/Centro/)).toBeInTheDocument();
-    expect(tripService.getHistory).toHaveBeenLastCalledWith(1, 1, 10);
+    expect(tripService.getHistory).toHaveBeenLastCalledWith(1, 10);
     expect(screen.getByRole('button', { name: 'Siguiente' })).toBeDisabled();
   });
 });

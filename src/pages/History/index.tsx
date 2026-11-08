@@ -42,7 +42,7 @@ export function HistoryPage() {
     setIsLoading(true);
     setError(null);
     try {
-      setHistory(await tripService.getHistory(userId, requestedPage, pageSize));
+      setHistory(await tripService.getHistory(requestedPage, pageSize));
     } catch (requestError) {
       setError(historyErrorMessage(requestError));
     } finally {

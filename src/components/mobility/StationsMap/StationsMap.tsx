@@ -106,15 +106,19 @@ async function loadNearbyStations(location: Coordinates, { setBackendError, setI
   setBackendError(false);
 
   try {
-    const [registeredStations, nearbyStations] = await Promise.all([
-      stationService.getAll(),
+    const [registeredResult, nearbyStations] = await Promise.all([
+      stationService.getAll().then((stations) => ({ stations })).catch(() => null),
       stationService.getNearby({ lat: location[0], lng: location[1] }),
     ]);
+    if (!registeredResult) {
+      setStations(nearbyStations.map(toNearbyMapStation));
+      return;
+    }
     const nearbyById = new Map(
       nearbyStations.map((station) => [station.stationId, toNearbyMapStation(station)]),
     );
 
-    setStations(registeredStations.map(
+    setStations(registeredResult.stations.map(
       (station) => nearbyById.get(station.id) ?? toRegisteredMapStation(station),
     ));
   } catch {
@@ -128,7 +132,7 @@ async function recommendationPurposeForUser(userId: number | null): Promise<Reco
   if (userId === null) return 'PICKUP';
 
   try {
-    const activeTrip = await tripService.getActive(userId);
+    const activeTrip = await tripService.getActive();
     return activeTrip ? 'DROPOFF' : 'PICKUP';
   } catch {
     return 'PICKUP';

@@ -10,7 +10,7 @@ import { mantineTheme } from '../../styles/theme';
 import { ReportsPage } from './index';
 
 vi.mock('../../app/providers/authContext', () => ({
-  useAuth: () => ({ user: { email: 'user@citypass.com', role: 'USER', userId: 1 } }),
+  useAuth: () => ({ user: { email: 'ana@example.com', role: 'USER', userId: 1 } }),
 }));
 vi.mock('../../services/incidents/incidentService', () => ({ incidentService: { getTypes: vi.fn(), report: vi.fn() } }));
 vi.mock('../../services/stations/stationService', () => ({ stationService: { getNearby: vi.fn() } }));
@@ -85,7 +85,7 @@ describe('ReportsPage', () => {
     expect(screen.getByRole('option', { name: 'Pinchazo' })).toBeInTheDocument();
     expect(screen.getByText('Bicicleta en uso: BIKE-001')).toBeInTheDocument();
     expect(incidentService.getTypes).toHaveBeenCalledOnce();
-    expect(tripService.getActive).toHaveBeenCalledWith(1);
+    expect(tripService.getActive).toHaveBeenCalledWith();
   });
 
   it('requiere seleccionar un tipo y describir el problema', async () => {
@@ -126,7 +126,7 @@ describe('ReportsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Enviar reporte' }));
 
     expect(await screen.findByText('Reporte enviado')).toBeInTheDocument();
-    expect(incidentService.report).toHaveBeenCalledWith(1, {
+    expect(incidentService.report).toHaveBeenCalledWith({
       bikeId: 1,
       incidentTypeId: 2,
       description: 'Rueda trasera desinflada',
@@ -164,7 +164,7 @@ describe('ReportsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar que la dejé acá' }));
 
     expect(await screen.findByText('Confirmaste la devolución en Plaza Norte. El viaje quedó finalizado.')).toBeInTheDocument();
-    expect(tripService.end).toHaveBeenCalledWith(1, 3, { destinationStationId: 4 });
+    expect(tripService.end).toHaveBeenCalledWith(3, { destinationStationId: 4 });
   });
 
   it('evita el doble envío mientras el reporte está en progreso', async () => {
@@ -201,7 +201,7 @@ describe('ReportsPage', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Descripción' }), { target: { value: 'Bache en la ciclovía' } });
     fireEvent.click(screen.getByRole('button', { name: 'Enviar reporte' }));
 
-    await waitFor(() => expect(incidentService.report).toHaveBeenCalledWith(1, {
+    await waitFor(() => expect(incidentService.report).toHaveBeenCalledWith({
       bikeId: 1,
       incidentTypeId: 2,
       description: 'Bache en la ciclovía',

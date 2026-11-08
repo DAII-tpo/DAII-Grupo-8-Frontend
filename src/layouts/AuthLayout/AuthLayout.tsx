@@ -1,6 +1,6 @@
-import { Container, Paper, Stack, Text } from '@mantine/core';
 import { Outlet } from 'react-router-dom';
 
+import loginIllustration from '../../assets/login-illustration.svg';
 import { BrandLogo } from '../../components/common/BrandLogo';
 
 import classes from './AuthLayout.module.css';
@@ -8,17 +8,17 @@ import classes from './AuthLayout.module.css';
 export function AuthLayout() {
   return (
     <main className={classes.authPage}>
-      <Container size="xs">
-        <Paper className={classes.panel} radius="md" p="xl">
-          <Stack gap="xl">
-            <BrandLogo />
-            <Text className={classes.helper}>
-              Acceso preparado para futura integracion con Login Federado.
-            </Text>
-            <Outlet />
-          </Stack>
-        </Paper>
-      </Container>
+      <section aria-hidden="true" className={classes.illustrationPanel}>
+        <img alt="" className={classes.illustration} src={loginIllustration} />
+      </section>
+      <section className={classes.formPanel}>
+        <div className={classes.formContent}>
+          <div className={classes.brand}>
+            <BrandLogo compact />
+          </div>
+          <Outlet />
+        </div>
+      </section>
     </main>
   );
 }

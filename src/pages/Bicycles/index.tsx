@@ -80,13 +80,13 @@ function TripManager({ userId }: Readonly<TripManagerProps>) {
     setActiveTripError(null);
 
     try {
-      setActiveTrip(await tripService.getActive(userId));
+      setActiveTrip(await tripService.getActive());
     } catch (error) {
       setActiveTripError(activeTripErrorMessage(error));
     } finally {
       setIsLoadingActiveTrip(false);
     }
-  }, [userId]);
+  }, []);
 
   useEffect(() => {
     void Promise.resolve().then(loadActiveTrip);
@@ -125,7 +125,7 @@ type StartTripFlowProps = {
   userId: number;
 };
 
-function StartTripFlow({ onTripStarted, userId }: Readonly<StartTripFlowProps>) {
+function StartTripFlow({ onTripStarted }: Readonly<StartTripFlowProps>) {
   const [stations, setStations] = useState<Station[]>([]);
   const [isLoadingStations, setIsLoadingStations] = useState(true);
   const [stationsError, setStationsError] = useState(false);
@@ -185,7 +185,7 @@ function StartTripFlow({ onTripStarted, userId }: Readonly<StartTripFlowProps>) 
     setStartTripError(null);
 
     try {
-      onTripStarted(await tripService.start(userId, { bikeId: selectedBikeId }));
+      onTripStarted(await tripService.start({ bikeId: selectedBikeId }));
     } catch (error) {
       setStartTripError(startTripErrorMessage(error));
     } finally {
@@ -334,7 +334,7 @@ function ActiveTripPanel({ onTripCompleted, trip, userId }: Readonly<ActiveTripP
 
 type ReturnStationFlowProps = Readonly<ActiveTripPanelProps>;
 
-function ReturnStationFlow({ onTripCompleted, trip, userId }: ReturnStationFlowProps) {
+function ReturnStationFlow({ onTripCompleted, trip }: ReturnStationFlowProps) {
   const [stations, setStations] = useState<Station[]>([]);
   const [isLoadingStations, setIsLoadingStations] = useState(true);
   const [stationsError, setStationsError] = useState(false);
@@ -395,7 +395,7 @@ function ReturnStationFlow({ onTripCompleted, trip, userId }: ReturnStationFlowP
     setEndTripError(null);
 
     try {
-      onTripCompleted(await tripService.end(userId, trip.id, { destinationStationId: selectedStationId }));
+      onTripCompleted(await tripService.end(trip.id, { destinationStationId: selectedStationId }));
     } catch (error) {
       setEndTripError(endTripErrorMessage(error));
     } finally {

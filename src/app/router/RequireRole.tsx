@@ -1,10 +1,10 @@
-import type { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 
-import type { DemoRole } from '../../config/demoAuth';
+import type { ReactNode } from 'react';
+import { canAccessAdministration } from '../../types/auth';
 import { useAuth } from '../providers/authContext';
 
-export function RequireRole({ children, role }: { children: ReactNode; role: DemoRole }) {
+export function RequireRole({ children }: Readonly<{ children: ReactNode; role?: string }>) {
   const { user } = useAuth();
-  return user?.role === role ? children : <Navigate to="/movilidad" replace />;
+  return canAccessAdministration(user) ? children : <Navigate to="/movilidad" replace />;
 }

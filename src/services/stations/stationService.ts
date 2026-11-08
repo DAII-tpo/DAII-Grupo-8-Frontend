@@ -21,12 +21,13 @@ export const stationService = {
   },
 
   async getAvailability(stationId: number): Promise<StationAvailability> {
-    const response = await httpClient.get<StationAvailability>(`${stationsPath}/${stationId}/availability`);
+    const response = await httpClient.get<StationAvailability>(`${stationsPath}/${stationId}/availability`, { skipAuth: true });
     return response.data;
   },
 
   async getNearby({ lat, lng, radius, limit }: NearbyStationsQuery): Promise<NearbyStation[]> {
     const response = await httpClient.get<NearbyStation[]>(`${stationsPath}/nearby`, {
+      skipAuth: true,
       params: {
         lat,
         lng,
@@ -38,7 +39,7 @@ export const stationService = {
   },
 
   async getRecommendation(lat: number, lng: number, purpose: RecommendationPurpose): Promise<StationRecommendation> {
-    const response = await httpClient.get<StationRecommendation>(`${stationsPath}/recommendation`, { params: { lat, lng, purpose } });
+    const response = await httpClient.get<StationRecommendation>(`${stationsPath}/recommendation`, { skipAuth: true, params: { lat, lng, purpose } });
     return response.data;
   },
 

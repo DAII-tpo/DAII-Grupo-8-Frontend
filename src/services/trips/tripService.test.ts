@@ -26,20 +26,16 @@ describe('tripService', () => {
     const get = vi.mocked(httpClient.get);
     get.mockResolvedValueOnce({ status: 204, data: undefined });
 
-    await expect(tripService.getActive(7)).resolves.toBeNull();
-    expect(get).toHaveBeenCalledWith('/api/v1/trips/active', {
-      headers: { 'X-User-Id': 7 },
-    });
+    await expect(tripService.getActive()).resolves.toBeNull();
+    expect(get).toHaveBeenCalledWith('/api/v1/trips/active');
   });
 
   it('inicia un viaje con el usuario temporal configurado', async () => {
     const post = vi.mocked(httpClient.post);
     post.mockResolvedValueOnce({ data: trip });
 
-    await expect(tripService.start(7, { bikeId: 1 })).resolves.toEqual(trip);
-    expect(post).toHaveBeenCalledWith('/api/v1/trips', { bikeId: 1 }, {
-      headers: { 'X-User-Id': 7 },
-    });
+    await expect(tripService.start({ bikeId: 1 })).resolves.toEqual(trip);
+    expect(post).toHaveBeenCalledWith('/api/v1/trips', { bikeId: 1 });
   });
 
   it('finaliza un viaje en la estación destino seleccionada', async () => {
@@ -54,10 +50,8 @@ describe('tripService', () => {
     const post = vi.mocked(httpClient.post);
     post.mockResolvedValueOnce({ data: completedTrip });
 
-    await expect(tripService.end(7, 3, { destinationStationId: 4 })).resolves.toEqual(completedTrip);
-    expect(post).toHaveBeenCalledWith('/api/v1/trips/3/end', { destinationStationId: 4 }, {
-      headers: { 'X-User-Id': 7 },
-    });
+    await expect(tripService.end(3, { destinationStationId: 4 })).resolves.toEqual(completedTrip);
+    expect(post).toHaveBeenCalledWith('/api/v1/trips/3/end', { destinationStationId: 4 });
   });
 
   it('consulta el historial paginado con el usuario configurado', async () => {
@@ -65,10 +59,7 @@ describe('tripService', () => {
     const history = { content: [], page: 1, size: 10, totalElements: 0, totalPages: 0, last: true };
     get.mockResolvedValueOnce({ data: history });
 
-    await expect(tripService.getHistory(7, 1, 10)).resolves.toEqual(history);
-    expect(get).toHaveBeenCalledWith('/api/v1/trips/history', {
-      headers: { 'X-User-Id': 7 },
-      params: { page: 1, size: 10 },
-    });
+    await expect(tripService.getHistory(1, 10)).resolves.toEqual(history);
+    expect(get).toHaveBeenCalledWith('/api/v1/trips/history', { params: { page: 1, size: 10 } });
   });
 });

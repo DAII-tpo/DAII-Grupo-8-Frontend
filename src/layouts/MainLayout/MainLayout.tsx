@@ -29,6 +29,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../../app/providers/authContext';
 import { BrandLogo } from '../../components/common/BrandLogo';
+import { canAccessAdministration, getDisplayName } from '../../types/auth';
 
 import classes from './MainLayout.module.css';
 
@@ -126,8 +127,8 @@ export function MainLayout() {
           <Group className={classes.userSummary} gap="sm" wrap="nowrap">
             <Avatar className={classes.avatar} radius="xl">UD</Avatar>
             <div className={classes.userCopy}>
-              <Text className={classes.userName}>{user?.email ?? 'Usuario demo'}</Text>
-              <Text className={classes.userRole}>{user?.role === 'ADMIN' ? 'Administrador' : 'Ciudadano'}</Text>
+              <Text className={classes.userName}>{getDisplayName(user)}</Text>
+              <Text className={classes.userRole}>{canAccessAdministration(user) ? 'Personal municipal' : 'Ciudadano'}</Text>
             </div>
           </Group>
         </Group>
@@ -147,8 +148,8 @@ export function MainLayout() {
                 pathname={location.pathname}
                 onNavigate={() => {
                   if (item.action === 'logout') {
-                    logout();
-                    navigate('/login', { replace: true });
+                    logout().finally(() => navigate('/login', { replace: true }));
+                    return;
                   }
 
                   if (mobileOpened) {
@@ -158,7 +159,7 @@ export function MainLayout() {
               />
             ))}
           </div>
-          {user?.role === 'ADMIN' ? (
+          {canAccessAdministration(user) ? (
             <>
               <Text className={classes.sectionLabel}>Gestión</Text>
               <div className={classes.managementSection}>
