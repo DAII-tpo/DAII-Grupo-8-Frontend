@@ -1,30 +1,49 @@
 import { MantineProvider } from '@mantine/core';
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { AuthProvider } from '../../app/providers/AuthProvider';
-import { authStorageKey } from '../../config/demoAuth';
+import { AuthContext, type AuthContextValue } from '../../app/providers/authContext';
+import type { AuthUser } from '../../types/auth';
 import { mantineTheme } from '../../styles/theme';
 import { MainLayout } from './MainLayout';
 
-function renderLayout(user: { email: string; role: 'USER' | 'ADMIN'; userId: number }) {
-  window.localStorage.setItem(authStorageKey, JSON.stringify(user));
-  return render(<MemoryRouter><MantineProvider theme={mantineTheme}><AuthProvider><MainLayout /></AuthProvider></MantineProvider></MemoryRouter>);
+const citizen: AuthUser = { type: 'CITIZEN', userId: 1, role: 'CITIZEN', email: 'citizen@citypass.com', firstName: 'Ana', lastName: 'Pérez', groups: [] };
+const staff: AuthUser = { type: 'STAFF', userId: 12, role: 'ADMIN', email: 'staff@citypass.com', firstName: 'Staff', lastName: 'Demo', groups: ['admin'] };
+const delegatedStaff: AuthUser = { ...staff, groups: ['delegados'] };
+const staffWithoutAdministration: AuthUser = { ...staff, role: 'USER', groups: ['operadores'] };
+
+function authValue(user: AuthUser): AuthContextValue {
+  return { isAuthenticated: true, isRestoring: false, user, login: vi.fn(), loginCitizen: vi.fn(), registerCitizen: vi.fn(), loginStaff: vi.fn(), logout: vi.fn() };
 }
 
-afterEach(() => { cleanup(); window.localStorage.clear(); });
+function renderLayout(user: AuthUser) {
+  return render(<MemoryRouter><MantineProvider theme={mantineTheme}><AuthContext.Provider value={authValue(user)}><MainLayout /></AuthContext.Provider></MantineProvider></MemoryRouter>);
+}
+
+afterEach(cleanup);
 
 describe('MainLayout', () => {
-  it('oculta gestión administrativa para USER', () => {
-    renderLayout({ email: 'user@citypass.com', role: 'USER', userId: 1 });
+  it('oculta gestión administrativa para CITIZEN', () => {
+    renderLayout(citizen);
     expect(screen.queryByText('Gestión')).not.toBeInTheDocument();
     expect(screen.getByText('Ciudadano')).toBeInTheDocument();
   });
 
-  it('muestra gestión administrativa para ADMIN', () => {
-    renderLayout({ email: 'admin@citypass.com', role: 'ADMIN', userId: 2 });
+  it('muestra gestión administrativa para STAFF autorizado', () => {
+    renderLayout(staff);
     expect(screen.getByText('Gestión')).toBeInTheDocument();
     expect(screen.getByText('Administrador')).toBeInTheDocument();
+  });
+
+  it('habilita la gestión para STAFF delegado con rol ADMIN', () => {
+    renderLayout(delegatedStaff);
+    expect(screen.getByText('Gestión')).toBeInTheDocument();
+  });
+
+  it('oculta la gestión para STAFF con rol USER', () => {
+    renderLayout(staffWithoutAdministration);
+    expect(screen.queryByText('Gestión')).not.toBeInTheDocument();
+    expect(screen.getByText('Personal municipal')).toBeInTheDocument();
   });
 });

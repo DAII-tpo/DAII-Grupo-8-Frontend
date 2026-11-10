@@ -7,8 +7,13 @@ import { tripService } from '../../services/trips/tripService';
 import { mantineTheme } from '../../styles/theme';
 import { HistoryPage } from './index';
 
+const authState = vi.hoisted(() => {
+  const citizen = { type: 'CITIZEN', userId: 1, role: 'CITIZEN', email: 'ana@example.com', firstName: 'Ana', lastName: 'Pérez', groups: [] as string[] };
+  const staff = { type: 'STAFF', userId: 12, role: 'USER', email: 'staff@citypass.com', firstName: 'Staff', lastName: 'Demo', groups: ['operadores'] };
+  return { citizen, staff, current: { isAuthenticated: true, user: citizen as typeof citizen | typeof staff } };
+});
 vi.mock('../../app/providers/authContext', () => ({
-  useAuth: () => ({ user: { email: 'user@citypass.com', role: 'USER', userId: 1 } }),
+  useAuth: () => authState.current,
 }));
 vi.mock('../../services/trips/tripService', () => ({ tripService: { getHistory: vi.fn() } }));
 
@@ -18,9 +23,26 @@ const firstPage = { content: [trip], page: 0, size: 10, totalElements: 11, total
 function renderPage() { return render(<MemoryRouter initialEntries={['/movilidad/historial']}><MantineProvider theme={mantineTheme}><HistoryPage /></MantineProvider></MemoryRouter>); }
 function httpError(status: number) { return Object.assign(new Error('Request failed'), { isAxiosError: true, response: { status } }); }
 
-afterEach(() => { cleanup(); vi.clearAllMocks(); });
+afterEach(() => { cleanup(); vi.clearAllMocks();
+  authState.current = { isAuthenticated: true, user: authState.citizen };
+});
 
 describe('HistoryPage', () => {
+  it('con sesión STAFF consulta el historial', async () => {
+    authState.current = { isAuthenticated: true, user: authState.staff };
+    vi.mocked(tripService.getHistory).mockResolvedValueOnce(firstPage);
+    renderPage();
+    expect(await screen.findByText(/Plaza Norte/)).toBeInTheDocument();
+    expect(tripService.getHistory).toHaveBeenCalledWith(0, 10);
+  });
+
+  it('sin sesión no consulta el historial', async () => {
+    authState.current = { isAuthenticated: false, user: authState.citizen };
+    renderPage();
+    expect(await screen.findByText('No se encontró el usuario.')).toBeInTheDocument();
+    expect(tripService.getHistory).not.toHaveBeenCalled();
+  });
+
   it('muestra viajes reales, origen, destino y duración', async () => {
     vi.mocked(tripService.getHistory).mockResolvedValueOnce(firstPage);
     renderPage();
@@ -33,7 +55,7 @@ describe('HistoryPage', () => {
     expect(screen.getByText('12:05 hs')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Anterior' })).toBeDisabled();
     expect(screen.getByRole('tab', { name: 'Historial' })).toHaveAttribute('data-active', 'true');
-    expect(tripService.getHistory).toHaveBeenCalledWith(1, 0, 10);
+    expect(tripService.getHistory).toHaveBeenCalledWith(0, 10);
   });
 
   it('muestra el estado vacío para un usuario sin viajes', async () => {
@@ -56,7 +78,7 @@ describe('HistoryPage', () => {
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: 'Siguiente' }));
     expect(await screen.findByText(/Centro/)).toBeInTheDocument();
-    expect(tripService.getHistory).toHaveBeenLastCalledWith(1, 1, 10);
+    expect(tripService.getHistory).toHaveBeenLastCalledWith(1, 10);
     expect(screen.getByRole('button', { name: 'Siguiente' })).toBeDisabled();
   });
 });

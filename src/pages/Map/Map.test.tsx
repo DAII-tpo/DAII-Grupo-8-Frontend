@@ -33,7 +33,7 @@ vi.mock('../../services/stations/stationService', () => ({
   },
 }));
 vi.mock('../../app/providers/authContext', () => ({
-  useAuth: () => ({ user: { email: 'user@citypass.com', role: 'USER', userId: 1 } }),
+  useAuth: () => ({ isAuthenticated: true, user: { type: 'STAFF', userId: 12, role: 'USER', email: 'staff@citypass.com', firstName: 'Staff', lastName: 'Demo', groups: [] } }),
 }));
 vi.mock('../../services/trips/tripService', () => ({ tripService: { getActive: vi.fn() } }));
 
@@ -133,7 +133,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
+  vi.resetAllMocks();
 });
 
 describe('MapPage', () => {
@@ -209,6 +209,18 @@ describe('MapPage', () => {
     expect(screen.getByText('No se encontraron estaciones activas dentro del radio de búsqueda.')).toBeInTheDocument();
   });
 
+  it('mantiene el mapa con estaciones cercanas si el catálogo requiere otra autenticación', async () => {
+    mockLocationSuccess();
+    vi.mocked(stationService.getAll).mockRejectedValueOnce(new Error('401'));
+    vi.mocked(stationService.getNearby).mockResolvedValueOnce([nearbyStation]);
+
+    renderPage();
+
+    expect(await screen.findByRole('button', { name: 'Estacion Centro' })).toBeInTheDocument();
+    expect(screen.getByTestId('map')).toBeInTheDocument();
+    expect(screen.queryByText('No se pudieron cargar las estaciones')).not.toBeInTheDocument();
+  });
+
   it('usa estaciones registradas sin llamar nearby cuando la geolocalización es denegada', async () => {
     getCurrentPosition.mockImplementationOnce((_success, error) => {
       error?.({ code: 1, message: 'Permission denied' } as GeolocationPositionError);
@@ -246,6 +258,17 @@ describe('MapPage', () => {
     renderPage();
 
     expect(await screen.findByText('No se pudieron cargar las estaciones')).toBeInTheDocument();
+  });
+
+  it('distingue una sesión rechazada (401) de un error de conexión', async () => {
+    mockLocationSuccess();
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([station]);
+    vi.mocked(stationService.getNearby).mockRejectedValueOnce(Object.assign(new Error('Request failed'), { isAxiosError: true, response: { status: 401 } }));
+
+    renderPage();
+
+    expect(await screen.findByText('Sesión no válida')).toBeInTheDocument();
+    expect(screen.queryByText('No se pudieron cargar las estaciones')).not.toBeInTheDocument();
   });
 
   it('muestra una recomendación MODEL y destaca su marcador sin bloquear el mapa', async () => {
@@ -325,7 +348,7 @@ describe('MapPage', () => {
 
     expect(await screen.findByText('Estación recomendada para devolver la bicicleta')).toBeInTheDocument();
     expect(stationService.getRecommendation).toHaveBeenCalledWith(-34.6037, -58.3816, 'DROPOFF');
-    expect(tripService.getActive).toHaveBeenCalledWith(1);
+    expect(tripService.getActive).toHaveBeenCalledWith();
     expect(tripService.getActive).toHaveBeenCalledTimes(1);
     expect(stationService.getRecommendation).toHaveBeenCalledTimes(1);
   });

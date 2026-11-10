@@ -10,8 +10,13 @@ import { warmUpRecommendationService } from '../../services/recommendationWarmup
 import { mantineTheme } from '../../styles/theme';
 import { MobilityPage } from './index';
 
+const authState = vi.hoisted(() => {
+  const citizen = { type: 'CITIZEN', userId: 1, role: 'CITIZEN', email: 'ana@example.com', firstName: 'Ana', lastName: 'Pérez', groups: [] as string[] };
+  const staff = { type: 'STAFF', userId: 12, role: 'USER', email: 'staff@citypass.com', firstName: 'Staff', lastName: 'Demo', groups: ['operadores'] };
+  return { citizen, staff, current: { isAuthenticated: true, user: citizen as typeof citizen | typeof staff } };
+});
 vi.mock('../../app/providers/authContext', () => ({
-  useAuth: () => ({ user: { email: 'user@citypass.com', role: 'USER', userId: 1 } }),
+  useAuth: () => authState.current,
 }));
 
 vi.mock('../../services/stations/stationService', () => ({
@@ -115,9 +120,20 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  authState.current = { isAuthenticated: true, user: authState.citizen };
 });
 
 describe('MobilityPage', () => {
+  it('con sesión STAFF carga el tablero desde los services', async () => {
+    authState.current = { isAuthenticated: true, user: authState.staff };
+    renderPage();
+    expect(await screen.findByText('No tenés un viaje en curso')).toBeInTheDocument();
+    expect(tripService.getActive).toHaveBeenCalled();
+    expect(tripService.getHistory).toHaveBeenCalledWith(0, 1);
+    expect(stationService.getAll).toHaveBeenCalled();
+    expect(screen.queryByText('Parte del resumen no está disponible')).not.toBeInTheDocument();
+  });
+
   it('dispara un warm-up una sola vez mientras la pantalla permanece montada', async () => {
     const { rerender } = renderPage();
 
@@ -149,7 +165,7 @@ describe('MobilityPage', () => {
     expect(screen.getAllByText('7')).toHaveLength(2);
     expect(screen.getByText('Último viaje')).toBeInTheDocument();
     expect(stationService.getNearby).toHaveBeenCalledWith({ lat: -34.6037, lng: -58.3816, limit: 1 });
-    expect(tripService.getHistory).toHaveBeenCalledWith(1, 0, 1);
+    expect(tripService.getHistory).toHaveBeenCalledWith(0, 1);
   });
 
   it('destaca el viaje activo y habilita el acceso al reporte', async () => {
@@ -204,7 +220,7 @@ describe('MobilityPage', () => {
 
     expect(await screen.findByText('Alerta enviada a Emergencias')).toBeInTheDocument();
     expect(screen.getByText('Pausado · emergencia')).toBeInTheDocument();
-    expect(emergencyService.getCurrent).toHaveBeenCalledWith(1);
+    expect(emergencyService.getCurrent).toHaveBeenCalledWith();
   });
 
   it('explica el viaje pausado aunque no pueda recuperar la emergencia', async () => {

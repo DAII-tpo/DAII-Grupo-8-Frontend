@@ -22,8 +22,7 @@ import classes from './Reports.module.css';
 const maxDescriptionLength = 2000;
 
 export function ReportsPage() {
-  const { user } = useAuth();
-  const userId = user?.userId ?? null;
+  const { isAuthenticated } = useAuth();
   const [activeTrip, setActiveTrip] = useState<TripResponse | null>(null);
   const [types, setTypes] = useState<IncidentTypeResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,7 +43,7 @@ export function ReportsPage() {
     setIsLoading(true);
     setHasLoadError(false);
 
-    if (userId === null) {
+    if (!isAuthenticated) {
       setHasLoadError(true);
       setIsLoading(false);
       return;
@@ -53,7 +52,7 @@ export function ReportsPage() {
     try {
       const [loadedTypes, trip] = await Promise.all([
         incidentService.getTypes(),
-        tripService.getActive(userId),
+        tripService.getActive(),
       ]);
       setTypes(loadedTypes);
       setActiveTrip(trip);
@@ -62,7 +61,7 @@ export function ReportsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [userId]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     void Promise.resolve().then(loadFormData);
@@ -103,7 +102,7 @@ export function ReportsPage() {
   }, []);
 
   const submit = async () => {
-    if (userId === null || !activeTrip || !selectedType || !canSubmit) {
+    if (!isAuthenticated || !activeTrip || !selectedType || !canSubmit) {
       return;
     }
 
@@ -113,11 +112,11 @@ export function ReportsPage() {
     try {
       // La ubicación es opcional: si el usuario no la comparte, el reporte sale igual.
       const location = await tryGetBrowserLocation();
-      const incident = await incidentService.report(userId, {
+      const incident = await incidentService.report({
         bikeId: activeTrip.bikeId,
         incidentTypeId: selectedType.id,
         description: description.trim(),
-        ...(location ?? {}),
+        ...location,
       });
       setReportedIncident(incident);
       setIsReturnDialogOpen(true);
@@ -130,11 +129,11 @@ export function ReportsPage() {
   };
 
   const confirmBikeReturn = async () => {
-    if (userId === null || !activeTrip || !recommendedStation) return;
+    if (!isAuthenticated || !activeTrip || !recommendedStation) return;
     setIsReturningBike(true);
     setReturnError(null);
     try {
-      await tripService.end(userId, activeTrip.id, { destinationStationId: recommendedStation.stationId });
+      await tripService.end(activeTrip.id, { destinationStationId: recommendedStation.stationId });
       setReturnedStationName(recommendedStation.stationName);
       setActiveTrip(null);
       setIsReturnDialogOpen(false);

@@ -35,24 +35,22 @@ describe('emergencyService', () => {
     post.mockResolvedValueOnce({ data: emergency });
     const location = { latitude: -34.6037, longitude: -58.3816, accuracyMeters: 12.5 };
 
-    await expect(emergencyService.report(7, 3, location)).resolves.toEqual(emergency);
-    expect(post).toHaveBeenCalledWith('/api/v1/trips/3/emergencies', location, {
-      headers: { 'X-User-Id': 7 },
-    });
+    await expect(emergencyService.report(3, location)).resolves.toEqual(emergency);
+    expect(post).toHaveBeenCalledWith('/api/v1/trips/3/emergencies', location);
   });
 
   it('devuelve null cuando no hay emergencia en curso', async () => {
     const get = vi.mocked(httpClient.get);
     get.mockResolvedValueOnce({ status: 204, data: undefined });
 
-    await expect(emergencyService.getCurrent(7)).resolves.toBeNull();
-    expect(get).toHaveBeenCalledWith('/api/v1/emergencies/current', { headers: { 'X-User-Id': 7 } });
+    await expect(emergencyService.getCurrent()).resolves.toBeNull();
+    expect(get).toHaveBeenCalledWith('/api/v1/emergencies/current');
   });
 
   it('devuelve la emergencia en curso', async () => {
     vi.mocked(httpClient.get).mockResolvedValueOnce({ status: 200, data: emergency });
 
-    await expect(emergencyService.getCurrent(7)).resolves.toEqual(emergency);
+    await expect(emergencyService.getCurrent()).resolves.toEqual(emergency);
   });
 
   it('cancela y envía el cuestionario de la emergencia', async () => {
@@ -61,9 +59,9 @@ describe('emergencyService', () => {
     post.mockResolvedValueOnce({ data: { ...emergency, status: 'REPORTED', priority: 'P3' } });
     const answers = { canMove: true, bleeding: false, vehicleInvolved: false };
 
-    await expect(emergencyService.cancel(7, 91)).resolves.toMatchObject({ status: 'CANCELLED' });
-    await expect(emergencyService.submitTriage(7, 91, answers)).resolves.toMatchObject({ priority: 'P3' });
-    expect(post).toHaveBeenCalledWith('/api/v1/emergencies/91/cancel', null, { headers: { 'X-User-Id': 7 } });
-    expect(post).toHaveBeenCalledWith('/api/v1/emergencies/91/triage', answers, { headers: { 'X-User-Id': 7 } });
+    await expect(emergencyService.cancel(91)).resolves.toMatchObject({ status: 'CANCELLED' });
+    await expect(emergencyService.submitTriage(91, answers)).resolves.toMatchObject({ priority: 'P3' });
+    expect(post).toHaveBeenCalledWith('/api/v1/emergencies/91/cancel', null);
+    expect(post).toHaveBeenCalledWith('/api/v1/emergencies/91/triage', answers);
   });
 });

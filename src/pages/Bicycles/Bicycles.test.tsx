@@ -9,8 +9,13 @@ import { tripService } from '../../services/trips/tripService';
 import { mantineTheme } from '../../styles/theme';
 import { BicyclesPage } from './index';
 
+const authState = vi.hoisted(() => {
+  const citizen = { type: 'CITIZEN', userId: 1, role: 'CITIZEN', email: 'ana@example.com', firstName: 'Ana', lastName: 'Pérez', groups: [] as string[] };
+  const staff = { type: 'STAFF', userId: 12, role: 'USER', email: 'staff@citypass.com', firstName: 'Staff', lastName: 'Demo', groups: ['operadores'] };
+  return { citizen, staff, current: { isAuthenticated: true, user: citizen as typeof citizen | typeof staff } };
+});
 vi.mock('../../app/providers/authContext', () => ({
-  useAuth: () => ({ user: { email: 'user@citypass.com', role: 'USER', userId: 1 } }),
+  useAuth: () => authState.current,
 }));
 vi.mock('../../services/bikes/bikeService', () => ({ bikeService: { getAvailable: vi.fn() } }));
 vi.mock('../../services/stations/stationService', () => ({ stationService: { getAll: vi.fn(), getAvailability: vi.fn() } }));
@@ -120,9 +125,19 @@ function httpError(status: number) {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  authState.current = { isAuthenticated: true, user: authState.citizen };
 });
 
 describe('BicyclesPage', () => {
+  it('con sesión STAFF consulta el viaje activo y ofrece iniciar uno', async () => {
+    authState.current = { isAuthenticated: true, user: authState.staff };
+    mockNoActiveTrip();
+    renderPage();
+    expect(await screen.findByRole('combobox', { name: 'Estación de origen' })).toBeInTheDocument();
+    expect(tripService.getActive).toHaveBeenCalledWith();
+    expect(stationService.getAll).toHaveBeenCalled();
+  });
+
   it('con el viaje pausado por una emergencia no ofrece devolver la bicicleta', async () => {
     vi.mocked(tripService.getActive).mockResolvedValueOnce({ ...activeTrip, status: 'EMERGENCY' });
 
@@ -139,7 +154,7 @@ describe('BicyclesPage', () => {
     renderPage();
 
     expect(await screen.findByRole('combobox', { name: 'Estación de origen' })).toBeInTheDocument();
-    expect(tripService.getActive).toHaveBeenCalledWith(1);
+    expect(tripService.getActive).toHaveBeenCalledWith();
     expect(screen.getByRole('tab', { name: 'Bicicletas/Viajes' })).toHaveAttribute('data-active', 'true');
   });
 
@@ -216,7 +231,7 @@ describe('BicyclesPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Finalizar viaje' }));
 
     expect(await screen.findByText('Viaje finalizado')).toBeInTheDocument();
-    expect(tripService.end).toHaveBeenCalledWith(1, 3, { destinationStationId: 2 });
+    expect(tripService.end).toHaveBeenCalledWith(3, { destinationStationId: 2 });
     expect(screen.getAllByText('Estacion Centro')).toHaveLength(2);
     expect(screen.getByText('30 min 0 s')).toBeInTheDocument();
   });
@@ -367,7 +382,7 @@ describe('BicyclesPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Iniciar viaje' }));
 
     expect(await screen.findByText('Tenés un viaje activo')).toBeInTheDocument();
-    expect(tripService.start).toHaveBeenCalledWith(1, { bikeId: 1 });
+    expect(tripService.start).toHaveBeenCalledWith({ bikeId: 1 });
   });
 
   it('muestra un error entendible si no puede iniciar el viaje', async () => {

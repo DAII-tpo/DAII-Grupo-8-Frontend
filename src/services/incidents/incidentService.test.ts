@@ -32,10 +32,8 @@ describe('incidentService', () => {
     const post = vi.mocked(httpClient.post);
     post.mockResolvedValueOnce({ data: incident });
 
-    await expect(incidentService.report(7, request)).resolves.toEqual(incident);
-    expect(post).toHaveBeenCalledWith('/api/v1/incidents', request, {
-      headers: { 'X-User-Id': 7 },
-    });
+    await expect(incidentService.report(request)).resolves.toEqual(incident);
+    expect(post).toHaveBeenCalledWith('/api/v1/incidents', request);
   });
 
   it('consulta y actualiza incidencias administrativas', async () => {
@@ -44,7 +42,7 @@ describe('incidentService', () => {
       bikeId: 1,
       bikeCode: 'BIKE-001',
       reportedByUserId: 4,
-      reportedByUserEmail: 'user@citypass.com',
+      reportedByUserEmail: 'ana@example.com',
       incidentTypeId: 2,
       incidentTypeCode: 'FLAT_TIRE',
       incidentTypeName: 'Pinchazo',
@@ -59,13 +57,11 @@ describe('incidentService', () => {
     get.mockResolvedValueOnce({ data: [incident] });
     patch.mockResolvedValueOnce({ data: { ...incident, status: 'UNDER_REVIEW' } });
 
-    await expect(incidentService.getAll(7)).resolves.toEqual([incident]);
-    await expect(incidentService.updateStatus(7, 8, { status: 'UNDER_REVIEW' })).resolves.toMatchObject({
+    await expect(incidentService.getAll()).resolves.toEqual([incident]);
+    await expect(incidentService.updateStatus(8, { status: 'UNDER_REVIEW' })).resolves.toMatchObject({
       status: 'UNDER_REVIEW',
     });
-    expect(get).toHaveBeenCalledWith('/api/v1/incidents', { headers: { 'X-User-Id': 7 } });
-    expect(patch).toHaveBeenCalledWith('/api/v1/incidents/8/status', { status: 'UNDER_REVIEW' }, {
-      headers: { 'X-User-Id': 7 },
-    });
+    expect(get).toHaveBeenCalledWith('/api/v1/incidents');
+    expect(patch).toHaveBeenCalledWith('/api/v1/incidents/8/status', { status: 'UNDER_REVIEW' });
   });
 });

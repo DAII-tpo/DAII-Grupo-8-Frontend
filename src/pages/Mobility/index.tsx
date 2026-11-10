@@ -61,8 +61,7 @@ const quickActions: QuickAction[] = [
 ];
 
 export function MobilityPage() {
-  const { user } = useAuth();
-  const userId = user?.userId ?? null;
+  const { isAuthenticated } = useAuth();
   const [activeTrip, setActiveTrip] = useState<TripResponse | null>(null);
   const [history, setHistory] = useState<PagedResponse<TripResponse> | null>(null);
   const [stationCount, setStationCount] = useState<number | null>(null);
@@ -78,7 +77,7 @@ export function MobilityPage() {
   }, []);
 
   const loadDashboard = useCallback(async () => {
-    if (userId === null) {
+    if (!isAuthenticated) {
       setHasSummaryError(true);
       setIsLoading(false);
       return;
@@ -87,8 +86,8 @@ export function MobilityPage() {
     setIsLoading(true);
     setHasSummaryError(false);
     const [activeResult, historyResult, stationsResult] = await Promise.allSettled([
-      tripService.getActive(userId),
-      tripService.getHistory(userId, 0, 1),
+      tripService.getActive(),
+      tripService.getHistory(0, 1),
       stationService.getAll(),
     ]);
 
@@ -96,7 +95,7 @@ export function MobilityPage() {
       setActiveTrip(activeResult.value);
       // Viaje pausado por una emergencia: se retoma la pantalla del pedido de ayuda.
       setCurrentEmergency(activeResult.value?.status === 'EMERGENCY'
-        ? await emergencyService.getCurrent(userId).catch(() => null)
+        ? await emergencyService.getCurrent().catch(() => null)
         : null);
     }
     if (historyResult.status === 'fulfilled') setHistory(historyResult.value);
@@ -107,7 +106,7 @@ export function MobilityPage() {
       || stationsResult.status === 'rejected',
     );
     setIsLoading(false);
-  }, [userId]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     void Promise.resolve().then(loadDashboard);
@@ -155,7 +154,7 @@ export function MobilityPage() {
         </Alert>
       ) : null}
 
-      {activeTrip && userId !== null && (isRequestingHelp || currentEmergency) ? (
+      {activeTrip && (isRequestingHelp || currentEmergency) ? (
         <EmergencyPanel
           initialEmergency={currentEmergency}
           key={`${activeTrip.id}-${currentEmergency?.id ?? 'nuevo'}`}
@@ -167,7 +166,6 @@ export function MobilityPage() {
           onClose={() => setIsRequestingHelp(false)}
           onEmergencyChange={() => setActiveTrip((trip) => (trip ? { ...trip, status: 'EMERGENCY' } : trip))}
           trip={activeTrip}
-          userId={userId}
         />
       ) : (
         <ActiveTripCard activeTrip={activeTrip} isLoading={isLoading} onRequestHelp={() => setIsRequestingHelp(true)} />
