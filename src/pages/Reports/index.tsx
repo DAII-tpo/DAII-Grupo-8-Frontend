@@ -9,6 +9,7 @@ import { MobilityNavigation } from '../../components/mobility/MobilityNavigation
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
 import { incidentService } from '../../services/incidents/incidentService';
+import { tryGetBrowserLocation } from '../../services/location/browserLocation';
 import { stationService } from '../../services/stations/stationService';
 import { tripService } from '../../services/trips/tripService';
 import type { IncidentResponse, IncidentTypeResponse } from '../../types/incident';
@@ -110,10 +111,13 @@ export function ReportsPage() {
     setSubmitError(null);
 
     try {
+      // La ubicación es opcional: si el usuario no la comparte, el reporte sale igual.
+      const location = await tryGetBrowserLocation();
       const incident = await incidentService.report(userId, {
         bikeId: activeTrip.bikeId,
         incidentTypeId: selectedType.id,
         description: description.trim(),
+        ...(location ?? {}),
       });
       setReportedIncident(incident);
       setIsReturnDialogOpen(true);
@@ -179,8 +183,9 @@ export function ReportsPage() {
         />
       ) : null}
       {!isLoading && !hasLoadError && !reportedIncident && activeTrip === null ? <NoActiveTripState /> : null}
-      {!isLoading && !hasLoadError && !reportedIncident && activeTrip && types.length === 0 ? <NoTypesState /> : null}
-      {!isLoading && !hasLoadError && !reportedIncident && activeTrip && types.length > 0 ? (
+      {!isLoading && !hasLoadError && !reportedIncident && activeTrip?.status === 'EMERGENCY' ? <EmergencyPausedState /> : null}
+      {!isLoading && !hasLoadError && !reportedIncident && activeTrip?.status === 'ACTIVE' && types.length === 0 ? <NoTypesState /> : null}
+      {!isLoading && !hasLoadError && !reportedIncident && activeTrip?.status === 'ACTIVE' && types.length > 0 ? (
         <ReportForm
           activeTrip={activeTrip}
           description={description}
@@ -231,6 +236,21 @@ function NoActiveTripState() {
         <Title className={classes.emptyStateTitle} order={2}>No tenés ningún viaje activo</Title>
         <Text c="dimmed" maw={440} ta="center">
           Para reportar un problema, primero necesitás tener una bicicleta en uso.
+        </Text>
+      </Stack>
+    </Paper>
+  );
+}
+
+function EmergencyPausedState() {
+  return (
+    <Paper className={classes.emptyState} radius="md" p="xl">
+      <Stack align="center" gap="xs">
+        <ShieldAlert className={classes.emptyStateIcon} size={30} />
+        <Title className={classes.emptyStateTitle} order={2}>Tu viaje está pausado por un pedido de ayuda</Title>
+        <Text c="dimmed" maw={440} ta="center">
+          Emergencias ya tiene los datos de tu viaje. Si la calle tuvo algo que ver, vas a poder reportarlo cuando el
+          incidente se resuelva.
         </Text>
       </Stack>
     </Paper>

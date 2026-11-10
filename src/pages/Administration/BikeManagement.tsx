@@ -31,6 +31,7 @@ const bikeStatuses: BikeStatus[] = [
   "MAINTENANCE",
   "OUT_OF_SERVICE",
   "STOLEN",
+  "BLOCKED",
 ];
 const bikeStatusLabels: Record<BikeStatus, string> = {
   AVAILABLE: "Disponible",
@@ -38,6 +39,7 @@ const bikeStatusLabels: Record<BikeStatus, string> = {
   MAINTENANCE: "En mantenimiento",
   OUT_OF_SERVICE: "Fuera de servicio",
   STOLEN: "Robada",
+  BLOCKED: "Bloqueada por emergencia",
 };
 
 const toStatusOptions = (statuses: BikeStatus[]) =>
@@ -336,7 +338,7 @@ function BikeRow({
                 })),
             ]}
             onChange={(e) => void onTransfer(bike, e.currentTarget.value)}
-            disabled={bike.status === "IN_USE"}
+            disabled={bike.status === "IN_USE" || bike.status === "BLOCKED"}
           />
           <Button
             color="red"

@@ -123,6 +123,16 @@ afterEach(() => {
 });
 
 describe('BicyclesPage', () => {
+  it('con el viaje pausado por una emergencia no ofrece devolver la bicicleta', async () => {
+    vi.mocked(tripService.getActive).mockResolvedValueOnce({ ...activeTrip, status: 'EMERGENCY' });
+
+    renderPage();
+
+    expect(await screen.findByText('Pausado por emergencia')).toBeInTheDocument();
+    expect(screen.getByText('No hace falta devolver la bicicleta')).toBeInTheDocument();
+    expect(stationService.getAll).not.toHaveBeenCalled();
+  });
+
   it('consulta el viaje activo al cargar y muestra el flujo de inicio ante un 204', async () => {
     mockNoActiveTrip();
 

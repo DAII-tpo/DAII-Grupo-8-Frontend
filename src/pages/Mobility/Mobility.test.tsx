@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { emergencyService } from '../../services/emergencies/emergencyService';
 import { stationService } from '../../services/stations/stationService';
 import { tripService } from '../../services/trips/tripService';
 import { warmUpRecommendationService } from '../../services/recommendationWarmupService';
@@ -19,6 +20,10 @@ vi.mock('../../services/stations/stationService', () => ({
 
 vi.mock('../../services/trips/tripService', () => ({
   tripService: { getActive: vi.fn(), getHistory: vi.fn() },
+}));
+
+vi.mock('../../services/emergencies/emergencyService', () => ({
+  emergencyService: { cancel: vi.fn(), getCurrent: vi.fn(), report: vi.fn(), submitTriage: vi.fn() },
 }));
 
 vi.mock('../../services/recommendationWarmupService', () => ({
@@ -155,6 +160,61 @@ describe('MobilityPage', () => {
     expect(await screen.findByText('BIKE-001 está en uso')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ver viaje activo' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Reportar problema' })).toHaveAttribute('href', '/movilidad/reportes');
+  });
+
+  it('desde el viaje activo abre el pedido de ayuda y permite volver', async () => {
+    vi.mocked(tripService.getActive).mockResolvedValueOnce(activeTrip);
+
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'SOS · Pedir ayuda' }));
+    expect(screen.getByRole('heading', { name: 'Pedir ayuda' })).toBeInTheDocument();
+    expect(screen.getByText('Mantené presionado 2 s para pedir ayuda')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Volver al viaje' }));
+    expect(screen.getByText('BIKE-001 está en uso')).toBeInTheDocument();
+    expect(emergencyService.report).not.toHaveBeenCalled();
+  });
+
+  it('retoma la emergencia en curso de un viaje pausado', async () => {
+    vi.mocked(tripService.getActive).mockResolvedValueOnce({ ...activeTrip, status: 'EMERGENCY' });
+    vi.mocked(emergencyService.getCurrent).mockResolvedValueOnce({
+      id: 91,
+      code: 'EMG-20261029-0091',
+      status: 'REPORTED',
+      tripId: 3,
+      bikeId: 1,
+      bikeCode: 'BIKE-001',
+      latitude: -34.6037,
+      longitude: -58.3816,
+      accuracyMeters: null,
+      reportedAt: '2026-10-29T22:00:00Z',
+      cancelableUntil: '2026-10-29T22:00:10Z',
+      triageDeadline: '2026-10-29T22:01:10Z',
+      cancelWindowSeconds: 10,
+      triageWindowSeconds: 60,
+      canMove: true,
+      bleeding: false,
+      vehicleInvolved: false,
+      priority: 'P3',
+      sentAt: '2026-10-29T22:00:20Z',
+    });
+
+    renderPage();
+
+    expect(await screen.findByText('Alerta enviada a Emergencias')).toBeInTheDocument();
+    expect(screen.getByText('Pausado · emergencia')).toBeInTheDocument();
+    expect(emergencyService.getCurrent).toHaveBeenCalledWith(1);
+  });
+
+  it('explica el viaje pausado aunque no pueda recuperar la emergencia', async () => {
+    vi.mocked(tripService.getActive).mockResolvedValueOnce({ ...activeTrip, status: 'EMERGENCY' });
+    vi.mocked(emergencyService.getCurrent).mockRejectedValueOnce(new Error('Network Error'));
+
+    renderPage();
+
+    expect(await screen.findByText('Tu viaje está pausado por un pedido de ayuda')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'SOS · Pedir ayuda' })).not.toBeInTheDocument();
   });
 
   it('mantiene una acción útil cuando no encuentra estaciones cercanas', async () => {
