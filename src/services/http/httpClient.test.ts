@@ -2,7 +2,7 @@ import { AxiosError } from 'axios';
 import type { AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { configureHttpAuth, httpClient } from './httpClient';
+import { configureHttpAuth, httpClient, resetTokenRejection } from './httpClient';
 
 const originalAdapter = httpClient.defaults.adapter;
 
@@ -85,6 +85,35 @@ describe('httpClient authentication', () => {
     await expect(httpClient.get('/expired')).rejects.toBeInstanceOf(AxiosError);
 
     expect(onSessionExpired).toHaveBeenCalledOnce();
+  });
+
+  it('no vuelve a renovar si el servidor rechaza también el token renovado', async () => {
+    const refresh = vi.fn().mockResolvedValue('rejected-again');
+    const onSessionExpired = vi.fn();
+    configureHttpAuth({ getAccessToken: () => 'old-access', refresh, onSessionExpired });
+    const adapter = vi.fn(async (config: InternalAxiosRequestConfig): Promise<AxiosResponse> => { throw unauthorized(config); });
+    httpClient.defaults.adapter = adapter;
+
+    await expect(httpClient.get('/rejected')).rejects.toBeInstanceOf(AxiosError);
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(onSessionExpired).toHaveBeenCalledOnce();
+    expect(adapter).toHaveBeenCalledTimes(2);
+
+    await expect(httpClient.get('/next-request')).rejects.toBeInstanceOf(AxiosError);
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(adapter).toHaveBeenCalledTimes(3);
+  });
+
+  it('vuelve a renovar tras resetear el rechazo en un nuevo login', async () => {
+    const refresh = vi.fn().mockResolvedValue('rejected-again');
+    configureHttpAuth({ getAccessToken: () => 'old-access', refresh, onSessionExpired: vi.fn() });
+    httpClient.defaults.adapter = async (config) => { throw unauthorized(config); };
+
+    await expect(httpClient.get('/rejected')).rejects.toBeInstanceOf(AxiosError);
+    resetTokenRejection();
+    await expect(httpClient.get('/after-login')).rejects.toBeInstanceOf(AxiosError);
+
+    expect(refresh).toHaveBeenCalledTimes(2);
   });
 
   it('propaga un 403 sin renovar ni cerrar la sesión', async () => {

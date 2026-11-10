@@ -26,15 +26,14 @@ const tripStatusLabels: Record<TripResponse['status'], string> = {
 };
 
 export function HistoryPage() {
-  const { user } = useAuth();
-  const userId = user?.userId ?? null;
+  const { isAuthenticated } = useAuth();
   const [history, setHistory] = useState<PagedResponse<TripResponse> | null>(null);
   const [page, setPage] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const loadHistory = useCallback(async (requestedPage: number) => {
-    if (userId === null) {
+    if (!isAuthenticated) {
       setError('No se encontró el usuario.');
       setIsLoading(false);
       return;
@@ -48,7 +47,7 @@ export function HistoryPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [userId]);
+  }, [isAuthenticated]);
 
   useEffect(() => { void Promise.resolve().then(() => loadHistory(page)); }, [loadHistory, page]);
 

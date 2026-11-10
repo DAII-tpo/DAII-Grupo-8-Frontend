@@ -29,7 +29,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../../app/providers/authContext';
 import { BrandLogo } from '../../components/common/BrandLogo';
-import { canAccessAdministration, getDisplayName } from '../../types/auth';
+import { canAccessAdministration, getDisplayName, type AuthUser } from '../../types/auth';
 
 import classes from './MainLayout.module.css';
 
@@ -128,7 +128,7 @@ export function MainLayout() {
             <Avatar className={classes.avatar} radius="xl">UD</Avatar>
             <div className={classes.userCopy}>
               <Text className={classes.userName}>{getDisplayName(user)}</Text>
-              <Text className={classes.userRole}>{canAccessAdministration(user) ? 'Personal municipal' : 'Ciudadano'}</Text>
+              <Text className={classes.userRole}>{roleLabel(user)}</Text>
             </div>
           </Group>
         </Group>
@@ -239,4 +239,10 @@ function NavigationLink({ item, onNavigate, pathname }: NavigationLinkProps) {
       </UnstyledButton>
     </Tooltip>
   );
+}
+
+function roleLabel(user: AuthUser | null): string {
+  if (user?.role === 'ADMIN') return 'Administrador';
+  if (user?.type === 'STAFF') return 'Personal municipal';
+  return 'Ciudadano';
 }

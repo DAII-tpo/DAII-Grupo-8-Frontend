@@ -17,7 +17,6 @@ import { AlertCircle, Bike, Clock3, MapPin, Play, Route, Siren } from 'lucide-re
 import { useCallback, useEffect, useState } from 'react';
 
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
-import { useAuth } from '../../app/providers/authContext';
 import { MobilityFeatureBanner } from '../../components/mobility/MobilityFeatureBanner';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
@@ -33,8 +32,6 @@ import pageClasses from '../../styles/mobilityPage.module.css';
 import classes from './Bicycles.module.css';
 
 export function BicyclesPage() {
-  const { user } = useAuth();
-  const userId = user?.userId ?? null;
   return (
     <Stack className={pageClasses.page} gap="lg">
       <MobilityPageHeader
@@ -52,24 +49,12 @@ export function BicyclesPage() {
         tone="sky"
       />
 
-      {userId === null ? <MissingUserConfiguration /> : <TripManager userId={userId} />}
+      <TripManager />
     </Stack>
   );
 }
 
-function MissingUserConfiguration() {
-  return (
-    <Alert color="orange" icon={<AlertCircle size={18} />} title="Falta configurar el usuario temporal">
-      No se pudo obtener el usuario autenticado para consultar o iniciar viajes.
-    </Alert>
-  );
-}
-
-type TripManagerProps = {
-  userId: number;
-};
-
-function TripManager({ userId }: Readonly<TripManagerProps>) {
+function TripManager() {
   const [activeTrip, setActiveTrip] = useState<TripResponse | null>(null);
   const [completedTrip, setCompletedTrip] = useState<TripResponse | null>(null);
   const [isLoadingActiveTrip, setIsLoadingActiveTrip] = useState(true);
@@ -114,15 +99,14 @@ function TripManager({ userId }: Readonly<TripManagerProps>) {
   }
 
   if (activeTrip) {
-    return <ActiveTripPanel onTripCompleted={setCompletedTrip} trip={activeTrip} userId={userId} />;
+    return <ActiveTripPanel onTripCompleted={setCompletedTrip} trip={activeTrip} />;
   }
 
-  return <StartTripFlow userId={userId} onTripStarted={setActiveTrip} />;
+  return <StartTripFlow onTripStarted={setActiveTrip} />;
 }
 
 type StartTripFlowProps = {
   onTripStarted: (trip: TripResponse) => void;
-  userId: number;
 };
 
 function StartTripFlow({ onTripStarted }: Readonly<StartTripFlowProps>) {
@@ -290,10 +274,9 @@ function StartTripFlow({ onTripStarted }: Readonly<StartTripFlowProps>) {
 type ActiveTripPanelProps = {
   onTripCompleted: (trip: TripResponse) => void;
   trip: TripResponse;
-  userId: number;
 };
 
-function ActiveTripPanel({ onTripCompleted, trip, userId }: Readonly<ActiveTripPanelProps>) {
+function ActiveTripPanel({ onTripCompleted, trip }: Readonly<ActiveTripPanelProps>) {
   const isPausedByEmergency = trip.status === 'EMERGENCY';
   return (
     <Paper className={classes.activeTripPanel} radius="md" p="lg">
@@ -325,7 +308,7 @@ function ActiveTripPanel({ onTripCompleted, trip, userId }: Readonly<ActiveTripP
             La bicicleta quedó bloqueada y el viaje no se cobra mientras Emergencias atiende tu pedido de ayuda.
           </Alert>
         ) : (
-          <ReturnStationFlow onTripCompleted={onTripCompleted} trip={trip} userId={userId} />
+          <ReturnStationFlow onTripCompleted={onTripCompleted} trip={trip} />
         )}
       </Stack>
     </Paper>

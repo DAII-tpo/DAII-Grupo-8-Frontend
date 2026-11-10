@@ -3,8 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { authService } from '../../services/auth/authService';
 import { clearSession, readSession, writeSession } from '../../services/auth/authStorage';
-import { configureHttpAuth } from '../../services/http/httpClient';
-import type { AuthSession, AuthUser, CitizenAuthResponse, FederatedTokenResponse, FederatedUserInfo } from '../../types/auth';
+import { configureHttpAuth, resetTokenRejection } from '../../services/http/httpClient';
+import type { AuthSession, AuthUser, CitizenAuthResponse, CurrentUserResponse, FederatedTokenResponse } from '../../types/auth';
 import { AuthContext, type AuthContextValue } from './authContext';
 
 type AuthProviderProps = Readonly<{ children: ReactNode }>;
@@ -25,9 +25,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const current = sessionRef.current ?? readSession();
     if (!current) return null;
     try {
-      const next = current.user.type === 'CITIZEN'
-        ? citizenSession(await authService.citizenRefresh(current.refreshToken))
-        : staffSession(await authService.staffRefresh(current.refreshToken), current.user);
+      const tokens = current.user.type === 'CITIZEN'
+        ? citizenTokens(await authService.citizenRefresh(current.refreshToken))
+        : staffTokens(await authService.staffRefresh(current.refreshToken));
+      const next: AuthSession = { ...tokens, user: current.user };
       replaceSession(next);
       return next.accessToken;
     } catch { replaceSession(null); return null; }
@@ -43,28 +44,28 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const restore = async () => {
       const stored = readSession();
       if (!stored) return;
-      if (stored.expiresAt <= Date.now() + refreshLeewayMs) {
-        await refresh();
-      } else if (stored.user.type === 'STAFF') {
-        const profile = await authService.staffMe(stored.accessToken);
-        if (profile.module !== 'movilidad') throw new Error('Invalid module');
-        if (alive) replaceSession({ ...stored, user: staffUser(profile) });
-      }
+      const accessToken = stored.expiresAt <= Date.now() + refreshLeewayMs ? await refresh() : stored.accessToken;
+      if (!accessToken) return;
+      // Una sola consulta por restauración: el rol puede haber cambiado desde el último ingreso.
+      const user = toAuthUser(await authService.currentUser(accessToken));
+      const latest = readSession();
+      if (alive && latest) replaceSession({ ...latest, user });
     };
     restore().catch(() => { if (alive) replaceSession(null); }).finally(() => { if (alive) setIsRestoring(false); });
     return () => { alive = false; };
   }, [refresh, replaceSession]);
 
-  const loginCitizen = useCallback(async (email: string, password: string) => replaceSession(citizenSession(await authService.citizenLogin(email, password))), [replaceSession]);
-  const registerCitizen = useCallback(async (email: string, password: string, firstName: string, lastName: string) => replaceSession(citizenSession(await authService.citizenRegister(email, password, firstName, lastName))), [replaceSession]);
-  const loginStaff = useCallback(async (username: string, password: string) => {
-    const tokens = await authService.staffLogin(username, password);
-    const profile = await authService.staffMe(tokens.access_token);
-    if (profile.module !== 'movilidad') throw new Error('INVALID_STAFF');
-    replaceSession(staffSession(tokens, staffUser(profile)));
+  const startSession = useCallback(async (tokens: SessionTokens) => {
+    const user = toAuthUser(await authService.currentUser(tokens.accessToken));
+    resetTokenRejection();
+    replaceSession({ ...tokens, user });
   }, [replaceSession]);
+  const loginCitizen = useCallback(async (email: string, password: string) => startSession(citizenTokens(await authService.citizenLogin(email, password))), [startSession]);
+  const registerCitizen = useCallback(async (email: string, password: string, firstName: string, lastName: string) => startSession(citizenTokens(await authService.citizenRegister(email, password, firstName, lastName))), [startSession]);
+  const loginStaff = useCallback(async (username: string, password: string) => startSession(staffTokens(await authService.staffLogin(username, password))), [startSession]);
   const logout = useCallback(async () => {
     const current = session;
+    resetTokenRejection();
     replaceSession(null);
     if (current?.user.type === 'STAFF') try { await authService.staffLogout(current.refreshToken); } catch { /* Local logout is final. */ }
   }, [replaceSession, session]);
@@ -73,6 +74,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-function citizenSession(response: CitizenAuthResponse): AuthSession { return { accessToken: response.accessToken, refreshToken: response.refreshToken, expiresAt: Date.now() + response.expiresIn * 1000, user: { type: 'CITIZEN', userId: response.userId, email: response.email, firstName: response.firstName, lastName: response.lastName, role: 'USER' } }; }
-function staffSession(response: FederatedTokenResponse, user: AuthUser): AuthSession { return { accessToken: response.access_token, refreshToken: response.refresh_token, expiresAt: Date.now() + response.expires_in * 1000, user }; }
-function staffUser(profile: FederatedUserInfo): AuthUser { return { type: 'STAFF', userId: null, role: 'STAFF', uid: profile.uid, employeeNumber: profile.employeeNumber, fullName: profile.fullName, email: profile.email, module: profile.module, groups: profile.groups }; }
+type SessionTokens = Omit<AuthSession, 'user'>;
+
+function citizenTokens(response: CitizenAuthResponse): SessionTokens { return { accessToken: response.accessToken, refreshToken: response.refreshToken, expiresAt: Date.now() + response.expiresIn * 1000 }; }
+function staffTokens(response: FederatedTokenResponse): SessionTokens { return { accessToken: response.access_token, refreshToken: response.refresh_token, expiresAt: Date.now() + response.expires_in * 1000 }; }
+function toAuthUser(profile: CurrentUserResponse): AuthUser {
+  return { type: profile.type, userId: profile.id, role: profile.role, email: profile.email ?? '', firstName: profile.firstName ?? '', lastName: profile.lastName ?? '', groups: profile.groups ?? [] };
+}

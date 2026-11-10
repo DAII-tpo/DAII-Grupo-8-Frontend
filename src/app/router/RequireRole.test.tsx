@@ -6,10 +6,10 @@ import type { AuthUser } from '../../types/auth';
 import { AuthContext, type AuthContextValue } from '../providers/authContext';
 import { RequireRole } from './RequireRole';
 
-const citizen: AuthUser = { type: 'CITIZEN', userId: 1, email: 'citizen@citypass.com', firstName: 'Ana', lastName: 'Pérez', role: 'USER' };
-const staff: AuthUser = { type: 'STAFF', userId: null, role: 'STAFF', uid: 'staff-1', employeeNumber: 'E-1', fullName: 'Staff Demo', email: 'staff@citypass.com', module: 'movilidad', groups: ['admin'] };
+const citizen: AuthUser = { type: 'CITIZEN', userId: 1, role: 'CITIZEN', email: 'citizen@citypass.com', firstName: 'Ana', lastName: 'Pérez', groups: [] };
+const staff: AuthUser = { type: 'STAFF', userId: 12, role: 'ADMIN', email: 'staff@citypass.com', firstName: 'Staff', lastName: 'Demo', groups: ['admin'] };
 const delegatedStaff: AuthUser = { ...staff, groups: ['delegados'] };
-const staffWithoutAdministration: AuthUser = { ...staff, groups: ['operadores'] };
+const staffWithoutAdministration: AuthUser = { ...staff, role: 'USER', groups: ['operadores'] };
 
 function authValue(user: AuthUser): AuthContextValue {
   return { isAuthenticated: true, isRestoring: false, user, login: vi.fn(), loginCitizen: vi.fn(), registerCitizen: vi.fn(), loginStaff: vi.fn(), logout: vi.fn() };
@@ -25,23 +25,29 @@ function renderRoute(user: AuthUser) {
 afterEach(cleanup);
 
 describe('RequireRole', () => {
+  it('decide por role y no por los grupos', () => {
+    renderRoute({ ...staffWithoutAdministration, groups: ['admin'] });
+    expect(screen.getByText('Movilidad')).toBeInTheDocument();
+    expect(screen.queryByText('Administración')).not.toBeInTheDocument();
+  });
+
   it('redirige CITIZEN desde administración', () => {
     renderRoute(citizen);
     expect(screen.getByText('Movilidad')).toBeInTheDocument();
     expect(screen.queryByText('Administración')).not.toBeInTheDocument();
   });
 
-  it('permite a STAFF autorizado renderizar administración', () => {
+  it('permite a role ADMIN renderizar administración', () => {
     renderRoute(staff);
     expect(screen.getByText('Administración')).toBeInTheDocument();
   });
 
-  it('permite a STAFF delegado renderizar administración', () => {
+  it('permite a STAFF delegado con role ADMIN renderizar administración', () => {
     renderRoute(delegatedStaff);
     expect(screen.getByText('Administración')).toBeInTheDocument();
   });
 
-  it('redirige STAFF sin grupo administrativo', () => {
+  it('redirige STAFF con role USER (sin grupo admin)', () => {
     renderRoute(staffWithoutAdministration);
     expect(screen.getByText('Movilidad')).toBeInTheDocument();
     expect(screen.queryByText('Administración')).not.toBeInTheDocument();

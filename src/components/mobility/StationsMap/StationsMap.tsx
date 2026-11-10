@@ -1,6 +1,7 @@
 import 'leaflet/dist/leaflet.css';
 
 import { Alert, Group, Loader, Paper, Stack, Text, Title, UnstyledButton } from '@mantine/core';
+import { isAxiosError } from 'axios';
 import { divIcon } from 'leaflet';
 import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet';
 import { AlertCircle, Bike, LocateFixed, MapPin, Navigation, Sparkles } from 'lucide-react';
@@ -73,12 +74,18 @@ function toRegisteredMapStation(station: Station): MapStation {
   };
 }
 
+type BackendError = 'unauthorized' | 'connection' | null;
+
+function backendErrorOf(error: unknown): BackendError {
+  return isAxiosError(error) && error.response?.status === 401 ? 'unauthorized' : 'connection';
+}
+
 type StationsMapProps = Readonly<{
   showHeading?: boolean;
 }>;
 
 type MapDataSetters = Readonly<{
-  setBackendError: Dispatch<SetStateAction<boolean>>;
+  setBackendError: Dispatch<SetStateAction<BackendError>>;
   setIsBackendLoading: Dispatch<SetStateAction<boolean>>;
   setIsRecommendationLoading: Dispatch<SetStateAction<boolean>>;
   setRecommendationPurpose: Dispatch<SetStateAction<RecommendationPurpose>>;
@@ -89,13 +96,13 @@ type MapDataSetters = Readonly<{
 
 async function loadFallbackStations({ setBackendError, setIsBackendLoading, setStations }: MapDataSetters) {
   setIsBackendLoading(true);
-  setBackendError(false);
+  setBackendError(null);
 
   try {
     const fallbackStations = await stationService.getAll();
     setStations(fallbackStations.map(toRegisteredMapStation));
-  } catch {
-    setBackendError(true);
+  } catch (error) {
+    setBackendError(backendErrorOf(error));
   } finally {
     setIsBackendLoading(false);
   }
@@ -103,7 +110,7 @@ async function loadFallbackStations({ setBackendError, setIsBackendLoading, setS
 
 async function loadNearbyStations(location: Coordinates, { setBackendError, setIsBackendLoading, setStations }: MapDataSetters) {
   setIsBackendLoading(true);
-  setBackendError(false);
+  setBackendError(null);
 
   try {
     const [registeredResult, nearbyStations] = await Promise.all([
@@ -121,15 +128,15 @@ async function loadNearbyStations(location: Coordinates, { setBackendError, setI
     setStations(registeredResult.stations.map(
       (station) => nearbyById.get(station.id) ?? toRegisteredMapStation(station),
     ));
-  } catch {
-    setBackendError(true);
+  } catch (error) {
+    setBackendError(backendErrorOf(error));
   } finally {
     setIsBackendLoading(false);
   }
 }
 
-async function recommendationPurposeForUser(userId: number | null): Promise<RecommendationPurpose> {
-  if (userId === null) return 'PICKUP';
+async function recommendationPurposeForUser(isAuthenticated: boolean): Promise<RecommendationPurpose> {
+  if (!isAuthenticated) return 'PICKUP';
 
   try {
     const activeTrip = await tripService.getActive();
@@ -141,14 +148,14 @@ async function recommendationPurposeForUser(userId: number | null): Promise<Reco
 
 async function loadRecommendation(
   location: Coordinates,
-  userId: number | null,
+  isAuthenticated: boolean,
   { setHasRecommendationError, setIsRecommendationLoading, setRecommendation, setRecommendationPurpose }: MapDataSetters,
 ) {
   setIsRecommendationLoading(true);
   setHasRecommendationError(false);
 
   try {
-    const purpose = await recommendationPurposeForUser(userId);
+    const purpose = await recommendationPurposeForUser(isAuthenticated);
     setRecommendationPurpose(purpose);
     setRecommendation(await stationService.getRecommendation(location[0], location[1], purpose));
   } catch {
@@ -163,14 +170,13 @@ function runInBackground(task: Promise<void>) {
 }
 
 export function StationsMap({ showHeading = true }: StationsMapProps) {
-  const { user } = useAuth();
-  const userId = user?.userId ?? null;
+  const { isAuthenticated } = useAuth();
   const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
   const [stations, setStations] = useState<MapStation[]>([]);
   const [isGeolocationLoading, setIsGeolocationLoading] = useState(true);
   const [geolocationError, setGeolocationError] = useState<string | null>(null);
   const [isBackendLoading, setIsBackendLoading] = useState(false);
-  const [backendError, setBackendError] = useState(false);
+  const [backendError, setBackendError] = useState<BackendError>(null);
   const [selectedStation, setSelectedStation] = useState<MapStation | null>(null);
   const [selectedAvailability, setSelectedAvailability] = useState<StationAvailability | null>(null);
   const [isAvailabilityLoading, setIsAvailabilityLoading] = useState(false);
@@ -208,13 +214,13 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
         setUserLocation(location);
         setIsGeolocationLoading(false);
         runInBackground(loadNearbyStations(location, setters));
-        runInBackground(loadRecommendation(location, userId, setters));
+        runInBackground(loadRecommendation(location, isAuthenticated, setters));
       },
       () => {
         showFallback('No se pudo obtener tu ubicación. Se muestran todas las estaciones registradas.');
       },
     );
-  }, [userId]);
+  }, [isAuthenticated]);
 
   const selectStation = async (station: MapStation) => {
     setSelectedStation(station);
@@ -261,7 +267,8 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
       {isGeolocationLoading ? <LoadingState message="Obteniendo tu ubicación..." /> : null}
       {geolocationError ? <Alert color="orange" icon={<AlertCircle size={18} />} title="Ubicación no disponible">{geolocationError}</Alert> : null}
       {isBackendLoading ? <LoadingState message="Cargando estaciones..." /> : null}
-      {backendError ? <Alert color="red" icon={<AlertCircle size={18} />} title="No se pudieron cargar las estaciones">Verificá la conexión con el backend e intentá nuevamente.</Alert> : null}
+      {backendError === 'unauthorized' ? <Alert color="red" icon={<AlertCircle size={18} />} title="Sesión no válida">El servidor no aceptó tu sesión. Volvé a iniciar sesión para ver las estaciones.</Alert> : null}
+      {backendError === 'connection' ? <Alert color="red" icon={<AlertCircle size={18} />} title="No se pudieron cargar las estaciones">Verificá la conexión con el backend e intentá nuevamente.</Alert> : null}
 
       {!isGeolocationLoading && !isBackendLoading && !backendError ? (
         <div className={classes.mapLayout}>

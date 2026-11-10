@@ -33,7 +33,7 @@ vi.mock('../../services/stations/stationService', () => ({
   },
 }));
 vi.mock('../../app/providers/authContext', () => ({
-  useAuth: () => ({ user: { email: 'ana@example.com', role: 'USER', userId: 1 } }),
+  useAuth: () => ({ isAuthenticated: true, user: { type: 'STAFF', userId: 12, role: 'USER', email: 'staff@citypass.com', firstName: 'Staff', lastName: 'Demo', groups: [] } }),
 }));
 vi.mock('../../services/trips/tripService', () => ({ tripService: { getActive: vi.fn() } }));
 
@@ -258,6 +258,17 @@ describe('MapPage', () => {
     renderPage();
 
     expect(await screen.findByText('No se pudieron cargar las estaciones')).toBeInTheDocument();
+  });
+
+  it('distingue una sesión rechazada (401) de un error de conexión', async () => {
+    mockLocationSuccess();
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([station]);
+    vi.mocked(stationService.getNearby).mockRejectedValueOnce(Object.assign(new Error('Request failed'), { isAxiosError: true, response: { status: 401 } }));
+
+    renderPage();
+
+    expect(await screen.findByText('Sesión no válida')).toBeInTheDocument();
+    expect(screen.queryByText('No se pudieron cargar las estaciones')).not.toBeInTheDocument();
   });
 
   it('muestra una recomendación MODEL y destaca su marcador sin bloquear el mapa', async () => {

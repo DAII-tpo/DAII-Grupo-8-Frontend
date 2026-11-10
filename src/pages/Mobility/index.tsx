@@ -61,8 +61,7 @@ const quickActions: QuickAction[] = [
 ];
 
 export function MobilityPage() {
-  const { user } = useAuth();
-  const userId = user?.userId ?? null;
+  const { isAuthenticated } = useAuth();
   const [activeTrip, setActiveTrip] = useState<TripResponse | null>(null);
   const [history, setHistory] = useState<PagedResponse<TripResponse> | null>(null);
   const [stationCount, setStationCount] = useState<number | null>(null);
@@ -78,7 +77,7 @@ export function MobilityPage() {
   }, []);
 
   const loadDashboard = useCallback(async () => {
-    if (userId === null) {
+    if (!isAuthenticated) {
       setHasSummaryError(true);
       setIsLoading(false);
       return;
@@ -107,7 +106,7 @@ export function MobilityPage() {
       || stationsResult.status === 'rejected',
     );
     setIsLoading(false);
-  }, [userId]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     void Promise.resolve().then(loadDashboard);
@@ -155,7 +154,7 @@ export function MobilityPage() {
         </Alert>
       ) : null}
 
-      {activeTrip && userId !== null && (isRequestingHelp || currentEmergency) ? (
+      {activeTrip && (isRequestingHelp || currentEmergency) ? (
         <EmergencyPanel
           initialEmergency={currentEmergency}
           key={`${activeTrip.id}-${currentEmergency?.id ?? 'nuevo'}`}

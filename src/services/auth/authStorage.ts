@@ -1,4 +1,4 @@
-import type { AuthSession } from '../../types/auth';
+import { userRoles, type AuthSession } from '../../types/auth';
 
 export const authStorageKey = 'citypass_auth_session';
 
@@ -29,7 +29,12 @@ function isAuthSession(value: unknown): value is AuthSession {
   if (!value || typeof value !== 'object') return false;
   const session = value as Partial<AuthSession>;
   if (typeof session.accessToken !== 'string' || typeof session.refreshToken !== 'string' || typeof session.expiresAt !== 'number' || !session.user) return false;
-  const user = session.user;
-  if (user.type === 'CITIZEN') return typeof user.userId === 'number' && user.role === 'USER' && typeof user.email === 'string' && typeof user.firstName === 'string' && typeof user.lastName === 'string';
-  return user.type === 'STAFF' && user.userId === null && user.role === 'STAFF' && typeof user.uid === 'string' && typeof user.employeeNumber === 'string' && typeof user.fullName === 'string' && typeof user.email === 'string' && typeof user.module === 'string' && Array.isArray(user.groups) && user.groups.every((group) => typeof group === 'string');
+  const user = session.user as Partial<AuthSession['user']>;
+  return (user.type === 'CITIZEN' || user.type === 'STAFF')
+    && typeof user.userId === 'number'
+    && typeof user.role === 'string' && userRoles.includes(user.role)
+    && typeof user.email === 'string'
+    && typeof user.firstName === 'string'
+    && typeof user.lastName === 'string'
+    && Array.isArray(user.groups) && user.groups.every((group) => typeof group === 'string');
 }

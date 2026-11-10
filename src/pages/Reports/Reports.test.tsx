@@ -9,8 +9,13 @@ import { tripService } from '../../services/trips/tripService';
 import { mantineTheme } from '../../styles/theme';
 import { ReportsPage } from './index';
 
+const authState = vi.hoisted(() => {
+  const citizen = { type: 'CITIZEN', userId: 1, role: 'CITIZEN', email: 'ana@example.com', firstName: 'Ana', lastName: 'Pérez', groups: [] as string[] };
+  const staff = { type: 'STAFF', userId: 12, role: 'USER', email: 'staff@citypass.com', firstName: 'Staff', lastName: 'Demo', groups: ['operadores'] };
+  return { citizen, staff, current: { isAuthenticated: true, user: citizen as typeof citizen | typeof staff } };
+});
 vi.mock('../../app/providers/authContext', () => ({
-  useAuth: () => ({ user: { email: 'ana@example.com', role: 'USER', userId: 1 } }),
+  useAuth: () => authState.current,
 }));
 vi.mock('../../services/incidents/incidentService', () => ({ incidentService: { getTypes: vi.fn(), report: vi.fn() } }));
 vi.mock('../../services/stations/stationService', () => ({ stationService: { getNearby: vi.fn() } }));
@@ -62,10 +67,20 @@ function httpError(status: number) {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  authState.current = { isAuthenticated: true, user: authState.citizen };
   Object.defineProperty(navigator, 'geolocation', { configurable: true, value: undefined });
 });
 
 describe('ReportsPage', () => {
+  it('con sesión STAFF carga los tipos y el viaje activo', async () => {
+    authState.current = { isAuthenticated: true, user: authState.staff };
+    mockFormData();
+    renderPage();
+    expect(await screen.findByRole('combobox', { name: 'Tipo de problema' })).toBeInTheDocument();
+    expect(incidentService.getTypes).toHaveBeenCalledOnce();
+    expect(tripService.getActive).toHaveBeenCalledWith();
+  });
+
   it('con el viaje pausado por una emergencia no muestra el formulario', async () => {
     vi.mocked(tripService.getActive).mockResolvedValueOnce({ ...activeTrip, status: 'EMERGENCY' });
     vi.mocked(incidentService.getTypes).mockResolvedValueOnce(types);

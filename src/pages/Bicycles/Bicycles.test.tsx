@@ -9,8 +9,13 @@ import { tripService } from '../../services/trips/tripService';
 import { mantineTheme } from '../../styles/theme';
 import { BicyclesPage } from './index';
 
+const authState = vi.hoisted(() => {
+  const citizen = { type: 'CITIZEN', userId: 1, role: 'CITIZEN', email: 'ana@example.com', firstName: 'Ana', lastName: 'Pérez', groups: [] as string[] };
+  const staff = { type: 'STAFF', userId: 12, role: 'USER', email: 'staff@citypass.com', firstName: 'Staff', lastName: 'Demo', groups: ['operadores'] };
+  return { citizen, staff, current: { isAuthenticated: true, user: citizen as typeof citizen | typeof staff } };
+});
 vi.mock('../../app/providers/authContext', () => ({
-  useAuth: () => ({ user: { email: 'ana@example.com', role: 'USER', userId: 1 } }),
+  useAuth: () => authState.current,
 }));
 vi.mock('../../services/bikes/bikeService', () => ({ bikeService: { getAvailable: vi.fn() } }));
 vi.mock('../../services/stations/stationService', () => ({ stationService: { getAll: vi.fn(), getAvailability: vi.fn() } }));
@@ -120,9 +125,19 @@ function httpError(status: number) {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  authState.current = { isAuthenticated: true, user: authState.citizen };
 });
 
 describe('BicyclesPage', () => {
+  it('con sesión STAFF consulta el viaje activo y ofrece iniciar uno', async () => {
+    authState.current = { isAuthenticated: true, user: authState.staff };
+    mockNoActiveTrip();
+    renderPage();
+    expect(await screen.findByRole('combobox', { name: 'Estación de origen' })).toBeInTheDocument();
+    expect(tripService.getActive).toHaveBeenCalledWith();
+    expect(stationService.getAll).toHaveBeenCalled();
+  });
+
   it('con el viaje pausado por una emergencia no ofrece devolver la bicicleta', async () => {
     vi.mocked(tripService.getActive).mockResolvedValueOnce({ ...activeTrip, status: 'EMERGENCY' });
 

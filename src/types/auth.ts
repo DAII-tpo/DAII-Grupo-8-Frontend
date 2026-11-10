@@ -1,23 +1,31 @@
 export type AuthUser = CitizenUser | StaffUser;
 
-export type CitizenUser = {
-  type: 'CITIZEN';
+export type UserRole = 'CITIZEN' | 'ADMIN' | 'USER';
+
+export const userRoles: readonly UserRole[] = ['CITIZEN', 'ADMIN', 'USER'];
+
+/** Datos comunes de los dos tipos de usuario. El rol y el id los define el backend (GET /api/v1/users/me). */
+type SessionUser = {
   userId: number;
+  role: UserRole;
   email: string;
   firstName: string;
   lastName: string;
-  role: 'USER';
+  groups: string[];
 };
 
-export type StaffUser = {
-  type: 'STAFF';
-  userId: null;
-  role: 'STAFF';
-  uid: string;
-  employeeNumber: string;
-  fullName: string;
-  email: string;
-  module: string;
+export type CitizenUser = SessionUser & { type: 'CITIZEN' };
+
+export type StaffUser = SessionUser & { type: 'STAFF' };
+
+/** Respuesta de GET /api/v1/users/me. */
+export type CurrentUserResponse = {
+  id: number;
+  type: 'CITIZEN' | 'STAFF';
+  role: UserRole;
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
   groups: string[];
 };
 
@@ -47,20 +55,12 @@ export type FederatedTokenResponse = {
   expires_in: number;
 };
 
-export type FederatedUserInfo = {
-  uid: string;
-  employeeNumber: string;
-  fullName: string;
-  email: string;
-  module: string;
-  groups: string[];
-};
-
 export function canAccessAdministration(user: AuthUser | null): boolean {
-  return user?.type === 'STAFF' && user.module === 'movilidad' && user.groups.some((group) => group === 'admin' || group === 'delegados');
+  return user?.role === 'ADMIN';
 }
 
 export function getDisplayName(user: AuthUser | null): string {
   if (!user) return 'Usuario';
-  return user.type === 'STAFF' ? user.fullName : `${user.firstName} ${user.lastName}`;
+  const fullName = `${user.firstName} ${user.lastName}`.trim();
+  return fullName || user.email || 'Usuario';
 }

@@ -377,7 +377,8 @@ function nextIncidentStatuses(status: IncidentStatus) {
 
 function administrationErrorMessage(error: unknown) {
   if (!isAxiosError(error)) return 'Verificá la conexión con el backend e intentá nuevamente.';
-  if (error.response?.status === 403) return 'El usuario configurado no posee permisos de administrador.';
+  if (error.response?.status === 401) return 'Tu sesión no fue aceptada por el servidor. Volvé a iniciar sesión.';
+  if (error.response?.status === 403) return 'Tu usuario no pertenece a un grupo con permisos de administración (admin o delegados).';
   if (error.response?.status === 404) return 'El recurso seleccionado ya no está disponible.';
   if (error.response?.status === 409) return 'La operación no puede realizarse con el estado actual.';
   if (error.response?.status === 400) return 'Los datos ingresados no son válidos.';
