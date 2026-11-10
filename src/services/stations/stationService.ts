@@ -1,7 +1,6 @@
 import { httpClient } from '../http/httpClient';
 import type { NearbyStation } from '../../types/nearbyStation';
-import type { Station } from '../../types/station';
-import type { StationRequest } from '../../types/station';
+import type { Station, StationRequest } from '../../types/station';
 import type { StationAvailability } from '../../types/stationAvailability';
 import type { RecommendationPurpose, StationRecommendation } from '../../types/stationRecommendation';
 

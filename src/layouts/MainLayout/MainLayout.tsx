@@ -148,7 +148,7 @@ export function MainLayout() {
                 pathname={location.pathname}
                 onNavigate={() => {
                   if (item.action === 'logout') {
-                    logout().finally(() => navigate('/login', { replace: true }));
+                    void logout().finally(() => { void navigate('/login', { replace: true }); });
                     return;
                   }
 

@@ -1,6 +1,6 @@
 import { Alert, Button, PasswordInput, Stack, Tabs, Text, TextInput, Title } from '@mantine/core';
 import { isAxiosError } from 'axios';
-import type { FormEvent } from 'react';
+import type { SubmitEvent } from 'react';
 import { useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -29,7 +29,7 @@ export function LoginPage() {
     setIsSubmitting(true);
     try {
       await action();
-      navigate(redirectPath(location.state), { replace: true });
+      await navigate(redirectPath(location.state), { replace: true });
     } catch (cause) {
       setError(authErrorMessage(cause, flow));
     } finally {
@@ -68,7 +68,7 @@ export function LoginPage() {
 function CitizenForm({ isSubmitting, onSubmit }: Readonly<{ isSubmitting: boolean; onSubmit: (email: string, password: string) => Promise<void> }>) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     onSubmit(email, password).catch(() => undefined);
   };
@@ -87,7 +87,7 @@ function RegisterForm({ isSubmitting, onSubmit }: Readonly<{ isSubmitting: boole
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const isPasswordValid = passwordPattern.test(password);
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!isPasswordValid) return;
     onSubmit(email, password, firstName, lastName).catch(() => undefined);
@@ -105,7 +105,7 @@ function RegisterForm({ isSubmitting, onSubmit }: Readonly<{ isSubmitting: boole
 function StaffForm({ isSubmitting, onSubmit }: Readonly<{ isSubmitting: boolean; onSubmit: (username: string, password: string) => Promise<void> }>) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     onSubmit(username, password).catch(() => undefined);
   };

@@ -264,39 +264,25 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
         </Text>
       </div> : null}
 
-      {isGeolocationLoading ? <LoadingState message="Obteniendo tu ubicación..." /> : null}
-      {geolocationError ? <Alert color="orange" icon={<AlertCircle size={18} />} title="Ubicación no disponible">{geolocationError}</Alert> : null}
-      {isBackendLoading ? <LoadingState message="Cargando estaciones..." /> : null}
-      {backendError === 'unauthorized' ? <Alert color="red" icon={<AlertCircle size={18} />} title="Sesión no válida">El servidor no aceptó tu sesión. Volvé a iniciar sesión para ver las estaciones.</Alert> : null}
-      {backendError === 'connection' ? <Alert color="red" icon={<AlertCircle size={18} />} title="No se pudieron cargar las estaciones">Verificá la conexión con el backend e intentá nuevamente.</Alert> : null}
+      <MapStatusAlerts
+        backendError={backendError}
+        geolocationError={geolocationError}
+        isBackendLoading={isBackendLoading}
+        isGeolocationLoading={isGeolocationLoading}
+      />
 
       {!isGeolocationLoading && !isBackendLoading && !backendError ? (
         <div className={classes.mapLayout}>
           <Paper className={classes.mapPanel} radius="md" p={0}>
             {mapCenter ? (
-              <MapContainer center={mapCenter} className={classes.map} zoom={14}>
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-                <MapViewport center={mapCenter} />
-                {userLocation ? <RecenterToUserControl location={userLocation} /> : null}
-                {userLocation ? (
-                  <CircleMarker center={userLocation} className={classes.userMarker} pathOptions={{ color: '#2F5CA6', fillColor: '#2F5CA6', fillOpacity: 1 }} radius={8}>
-                    <Tooltip direction="top">Tu ubicación</Tooltip>
-                  </CircleMarker>
-                ) : null}
-                {stations.map((station) => (
-                  <Marker
-                    eventHandlers={{ click: () => handleStationSelection(station) }}
-                    icon={createStationIcon(selectedStation?.id === station.id, recommendedStationId === station.id)}
-                    key={station.id}
-                    position={[station.latitude, station.longitude]}
-                  >
-                    <Tooltip direction="top">{station.name}</Tooltip>
-                  </Marker>
-                ))}
-              </MapContainer>
+              <StationsMapCanvas
+                center={mapCenter}
+                onSelectStation={handleStationSelection}
+                recommendedStationId={recommendedStationId ?? null}
+                selectedStationId={selectedStation?.id ?? null}
+                stations={stations}
+                userLocation={userLocation}
+              />
             ) : (
               <EmptyMapState />
             )}
@@ -316,6 +302,60 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
       ) : null}
 
     </Stack>
+  );
+}
+
+type MapStatusAlertsProps = Readonly<{
+  backendError: BackendError;
+  geolocationError: string | null;
+  isBackendLoading: boolean;
+  isGeolocationLoading: boolean;
+}>;
+
+function MapStatusAlerts({ backendError, geolocationError, isBackendLoading, isGeolocationLoading }: MapStatusAlertsProps) {
+  return <>
+    {isGeolocationLoading ? <LoadingState message="Obteniendo tu ubicación..." /> : null}
+    {geolocationError ? <Alert color="orange" icon={<AlertCircle size={18} />} title="Ubicación no disponible">{geolocationError}</Alert> : null}
+    {isBackendLoading ? <LoadingState message="Cargando estaciones..." /> : null}
+    {backendError === 'unauthorized' ? <Alert color="red" icon={<AlertCircle size={18} />} title="Sesión no válida">El servidor no aceptó tu sesión. Volvé a iniciar sesión para ver las estaciones.</Alert> : null}
+    {backendError === 'connection' ? <Alert color="red" icon={<AlertCircle size={18} />} title="No se pudieron cargar las estaciones">Verificá la conexión con el backend e intentá nuevamente.</Alert> : null}
+  </>;
+}
+
+type StationsMapCanvasProps = Readonly<{
+  center: Coordinates;
+  onSelectStation: (station: MapStation) => void;
+  recommendedStationId: number | null;
+  selectedStationId: number | null;
+  stations: MapStation[];
+  userLocation: Coordinates | null;
+}>;
+
+function StationsMapCanvas({ center, onSelectStation, recommendedStationId, selectedStationId, stations, userLocation }: StationsMapCanvasProps) {
+  return (
+    <MapContainer center={center} className={classes.map} zoom={14}>
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      <MapViewport center={center} />
+      {userLocation ? <RecenterToUserControl location={userLocation} /> : null}
+      {userLocation ? (
+        <CircleMarker center={userLocation} className={classes.userMarker} pathOptions={{ color: '#2F5CA6', fillColor: '#2F5CA6', fillOpacity: 1 }} radius={8}>
+          <Tooltip direction="top">Tu ubicación</Tooltip>
+        </CircleMarker>
+      ) : null}
+      {stations.map((station) => (
+        <Marker
+          eventHandlers={{ click: () => onSelectStation(station) }}
+          icon={createStationIcon(selectedStationId === station.id, recommendedStationId === station.id)}
+          key={station.id}
+          position={[station.latitude, station.longitude]}
+        >
+          <Tooltip direction="top">{station.name}</Tooltip>
+        </Marker>
+      ))}
+    </MapContainer>
   );
 }
 

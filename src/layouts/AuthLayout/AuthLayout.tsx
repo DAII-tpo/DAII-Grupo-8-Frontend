@@ -14,7 +14,7 @@ export function AuthLayout() {
       <section className={classes.formPanel}>
         <div className={classes.formContent}>
           <div className={classes.brand}>
-            <BrandLogo compact />
+            <BrandLogo compact width={210} />
           </div>
           <Outlet />
         </div>

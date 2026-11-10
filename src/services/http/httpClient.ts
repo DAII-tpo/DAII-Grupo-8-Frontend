@@ -48,21 +48,21 @@ httpClient.interceptors.request.use((config) => {
 });
 
 httpClient.interceptors.response.use(undefined, async (error: unknown) => {
-  if (!axios.isAxiosError(error) || error.response?.status !== 401 || !authHandlers) return Promise.reject(error);
+  if (!axios.isAxiosError(error) || error.response?.status !== 401 || !authHandlers) throw error;
   const request = error.config as RetriableRequest | undefined;
-  if (!request || request.skipAuth || request.url?.startsWith('/api/v1/auth/')) return Promise.reject(error);
+  if (!request || request.skipAuth || request.url?.startsWith('/api/v1/auth/')) throw error;
   if (request._retried) {
     tokenRejected = true;
     authHandlers.onSessionExpired();
-    return Promise.reject(error);
+    throw error;
   }
-  if (tokenRejected) return Promise.reject(error);
+  if (tokenRejected) throw error;
   request._retried = true;
   refreshPromise ??= authHandlers.refresh().finally(() => { refreshPromise = null; });
   const accessToken = await refreshPromise;
   if (!accessToken) {
     authHandlers.onSessionExpired();
-    return Promise.reject(error);
+    throw error;
   }
   request.headers.Authorization = `Bearer ${accessToken}`;
   return httpClient(request);

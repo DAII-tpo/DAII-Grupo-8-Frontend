@@ -23,7 +23,6 @@
 .formPanel { display: grid; min-height: 100vh; place-items: center; padding: clamp(2rem, 6vw, 6rem); background: var(--citypass-warm-white); }
 .formContent { width: min(100%, 38rem); }
 .brand { margin-bottom: clamp(2rem, 5vh, 4rem); }
-.brand :global(img) { width: 210px !important; }
 
 @media (max-width: 68em) {
   .authPage { grid-template-columns: minmax(0, 50%) minmax(23rem, 50%); }

@@ -116,7 +116,7 @@ export function ReportsPage() {
         bikeId: activeTrip.bikeId,
         incidentTypeId: selectedType.id,
         description: description.trim(),
-        ...(location ?? {}),
+        ...location,
       });
       setReportedIncident(incident);
       setIsReturnDialogOpen(true);
