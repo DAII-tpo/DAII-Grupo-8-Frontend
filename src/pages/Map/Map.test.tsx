@@ -32,7 +32,8 @@ vi.mock('../../services/stations/stationService', () => ({
     getRecommendation: vi.fn(),
   },
 }));
-vi.mock('../../app/providers/authContext', () => ({
+vi.mock('../../app/providers/authContext', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../app/providers/authContext')>()),
   useAuth: () => ({ isAuthenticated: true, user: { type: 'STAFF', userId: 12, role: 'USER', email: 'staff@citypass.com', firstName: 'Staff', lastName: 'Demo', groups: [] } }),
 }));
 vi.mock('../../services/trips/tripService', () => ({ tripService: { getActive: vi.fn() } }));

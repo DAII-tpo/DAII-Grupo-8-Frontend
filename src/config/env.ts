@@ -7,6 +7,4 @@ export const env = {
   recommendationServiceUrl: import.meta.env.VITE_RECOMMENDATION_SERVICE_URL ?? defaultRecommendationServiceUrl,
   federatedAuthBaseUrl: import.meta.env.VITE_FEDERATED_AUTH_BASE_URL ?? defaultFederatedAuthBaseUrl,
   federatedClientId: import.meta.env.VITE_FEDERATED_CLIENT_ID ?? 'citypass-movilidad-web',
-  analyticsEmbedUrl: import.meta.env.VITE_ANALYTICS_EMBED_URL ?? '',
-  analyticsDashboards: import.meta.env.VITE_ANALYTICS_DASHBOARDS ?? '',
 } as const;

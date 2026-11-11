@@ -40,7 +40,7 @@ export const router = createBrowserRouter([
       { path: 'movilidad/viaje-activo', element: <ActiveTripPage /> },
       { path: 'movilidad/historial', element: <HistoryPage /> },
       { path: 'movilidad/reportes', element: <ReportsPage /> },
-      { path: 'movilidad/analitica', element: <MobilityAnalyticsPage /> },
+      { path: 'movilidad/analitica', element: <RequireRole><MobilityAnalyticsPage /></RequireRole> },
       { path: 'movilidad/eventos', element: <CulturalDestinationsPage /> },
       {
         path: 'movilidad/administracion',

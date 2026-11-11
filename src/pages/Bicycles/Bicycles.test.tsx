@@ -14,7 +14,8 @@ const authState = vi.hoisted(() => {
   const staff = { type: 'STAFF', userId: 12, role: 'USER', email: 'staff@citypass.com', firstName: 'Staff', lastName: 'Demo', groups: ['operadores'] };
   return { citizen, staff, current: { isAuthenticated: true, user: citizen as typeof citizen | typeof staff } };
 });
-vi.mock('../../app/providers/authContext', () => ({
+vi.mock('../../app/providers/authContext', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../app/providers/authContext')>()),
   useAuth: () => authState.current,
 }));
 vi.mock('../../services/bikes/bikeService', () => ({ bikeService: { getAvailable: vi.fn() } }));

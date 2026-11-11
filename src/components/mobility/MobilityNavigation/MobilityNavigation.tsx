@@ -1,5 +1,8 @@
 import { Tabs } from '@mantine/core';
 import { NavLink, useLocation } from 'react-router-dom';
+import { useContext } from 'react';
+import { AuthContext } from '../../../app/providers/authContext';
+import { canAccessAdministration } from '../../../types/auth';
 
 import classes from './MobilityNavigation.module.css';
 
@@ -16,12 +19,14 @@ const navigationItems = [
 
 export function MobilityNavigation() {
   const { pathname } = useLocation();
+  const auth = useContext(AuthContext);
+  const visibleItems = navigationItems.filter((item) => item.value !== 'analitica' || canAccessAdministration(auth?.user ?? null));
   const activeItem = navigationItems.find((item) => item.path === pathname);
 
   return (
     <Tabs classNames={{ list: classes.tabsList }} value={activeItem?.value ?? null}>
       <Tabs.List>
-        {navigationItems.map((item) => (
+        {visibleItems.map((item) => (
           <Tabs.Tab
             key={item.value}
             renderRoot={(props) => <NavLink {...props} end to={item.path} />}
