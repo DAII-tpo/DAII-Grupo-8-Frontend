@@ -4,6 +4,7 @@ import {
   Button,
   Group,
   Loader,
+  Modal,
   NativeSelect,
   Paper,
   Radio,
@@ -17,6 +18,7 @@ import { AlertCircle, Bike, Clock3, MapPin, Play, Route, Siren } from 'lucide-re
 import { useCallback, useEffect, useState } from 'react';
 
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
+import { ClimateTripNotice } from '../../components/mobility/ClimateTripNotice/ClimateTripNotice';
 import { MobilityFeatureBanner } from '../../components/mobility/MobilityFeatureBanner';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
@@ -120,6 +122,7 @@ function StartTripFlow({ onTripStarted }: Readonly<StartTripFlowProps>) {
   const [selectedBikeId, setSelectedBikeId] = useState<number | null>(null);
   const [isStartingTrip, setIsStartingTrip] = useState(false);
   const [startTripError, setStartTripError] = useState<string | null>(null);
+  const [climateConfirmation, setClimateConfirmation] = useState<string | null>(null);
 
   const loadStations = useCallback(async () => {
     setIsLoadingStations(true);
@@ -145,6 +148,7 @@ function StartTripFlow({ onTripStarted }: Readonly<StartTripFlowProps>) {
     setBikesError(null);
     setSelectedBikeId(null);
     setStartTripError(null);
+    setClimateConfirmation(null);
 
     if (!Number.isSafeInteger(stationId) || stationId <= 0) {
       return;
@@ -160,7 +164,7 @@ function StartTripFlow({ onTripStarted }: Readonly<StartTripFlowProps>) {
     }
   };
 
-  const startTrip = async () => {
+  const startTrip = async (acceptClimateRisk = false) => {
     if (selectedBikeId === null) {
       return;
     }
@@ -169,9 +173,19 @@ function StartTripFlow({ onTripStarted }: Readonly<StartTripFlowProps>) {
     setStartTripError(null);
 
     try {
-      onTripStarted(await tripService.start({ bikeId: selectedBikeId }));
+      onTripStarted(await tripService.start({
+        bikeId: selectedBikeId,
+        ...(acceptClimateRisk ? { aceptaRiesgoClimatico: true } : {}),
+      }));
+      setClimateConfirmation(null);
     } catch (error) {
-      setStartTripError(startTripErrorMessage(error));
+      const conflict = climateTripConflict(error);
+      if (conflict?.code === 'CONFIRMACION_RIESGO_CLIMATICO_REQUERIDA' && !acceptClimateRisk) {
+        setClimateConfirmation(conflict.message);
+      } else {
+        setClimateConfirmation(null);
+        setStartTripError(conflict?.message ?? startTripErrorMessage(error));
+      }
     } finally {
       setIsStartingTrip(false);
     }
@@ -260,13 +274,29 @@ function StartTripFlow({ onTripStarted }: Readonly<StartTripFlowProps>) {
               disabled={selectedBikeId === null}
               leftSection={<Play size={16} />}
               loading={isStartingTrip}
-              onClick={() => void startTrip()}
+              onClick={() => { startTrip().catch(() => undefined); }}
             >
               Iniciar viaje
             </Button>
           </Stack>
         </Paper>
       ) : null}
+      <Modal
+        centered
+        onClose={() => setClimateConfirmation(null)}
+        opened={climateConfirmation !== null}
+        title="Confirmar riesgo climático"
+      >
+        <Stack gap="md">
+          <Text>{climateConfirmation}</Text>
+          <Group justify="flex-end">
+            <Button onClick={() => setClimateConfirmation(null)} variant="default">Cancelar</Button>
+            <Button loading={isStartingTrip} onClick={() => { startTrip(true).catch(() => undefined); }}>
+              Aceptar riesgo e iniciar viaje
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Stack>
   );
 }
@@ -303,6 +333,7 @@ function ActiveTripPanel({ onTripCompleted, trip }: Readonly<ActiveTripPanelProp
           <TripMetric icon={MapPin} label="Estación de origen" value={trip.originStationName} />
           <TripMetric icon={Clock3} label="Inicio" value={formatDateTime(trip.startedAt)} />
         </SimpleGrid>
+        <ClimateTripNotice tripId={trip.id} />
         {isPausedByEmergency ? (
           <Alert color="red" icon={<Siren size={18} />} title="No hace falta devolver la bicicleta">
             La bicicleta quedó bloqueada y el viaje no se cobra mientras Emergencias atiende tu pedido de ayuda.
@@ -565,6 +596,25 @@ function startTripErrorMessage(error: unknown) {
     return 'No podés iniciar el viaje porque ya tenés uno activo o la bicicleta dejó de estar disponible.';
   }
   return 'No fue posible iniciar el viaje. Intentá nuevamente.';
+}
+
+type ClimateTripConflict = {
+  code: 'CONFIRMACION_RIESGO_CLIMATICO_REQUERIDA' | 'ALQUILER_BLOQUEADO_POR_CLIMA';
+  message: string;
+};
+
+function climateTripConflict(error: unknown): ClimateTripConflict | null {
+  if (!isAxiosError(error) || error.response?.status !== 409) return null;
+  const data: unknown = error.response.data;
+  if (typeof data !== 'object' || data === null || !('code' in data) || !('message' in data)) return null;
+  if (data.code !== 'CONFIRMACION_RIESGO_CLIMATICO_REQUERIDA'
+      && data.code !== 'ALQUILER_BLOQUEADO_POR_CLIMA') return null;
+  if (typeof data.message !== 'string') return null;
+  const phenomenon = 'fenomeno' in data && typeof data.fenomeno === 'string'
+    ? ` Fenómeno: ${data.fenomeno.replaceAll('_', ' ').toLowerCase()}.` : '';
+  const until = 'vigenciaHasta' in data && typeof data.vigenciaHasta === 'string'
+    ? ` Vigencia estimada hasta ${new Date(data.vigenciaHasta).toLocaleString('es-AR')}.` : '';
+  return { code: data.code, message: `${data.message}${phenomenon}${until}` };
 }
 
 function availabilityErrorMessage(error: unknown) {

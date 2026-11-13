@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { stationService } from '../../services/stations/stationService';
+import { climateService } from '../../services/climate/climateService';
 import { tripService } from '../../services/trips/tripService';
 import { mantineTheme } from '../../styles/theme';
 import type { TripResponse } from '../../types/trip';
@@ -17,7 +18,7 @@ vi.mock('react-leaflet', () => ({
   ),
   MapContainer: ({ children }: { children: React.ReactNode }) => <div data-testid="map">{children}</div>,
   Marker: ({ children, eventHandlers, icon }: { children: React.ReactNode; eventHandlers?: { click?: () => void }; icon?: { options?: { html?: string } } }) => (
-    <button data-recommended={icon?.options?.html?.includes('stationMarkerRecommended') ? 'true' : 'false'} onClick={eventHandlers?.click} type="button">{children}</button>
+    <button data-climate={icon?.options?.html?.includes('stationMarkerClimate') ? 'true' : 'false'} data-recommended={icon?.options?.html?.includes('stationMarkerRecommended') ? 'true' : 'false'} onClick={eventHandlers?.click} type="button">{children}</button>
   ),
   TileLayer: () => null,
   Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -36,6 +37,7 @@ vi.mock('../../app/providers/authContext', () => ({
   useAuth: () => ({ isAuthenticated: true, user: { type: 'STAFF', userId: 12, role: 'USER', email: 'staff@citypass.com', firstName: 'Staff', lastName: 'Demo', groups: [] } }),
 }));
 vi.mock('../../services/trips/tripService', () => ({ tripService: { getActive: vi.fn() } }));
+vi.mock('../../services/climate/climateService', () => ({ climateService: { getStationStatuses: vi.fn() } }));
 
 type PositionSuccess = (position: GeolocationPosition) => void;
 type PositionError = (error: GeolocationPositionError) => void;
@@ -129,6 +131,7 @@ beforeEach(() => {
     value: { getCurrentPosition },
   });
   vi.mocked(tripService.getActive).mockResolvedValue(null);
+  vi.mocked(climateService.getStationStatuses).mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -137,6 +140,25 @@ afterEach(() => {
 });
 
 describe('MapPage', () => {
+  it('marca la estación afectada sin impedir el mapa ni la selección', async () => {
+    mockLocationSuccess();
+    vi.mocked(stationService.getNearby).mockResolvedValueOnce([nearbyStation]);
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([{ ...station, id: 1, name: 'Estacion Centro' }]);
+    vi.mocked(climateService.getStationStatuses).mockResolvedValueOnce([{
+      stationId: 1,
+      alerta: { alertaId: 'weather-1', nivelCriticidad: 'ALTA', fenomeno: 'GRANIZO',
+        barrios: ['San Nicolás'], vigenciaDesde: '2026-11-12T10:00:00Z',
+        vigenciaHasta: '2026-11-13T10:00:00Z', activa: true },
+    }]);
+
+    renderPage();
+
+    const marker = await screen.findByRole('button', { name: /Estacion Centro · Alerta ALTA/ });
+    expect(marker).toHaveAttribute('data-climate', 'true');
+    fireEvent.click(marker);
+    expect(await screen.findByText('Alerta climática alta')).toBeInTheDocument();
+    expect(screen.getByTestId('map')).toBeInTheDocument();
+  });
   it('permite volver a Inicio desde la navegación interna', () => {
     mockLocationSuccess();
     vi.mocked(stationService.getNearby).mockResolvedValueOnce([]);

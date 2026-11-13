@@ -29,6 +29,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../../app/providers/authContext';
 import { BrandLogo } from '../../components/common/BrandLogo';
+import { ClimateAlertBanner } from '../../components/mobility/ClimateAlertBanner/ClimateAlertBanner';
 import { canAccessAdministration, getDisplayName, type AuthUser } from '../../types/auth';
 
 import classes from './MainLayout.module.css';
@@ -197,6 +198,8 @@ export function MainLayout() {
       </AppShell.Navbar>
 
       <AppShell.Main>
+        {location.pathname === '/movilidad' || location.pathname.startsWith('/movilidad/')
+          ? <ClimateAlertBanner /> : null}
         <Outlet />
       </AppShell.Main>
 

@@ -1,9 +1,10 @@
 import { MantineProvider } from '@mantine/core';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { bikeService } from '../../services/bikes/bikeService';
+import { climateService } from '../../services/climate/climateService';
 import { stationService } from '../../services/stations/stationService';
 import { tripService } from '../../services/trips/tripService';
 import { mantineTheme } from '../../styles/theme';
@@ -20,6 +21,7 @@ vi.mock('../../app/providers/authContext', () => ({
 vi.mock('../../services/bikes/bikeService', () => ({ bikeService: { getAvailable: vi.fn() } }));
 vi.mock('../../services/stations/stationService', () => ({ stationService: { getAll: vi.fn(), getAvailability: vi.fn() } }));
 vi.mock('../../services/trips/tripService', () => ({ tripService: { end: vi.fn(), getActive: vi.fn(), start: vi.fn() } }));
+vi.mock('../../services/climate/climateService', () => ({ climateService: { getTripNotifications: vi.fn() } }));
 
 const station = {
   id: 2,
@@ -128,6 +130,10 @@ afterEach(() => {
   authState.current = { isAuthenticated: true, user: authState.citizen };
 });
 
+beforeEach(() => {
+  vi.mocked(climateService.getTripNotifications).mockResolvedValue([]);
+});
+
 describe('BicyclesPage', () => {
   it('con sesión STAFF consulta el viaje activo y ofrece iniciar uno', async () => {
     authState.current = { isAuthenticated: true, user: authState.staff };
@@ -167,6 +173,25 @@ describe('BicyclesPage', () => {
     expect(screen.getByText('En curso')).toBeInTheDocument();
     expect(screen.getByText('BIKE-001')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Iniciar viaje' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('combobox', { name: 'Estación destino' })).toBeInTheDocument();
+  });
+
+  it('avisa al usuario con viaje activo sobre una alerta crítica y la estación sugerida', async () => {
+    mockActiveTrip();
+    vi.mocked(climateService.getTripNotifications).mockResolvedValueOnce([{
+      tripId: activeTrip.id,
+      alerta: { alertaId: 'weather-1', nivelCriticidad: 'CRITICA', fenomeno: 'GRANIZO',
+        barrios: ['Palermo'], vigenciaDesde: '2026-11-12T10:00:00Z',
+        vigenciaHasta: '2026-11-13T10:00:00Z', activa: true },
+      suggestedStationId: 4,
+      suggestedStationName: 'Retiro',
+      notifiedAt: '2026-11-12T10:05:00Z',
+    }]);
+
+    renderPage();
+
+    expect(await screen.findByText('Alerta climática crítica durante tu viaje')).toBeInTheDocument();
+    expect(screen.getByText(/Estación sugerida para devolverla: Retiro/)).toBeInTheDocument();
     expect(await screen.findByRole('combobox', { name: 'Estación destino' })).toBeInTheDocument();
   });
 
@@ -398,6 +423,50 @@ describe('BicyclesPage', () => {
 
     expect(await screen.findByText('No se pudo iniciar el viaje')).toBeInTheDocument();
     expect(screen.getByText('No podés iniciar el viaje porque ya tenés uno activo o la bicicleta dejó de estar disponible.')).toBeInTheDocument();
+  });
+
+  it('solicita aceptación explícita para MEDIA y reintenta con el mismo bikeId', async () => {
+    mockNoActiveTrip();
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([station]);
+    vi.mocked(bikeService.getAvailable).mockResolvedValueOnce([bike]);
+    vi.mocked(tripService.start)
+      .mockRejectedValueOnce(Object.assign(new Error('Conflict'), {
+        isAxiosError: true,
+        response: { status: 409, data: { code: 'CONFIRMACION_RIESGO_CLIMATICO_REQUERIDA',
+          message: 'Confirmá el riesgo climático', fenomeno: 'VIENTO_FUERTE', vigenciaHasta: '2026-11-13T10:00:00Z' } },
+      }))
+      .mockResolvedValueOnce(activeTrip);
+
+    renderPage();
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Estación de origen' }), { target: { value: '2' } });
+    fireEvent.click(await screen.findByRole('radio', { name: 'BIKE-001 - City Bike' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Iniciar viaje' }));
+
+    expect(await screen.findByText('Confirmar riesgo climático')).toBeInTheDocument();
+    expect(tripService.start).toHaveBeenCalledWith({ bikeId: 1 });
+    fireEvent.click(screen.getByRole('button', { name: 'Aceptar riesgo e iniciar viaje' }));
+
+    expect(await screen.findByText('Tenés un viaje activo')).toBeInTheDocument();
+    expect(tripService.start).toHaveBeenLastCalledWith({ bikeId: 1, aceptaRiesgoClimatico: true });
+  });
+
+  it('informa el bloqueo ALTA sin ofrecer confirmación', async () => {
+    mockNoActiveTrip();
+    vi.mocked(bikeService.getAvailable).mockResolvedValueOnce([bike]);
+    vi.mocked(tripService.start).mockRejectedValueOnce(Object.assign(new Error('Conflict'), {
+      isAxiosError: true,
+      response: { status: 409, data: { code: 'ALQUILER_BLOQUEADO_POR_CLIMA',
+        message: 'No se puede retirar por alerta climática', fenomeno: 'GRANIZO' } },
+    }));
+
+    renderPage();
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Estación de origen' }), { target: { value: '2' } });
+    fireEvent.click(await screen.findByRole('radio', { name: 'BIKE-001 - City Bike' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Iniciar viaje' }));
+
+    expect(await screen.findByText(/No se puede retirar por alerta climática/)).toBeInTheDocument();
+    expect(screen.queryByText('Confirmar riesgo climático')).not.toBeInTheDocument();
+    expect(tripService.start).toHaveBeenCalledTimes(1);
   });
 
   it('permite navegar a Estaciones desde la navegación interna', async () => {

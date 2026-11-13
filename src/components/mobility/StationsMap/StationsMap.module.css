@@ -221,6 +221,10 @@
   box-shadow: 0 0 0 5px color-mix(in srgb, var(--citypass-urban-green) 28%, transparent), 0 5px 14px rgb(20 36 48 / 35%);
 }
 
+.stationMarkerClimate {
+  border-color: var(--citypass-emergency-red);
+}
+
 @media (max-width: 62rem) {
   .mapLayout {
     grid-template-columns: 1fr;
