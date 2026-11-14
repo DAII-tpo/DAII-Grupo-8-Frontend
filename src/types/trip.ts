@@ -2,6 +2,7 @@ export type TripStatus = 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'INCIDENT' | 'EM
 
 export type TripStartRequest = {
   bikeId: number;
+  aceptaRiesgoClimatico?: boolean;
 };
 
 export type TripEndRequest = {
