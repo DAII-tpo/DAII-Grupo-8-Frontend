@@ -1,20 +1,20 @@
 import 'leaflet/dist/leaflet.css';
 
-import { Alert, Group, Loader, Paper, Stack, Text, Title, UnstyledButton } from '@mantine/core';
+import { Alert, Button, Group, Loader, Paper, Stack, Text, Title, UnstyledButton } from '@mantine/core';
 import { isAxiosError } from 'axios';
 import { divIcon } from 'leaflet';
 import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet';
-import { AlertCircle, Bike, LocateFixed, MapPin, Navigation, Sparkles } from 'lucide-react';
-import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
+import { AlertCircle, Bike, CalendarDays, LocateFixed, MapPin, Navigation, Route, Sparkles } from 'lucide-react';
+import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 
 import { useAuth } from '../../../app/providers/authContext';
+import { eventMobilityService } from '../../../services/eventMobility/eventMobilityService';
 import { stationService } from '../../../services/stations/stationService';
-import { climateService } from '../../../services/climate/climateService';
 import { tripService } from '../../../services/trips/tripService';
 import type { NearbyStation } from '../../../types/nearbyStation';
+import type { CulturalDestination, EventMobilityDecision } from '../../../types/eventMobility';
 import type { Station } from '../../../types/station';
 import type { StationAvailability } from '../../../types/stationAvailability';
-import type { ClimateAlert } from '../../../types/climateAlert';
 import type { RecommendationPurpose, StationRecommendation } from '../../../types/stationRecommendation';
 
 import classes from './StationsMap.module.css';
@@ -33,17 +33,25 @@ type MapStation = {
   name: string;
 };
 
-function createStationIcon(isSelected: boolean, isRecommended: boolean, hasClimateAlert: boolean) {
+function createStationIcon(isSelected: boolean, isRecommended: boolean) {
   const markerClasses = [
     classes.stationMarker,
     isSelected ? classes.stationMarkerSelected : null,
     isRecommended ? classes.stationMarkerRecommended : null,
-    hasClimateAlert ? classes.stationMarkerClimate : null,
   ].filter(Boolean).join(' ');
 
   return divIcon({
     className: classes.stationMarkerHost,
     html: `<span class="${markerClasses}" aria-hidden="true"><svg viewBox="0 0 24 24" role="img"><circle cx="6" cy="17" r="3.25"/><circle cx="18" cy="17" r="3.25"/><path d="m6 17 4-7 3 7m-7 0h7l4-7m-8 0h4m-5-3h3"/></svg></span>`,
+    iconAnchor: [22, 22],
+    iconSize: [44, 44],
+  });
+}
+
+function createEventIcon(isSelected: boolean) {
+  return divIcon({
+    className: classes.stationMarkerHost,
+    html: `<span class="${classes.stationMarker} ${isSelected ? classes.stationMarkerSelected : ''}" aria-hidden="true">★</span>`,
     iconAnchor: [22, 22],
     iconSize: [44, 44],
   });
@@ -188,26 +196,11 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
   const [isRecommendationLoading, setIsRecommendationLoading] = useState(false);
   const [hasRecommendationError, setHasRecommendationError] = useState(false);
   const [recommendationPurpose, setRecommendationPurpose] = useState<RecommendationPurpose>('PICKUP');
-  const [climateByStation, setClimateByStation] = useState<Record<number, ClimateAlert>>({});
-
-  useEffect(() => {
-    let mounted = true;
-    const loadStatuses = () => {
-      climateService.getStationStatuses()
-        .then((statuses) => {
-          if (!mounted) return;
-          const active: Record<number, ClimateAlert> = {};
-          for (const status of statuses) {
-            if (status.alerta?.activa) active[status.stationId] = status.alerta;
-          }
-          setClimateByStation(active);
-        })
-        .catch(() => { /* El estado climático no bloquea el mapa. */ });
-    };
-    loadStatuses();
-    const timer = window.setInterval(loadStatuses, 30_000);
-    return () => { mounted = false; window.clearInterval(timer); };
-  }, []);
+  const [events, setEvents] = useState<CulturalDestination[]>([]);
+  const [selectedEvent, setSelectedEvent] = useState<CulturalDestination | null>(null);
+  const [eventDecision, setEventDecision] = useState<EventMobilityDecision | null>(null);
+  const [isEventDecisionLoading, setIsEventDecisionLoading] = useState(false);
+  const [eventDecisionError, setEventDecisionError] = useState<string | null>(null);
 
   useEffect(() => {
     const setters: MapDataSetters = {
@@ -245,6 +238,22 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
     );
   }, [isAuthenticated]);
 
+  const loadEvents = useCallback(() => {
+    eventMobilityService.upcoming().then((nextEvents) => {
+      setEvents(nextEvents);
+      setSelectedEvent((selected) => {
+        if (selected && nextEvents.some((event) => event.eventId === selected.eventId)) return selected;
+        return nextEvents[0] ?? null;
+      });
+    }).catch(() => setEvents([]));
+  }, []);
+
+  useEffect(() => {
+    loadEvents();
+    const refreshId = window.setInterval(loadEvents, 10_000);
+    return () => window.clearInterval(refreshId);
+  }, [loadEvents]);
+
   const selectStation = async (station: MapStation) => {
     setSelectedStation(station);
     setSelectedAvailability(null);
@@ -266,13 +275,46 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
   };
 
   const handleStationSelection = (station: MapStation) => {
+    setSelectedEvent(null);
+    setEventDecision(null);
     selectStation(station).catch(() => undefined);
+  };
+
+  const handleEventSelection = (event: CulturalDestination) => {
+    setSelectedStation(null);
+    setSelectedEvent(event);
+    setEventDecision(null);
+    setEventDecisionError(null);
+  };
+
+  const decideForEvent = async (attending: boolean) => {
+    if (!selectedEvent || !userLocation) {
+      setEventDecisionError('Necesitamos tu ubicación para recomendar estaciones.');
+      return;
+    }
+    setIsEventDecisionLoading(true);
+    setEventDecisionError(null);
+    try {
+      setEventDecision(await eventMobilityService.decide(selectedEvent.eventId, {
+        attending,
+        originLatitude: userLocation[0],
+        originLongitude: userLocation[1],
+      }));
+    } catch {
+      setEventDecisionError('No pudimos calcular la recomendación con la disponibilidad actual.');
+    } finally {
+      setIsEventDecisionLoading(false);
+    }
   };
 
   const firstStationCenter: Coordinates | null = stations[0]
     ? [stations[0].latitude, stations[0].longitude]
     : null;
   const mapCenter = userLocation ?? firstStationCenter;
+  const selectedEventCenter: Coordinates | null = selectedEvent
+    ? [selectedEvent.latitude, selectedEvent.longitude]
+    : null;
+  const viewportCenter = selectedEventCenter ?? mapCenter;
   const nearbyStations = stations.filter((station) => station.distanceMeters !== null);
   const recommendedStationId = recommendation?.status === 'RECOMMENDED' ? recommendation.station?.stationId : null;
 
@@ -297,12 +339,14 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
       {!isGeolocationLoading && !isBackendLoading && !backendError ? (
         <div className={classes.mapLayout}>
           <Paper className={classes.mapPanel} radius="md" p={0}>
-            {mapCenter ? (
+            {viewportCenter ? (
               <StationsMapCanvas
-                center={mapCenter}
-                climateByStation={climateByStation}
+                center={viewportCenter}
+                events={events}
+                onSelectEvent={handleEventSelection}
                 onSelectStation={handleStationSelection}
                 recommendedStationId={recommendedStationId ?? null}
+                selectedEventId={selectedEvent?.eventId ?? null}
                 selectedStationId={selectedStation?.id ?? null}
                 stations={stations}
                 userLocation={userLocation}
@@ -316,11 +360,19 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
           <RecommendationPanel error={hasRecommendationError} loading={isRecommendationLoading} purpose={recommendationPurpose} recommendation={recommendation} />
           <StationDetails
             availability={selectedAvailability}
-            climateAlert={selectedStation ? climateByStation[selectedStation.id] ?? null : null}
             hasAvailabilityError={hasAvailabilityError}
             isAvailabilityLoading={isAvailabilityLoading}
             station={selectedStation}
           />
+          {selectedEvent ? (
+            <EventDetails
+              decision={eventDecision}
+              error={eventDecisionError}
+              event={selectedEvent}
+              loading={isEventDecisionLoading}
+              onDecide={decideForEvent}
+            />
+          ) : null}
            {userLocation ? <NearbyStations stations={nearbyStations} onSelectStation={handleStationSelection} /> : null}
           </Stack>
         </div>
@@ -349,15 +401,17 @@ function MapStatusAlerts({ backendError, geolocationError, isBackendLoading, isG
 
 type StationsMapCanvasProps = Readonly<{
   center: Coordinates;
-  climateByStation: Record<number, ClimateAlert>;
+  events: CulturalDestination[];
+  onSelectEvent: (event: CulturalDestination) => void;
   onSelectStation: (station: MapStation) => void;
   recommendedStationId: number | null;
+  selectedEventId: string | null;
   selectedStationId: number | null;
   stations: MapStation[];
   userLocation: Coordinates | null;
 }>;
 
-function StationsMapCanvas({ center, climateByStation, onSelectStation, recommendedStationId, selectedStationId, stations, userLocation }: StationsMapCanvasProps) {
+function StationsMapCanvas({ center, events, onSelectEvent, onSelectStation, recommendedStationId, selectedEventId, selectedStationId, stations, userLocation }: StationsMapCanvasProps) {
   return (
     <MapContainer center={center} className={classes.map} zoom={14}>
       <TileLayer
@@ -374,13 +428,21 @@ function StationsMapCanvas({ center, climateByStation, onSelectStation, recommen
       {stations.map((station) => (
         <Marker
           eventHandlers={{ click: () => onSelectStation(station) }}
-          icon={createStationIcon(selectedStationId === station.id, recommendedStationId === station.id,
-            Boolean(climateByStation[station.id]))}
+          icon={createStationIcon(selectedStationId === station.id, recommendedStationId === station.id)}
           key={station.id}
           position={[station.latitude, station.longitude]}
         >
-          <Tooltip direction="top">{station.name}{climateByStation[station.id]
-            ? ` · Alerta ${climateByStation[station.id].nivelCriticidad}` : ''}</Tooltip>
+          <Tooltip direction="top">{station.name}</Tooltip>
+        </Marker>
+      ))}
+      {events.map((event) => (
+        <Marker
+          eventHandlers={{ click: () => onSelectEvent(event) }}
+          icon={createEventIcon(selectedEventId === event.eventId)}
+          key={`event-${event.eventId}`}
+          position={[event.latitude, event.longitude]}
+        >
+          <Tooltip direction="top">Evento: {event.title}</Tooltip>
         </Marker>
       ))}
     </MapContainer>
@@ -415,12 +477,43 @@ function RecommendationPanel({ error, loading, purpose, recommendation }: Readon
 
 function MapViewport({ center }: Readonly<{ center: Coordinates }>) {
   const map = useMap();
+  const [latitude, longitude] = center;
 
   useEffect(() => {
-    map.setView(center);
-  }, [center, map]);
+    map.setView([latitude, longitude]);
+  }, [latitude, longitude, map]);
 
   return null;
+}
+
+function EventDetails({ decision, error, event, loading, onDecide }: Readonly<{
+  decision: EventMobilityDecision | null;
+  error: string | null;
+  event: CulturalDestination;
+  loading: boolean;
+  onDecide: (attending: boolean) => Promise<void>;
+}>) {
+  const recommendation = decision?.mode === 'ATTENDING' ? decision.dropoff : decision?.alternativeDropoff;
+  return (
+    <Paper p="lg" withBorder>
+      <Stack gap="sm">
+        <Group><CalendarDays size={20} /><Title order={3}>Nuevo evento: {event.title}</Title></Group>
+        <Text c="dimmed">{event.address ?? event.zone ?? 'Evento recibido desde Espacios Públicos'}</Text>
+        <Text size="sm">{new Date(event.startsAt).toLocaleString('es-AR')} · {event.expectedDemand} asistentes estimados</Text>
+        <Text fw={600}>¿Vas a asistir? Te avisamos aunque estés lejos para que puedas planificar tu viaje.</Text>
+        <Group>
+          <Button leftSection={<Bike size={17} />} loading={loading} onClick={() => void onDecide(true)}>Sí, voy</Button>
+          <Button leftSection={<Route size={17} />} loading={loading} variant="outline" onClick={() => void onDecide(false)}>No, evitar la zona</Button>
+        </Group>
+        {error ? <Alert color="red">{error}</Alert> : null}
+        {decision ? <Alert color={decision.mode === 'ATTENDING' ? 'green' : 'blue'} title="Recomendación de movilidad">
+          {decision.pickup?.station ? `Retiro sugerido: ${decision.pickup.station.stationName}. ` : ''}
+          {recommendation?.station ? `Devolución sugerida: ${recommendation.station.stationName}. ` : 'No hay una estación viable en este momento. '}
+          {decision.message}
+        </Alert> : null}
+      </Stack>
+    </Paper>
+  );
 }
 
 function RecenterToUserControl({ location }: Readonly<{ location: Coordinates }>) {
@@ -461,13 +554,12 @@ function EmptyMapState() {
 
 type StationDetailsProps = Readonly<{
   availability: StationAvailability | null;
-  climateAlert: ClimateAlert | null;
   hasAvailabilityError: boolean;
   isAvailabilityLoading: boolean;
   station: MapStation | null;
 }>;
 
-function StationDetails({ availability, climateAlert, hasAvailabilityError, isAvailabilityLoading, station }: StationDetailsProps) {
+function StationDetails({ availability, hasAvailabilityError, isAvailabilityLoading, station }: StationDetailsProps) {
   if (!station) {
     return (
       <Paper className={classes.detailsPanel} radius="md" p="lg">
@@ -489,12 +581,6 @@ function StationDetails({ availability, climateAlert, hasAvailabilityError, isAv
           <Title className={classes.detailsTitle} order={2}>{station.name}</Title>
           <Text c="dimmed" size="sm">{station.address || 'Sin dirección informada'}</Text>
         </div>
-        {climateAlert ? <Alert color={climateAlert.nivelCriticidad === 'CRITICA' || climateAlert.nivelCriticidad === 'ALTA' ? 'red' : 'orange'}
-          title={`Alerta climática ${climateAlert.nivelCriticidad.toLowerCase()}`}>
-          {climateAlert.fenomeno.replaceAll('_', ' ').toLowerCase()}
-          {climateAlert.nivelCriticidad === 'ALTA' || climateAlert.nivelCriticidad === 'CRITICA'
-            ? ' · No se pueden iniciar viajes desde esta estación.' : null}
-        </Alert> : null}
 
         <div className={classes.metrics}>
           <Metric label="Capacidad" value={station.capacity} />
