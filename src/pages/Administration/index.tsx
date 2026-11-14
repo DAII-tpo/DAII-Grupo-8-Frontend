@@ -14,6 +14,7 @@ import { stationService } from '../../services/stations/stationService';
 import { BikeManagement } from './BikeManagement';
 import { AnalyticsDashboard } from './AnalyticsDashboard';
 import { StationManagement } from './StationManagement';
+import { RestockPanel } from './RestockPanel';
 import type { AdminIncidentResponse, IncidentStatus } from '../../types/incident';
 import type { MaintenanceResponse } from '../../types/maintenance';
 import type { BikeResponse, BikeStatus } from '../../types/bike';
@@ -164,6 +165,7 @@ export function AdministrationPage() {
               <Tabs.Tab value="incidents">Incidencias</Tabs.Tab>
               <Tabs.Tab value="maintenance">Mantenimiento</Tabs.Tab>
               <Tabs.Tab value="stations">Estaciones</Tabs.Tab>
+              <Tabs.Tab value="restock">Reabastecimiento</Tabs.Tab>
               <Tabs.Tab value="bikes">Bicicletas</Tabs.Tab>
             </Tabs.List>
             <Tabs.Panel pt="md" value="summary">
@@ -191,6 +193,7 @@ export function AdministrationPage() {
               </Stack>
             </Tabs.Panel>
             <Tabs.Panel pt="md" value="stations"><StationManagement bikeCountByStation={bikeCountByStation} /></Tabs.Panel>
+            <Tabs.Panel pt="md" value="restock"><RestockPanel /></Tabs.Panel>
             <Tabs.Panel pt="md" value="bikes"><Stack gap="lg"><BikeStatusChart bikes={bikes} /><BikeManagement /></Stack></Tabs.Panel>
           </Tabs>
         </>
