@@ -168,12 +168,13 @@ function resolveOrigin(
 }
 
 function EventArrivalPlanner({ event }: Readonly<{ event: CulturalDestination }>) {
+  const canUseGeolocation = typeof navigator !== 'undefined' && Boolean(navigator.geolocation);
   const [stations, setStations] = useState<Station[]>([]);
   const [availability, setAvailability] = useState<StationAvailability[]>([]);
   const [originRecommendation, setOriginRecommendation] = useState<StationRecommendation | null>(null);
   const [selectedOriginId, setSelectedOriginId] = useState<number | null>(null);
-  const [originLoading, setOriginLoading] = useState(true);
-  const [geolocationUnavailable, setGeolocationUnavailable] = useState(false);
+  const [originLoading, setOriginLoading] = useState(canUseGeolocation);
+  const [geolocationUnavailable, setGeolocationUnavailable] = useState(!canUseGeolocation);
   const [originError, setOriginError] = useState(false);
   const [decision, setDecision] = useState<EventMobilityDecision | null>(null);
   const [decisionLoading, setDecisionLoading] = useState(false);
@@ -195,9 +196,7 @@ function EventArrivalPlanner({ event }: Readonly<{ event: CulturalDestination }>
       if (snapshot.status === 'fulfilled') setAvailability(snapshot.value);
     }).catch(() => setOriginError(true));
 
-    if (!navigator.geolocation) {
-      setGeolocationUnavailable(true);
-      setOriginLoading(false);
+    if (!canUseGeolocation) {
       return () => { request.current += 1; };
     }
     navigator.geolocation.getCurrentPosition(
@@ -226,7 +225,7 @@ function EventArrivalPlanner({ event }: Readonly<{ event: CulturalDestination }>
       },
     );
     return () => { request.current += 1; };
-  }, [event.eventId]);
+  }, [canUseGeolocation, event.eventId]);
 
   useEffect(() => {
     (eventMobilityService.getArrivalIntent?.(event.eventId) ?? Promise.resolve(null))
