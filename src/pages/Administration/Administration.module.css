@@ -113,3 +113,46 @@
   .hourlyChart { gap: 0.2rem; }
   .donutLayout { grid-template-columns: 1fr; }
 }
+
+.transferPlan {
+  background: color-mix(in srgb, var(--citypass-sky-blue) 18%, white);
+  border: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 56%, white);
+}
+
+.transferSource {
+  background: white;
+  border: 1px solid var(--citypass-cement);
+}
+
+.transferRoute {
+  border-top: 1px solid var(--citypass-cement);
+  padding: 0.55rem 0.25rem;
+}
+
+.transferRoute:last-child {
+  padding-bottom: 0.15rem;
+}
+
+.restockStations {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.restockStation {
+  min-width: 0;
+  background: color-mix(in srgb, var(--citypass-sky-blue) 12%, white);
+  border: 1px solid color-mix(in srgb, var(--citypass-sky-blue) 55%, white);
+}
+
+.restockStationStatus {
+  max-width: 100%;
+}
+
+.restockStationActions {
+  border-top: 1px solid var(--citypass-cement);
+  padding-top: 0.65rem;
+}
