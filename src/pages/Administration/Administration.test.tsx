@@ -18,7 +18,7 @@ vi.mock('../../services/incidents/incidentService', () => ({ incidentService: { 
 vi.mock('../../services/maintenance/maintenanceService', () => ({ maintenanceService: { getAll: vi.fn(), create: vi.fn(), complete: vi.fn() } }));
 vi.mock('../../services/stations/stationService', () => ({ stationService: { getAll: vi.fn() } }));
 vi.mock('../../services/bikes/bikeService', () => ({ bikeService: { getAll: vi.fn(), getByStation: vi.fn() } }));
-vi.mock('../../services/restock/restockService', () => ({ restockService: { getUpcoming: vi.fn(), getTransferPlans: vi.fn() } }));
+vi.mock('../../services/restock/restockService', () => ({ restockService: { getUpcoming: vi.fn(), getTransferPlans: vi.fn(), updateTarget: vi.fn(), complete: vi.fn() } }));
 vi.mock('./StationManagement', () => ({ StationManagement: () => <div>Gestión de estaciones</div> }));
 vi.mock('./BikeManagement', () => ({ BikeManagement: () => <div>Gestión de bicicletas</div> }));
 
@@ -156,6 +156,36 @@ describe('AdministrationPage', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'No realizadas (1)' }));
     expect(screen.getByText(/Cambios del evento/).closest('details')).not.toHaveAttribute('open');
     expect(screen.getByText('Horario de cierre modificado')).not.toBeVisible();
+  });
+
+  it('guarda un objetivo válido y conserva la estación pendiente si falla la confirmación', async () => {
+    mockData();
+    const task = {
+      id: 3, activityId: 'feria', activityTitle: 'Feria de Primavera', stationId: 15, stationName: 'Plaza de Mayo',
+      distanceMeters: 150, availableBikes: 7, totalBikes: 10, availableSlots: 0, capacity: 10,
+      targetBikes: 9, status: 'PENDING' as const, resolution: null, resolvedAt: null, deadline: '2026-11-13T01:10:00Z',
+    };
+    const updated = { ...task, targetBikes: 8 };
+    vi.mocked(restockService.getUpcoming).mockResolvedValue([updated]).mockResolvedValueOnce([task]);
+    vi.mocked(restockService.updateTarget).mockResolvedValueOnce(updated);
+    vi.mocked(restockService.complete).mockRejectedValueOnce(httpError(500));
+
+    renderPage();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Reabastecimiento' }));
+    const stations = within(await screen.findByRole('list', { name: 'Estaciones de Feria de Primavera' }));
+    expect(stations.getByText(/Sin lugar para recibir bicis/)).toBeInTheDocument();
+    fireEvent.click(stations.getByRole('button', { name: 'Editar objetivo' }));
+    const save = stations.getByRole('button', { name: 'Guardar objetivo' });
+    expect(save).toBeDisabled();
+    fireEvent.change(stations.getByLabelText('Objetivo para Plaza de Mayo'), { target: { value: '8' } });
+    fireEvent.click(save);
+    expect(await stations.findByText('Falta 1 bici')).toBeInTheDocument();
+    expect(restockService.updateTarget).toHaveBeenCalledWith(3, 8);
+
+    fireEvent.click(stations.getByRole('button', { name: 'Marcar realizada' }));
+    expect(await stations.findByText(/No se pudo realizar la acción/)).toBeInTheDocument();
+    expect(restockService.complete).toHaveBeenCalledWith(3);
+    expect(stations.getByText('Falta 1 bici')).toBeInTheDocument();
   });
 
   it('permite reintentar la carga de tareas desde la misma solapa', async () => {

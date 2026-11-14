@@ -163,7 +163,7 @@ export function RestockPanel() {
   );
 }
 
-function ActivityChanges({ event, initiallyOpen }: { event: RestockTask; initiallyOpen: boolean }) {
+function ActivityChanges({ event, initiallyOpen }: Readonly<{ event: RestockTask; initiallyOpen: boolean }>) {
   const { activityChange, previousDeadline, deadlineChangedAt, locationChangedAt } = event;
   const notice = activityChange && activityStates[activityChange.state];
   const count = Number(!!activityChange) + Number(!!previousDeadline) + Number(!!locationChangedAt);
@@ -203,9 +203,9 @@ function ActivityChanges({ event, initiallyOpen }: { event: RestockTask; initial
   );
 }
 
-function ActivityChangeRow({ title, timestamp, timestampLabel = 'Cambio registrado', children }: {
+function ActivityChangeRow({ title, timestamp, timestampLabel = 'Cambio registrado', children }: Readonly<{
   title: ReactNode; timestamp?: string | null; timestampLabel?: string; children?: ReactNode;
-}) {
+}>) {
   return (
     <li className={classes.activityChangeRow}>
       <div className={classes.activityChangeHeading}>
@@ -221,16 +221,37 @@ function ActivityChangeRow({ title, timestamp, timestampLabel = 'Cambio registra
   );
 }
 
-function StationCard({ task, paused, onUpdated }: { task: RestockTask; paused: boolean; onUpdated: (task: RestockTask) => void }) {
+const stationStatusColors: Record<RestockStatus, string> = {
+  PENDING: 'orange',
+  COMPLETED: 'teal',
+  EXPIRED: 'gray',
+};
+
+function stationStatusLabel(task: RestockTask, paused: boolean) {
+  if (task.resolution) return resolutions[task.resolution];
+  if (paused) return 'Tarea en pausa';
+
+  const missing = task.targetBikes - task.availableBikes;
+  if (missing <= 0) return 'Objetivo alcanzado';
+  return missing === 1 ? 'Falta 1 bici' : `Faltan ${missing} bicis`;
+}
+
+function stationProgressColor(status: RestockStatus, progress: number) {
+  if (status === 'EXPIRED') return 'gray';
+  return progress === 100 ? 'teal' : 'blue';
+}
+
+function StationCard({ task, paused, onUpdated }: Readonly<{
+  task: RestockTask; paused: boolean; onUpdated: (task: RestockTask) => void;
+}>) {
   const [target, setTarget] = useState<number | string | null>(null);
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   const pending = task.status === 'PENDING';
-  const missing = Math.max(0, task.targetBikes - task.availableBikes);
   const withoutAvailability = task.totalBikes == null ? 0 : Math.max(0, task.totalBikes - task.availableBikes);
   const progress = Math.min(100, 100 * task.availableBikes / task.targetBikes);
-  const progressColor = task.status === 'EXPIRED' ? 'gray' : progress === 100 ? 'teal' : 'blue';
+  const noSpaceForBikes = task.availableSlots === 0 && pending;
   const run = async (action: 'target' | 'complete') => {
     setBusy(true);
     setError(false);
@@ -255,11 +276,8 @@ function StationCard({ task, paused, onUpdated }: { task: RestockTask; paused: b
             <Title order={4} size="sm">{task.stationName}</Title>
             <Text size="xs" c="dimmed">{task.outsideCoverage ? 'Fuera de la cobertura actual' : `${task.distanceMeters} m del evento`}</Text>
           </div>
-          <Badge variant="light" color={pending ? 'orange' : task.status === 'COMPLETED' ? 'teal' : 'gray'}
-            className={classes.restockStationStatus}>
-            {task.resolution ? resolutions[task.resolution] : paused ? 'Tarea en pausa' : missing > 0
-              ? (missing === 1 ? 'Falta 1 bici' : `Faltan ${missing} bicis`)
-              : 'Objetivo alcanzado'}
+          <Badge variant="light" color={stationStatusColors[task.status]} className={classes.restockStationStatus}>
+            {stationStatusLabel(task, paused)}
           </Badge>
         </Group>
 
@@ -268,16 +286,16 @@ function StationCard({ task, paused, onUpdated }: { task: RestockTask; paused: b
             <Text size="sm"><Text component="span" fw={700}>{task.availableBikes}</Text> disponibles</Text>
             <Text size="xs" c="dimmed">Objetivo: {task.targetBikes}</Text>
           </Group>
-          <Progress value={progress} color={progressColor} size="sm"
+          <Progress value={progress} color={stationProgressColor(task.status, progress)} size="sm"
             aria-label={`${task.availableBikes} bicis disponibles de un objetivo de ${task.targetBikes}`} />
           <Text size="xs" c="dimmed">
             {task.totalBikes == null ? `${task.capacity} anclajes` : `${task.totalBikes} en estación · ${task.capacity} anclajes`}
             {withoutAvailability > 0 && ` · ${withoutAvailability} sin disponibilidad`}
           </Text>
-          <Text size="xs" c={task.availableSlots === 0 && pending ? 'red.8' : 'dimmed'}
-            fw={task.availableSlots === 0 && pending ? 600 : 400}>
+          <Text size="xs" c={noSpaceForBikes ? 'red.8' : 'dimmed'}
+            fw={noSpaceForBikes ? 600 : 400}>
             {task.availableSlots === 1 ? '1 anclaje libre' : `${task.availableSlots} anclajes libres`}
-            {task.availableSlots === 0 && pending && ' · Sin lugar para recibir bicis'}
+            {noSpaceForBikes && ' · Sin lugar para recibir bicis'}
           </Text>
           {task.resolvedAt && <Text size="xs" c="dimmed">{deadlineFormat.format(new Date(task.resolvedAt))}</Text>}
         </Stack>
@@ -310,7 +328,7 @@ function StationCard({ task, paused, onUpdated }: { task: RestockTask; paused: b
   );
 }
 
-function TransferPlan({ activityId, sectionId, refresh }: { activityId: string; sectionId: string; refresh: number }) {
+function TransferPlan({ activityId, sectionId, refresh }: Readonly<{ activityId: string; sectionId: string; refresh: number }>) {
   const [result, setResult] = useState<{ plan?: EventTransferPlan; error?: string }>();
   const [retry, setRetry] = useState(0);
   const [useModel, setUseModel] = useState(false);
