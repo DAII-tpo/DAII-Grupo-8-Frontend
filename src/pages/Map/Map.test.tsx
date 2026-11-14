@@ -6,11 +6,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { stationService } from '../../services/stations/stationService';
 import { climateService } from '../../services/climate/climateService';
 import { tripService } from '../../services/trips/tripService';
+import { eventMobilityService } from '../../services/eventMobility/eventMobilityService';
 import { mantineTheme } from '../../styles/theme';
 import type { TripResponse } from '../../types/trip';
 import { MapPage } from './index';
 
-const { mapSetView } = vi.hoisted(() => ({ mapSetView: vi.fn() }));
+const { leafletMap, mapSetView } = vi.hoisted(() => {
+  const mapSetView = vi.fn();
+  const leafletMap = {
+    setView: mapSetView,
+    getBounds: () => ({ getNorth: () => -34.5, getSouth: () => -34.8, getEast: () => -58.2, getWest: () => -58.6 }),
+    on: vi.fn(),
+    off: vi.fn(),
+  };
+  return { leafletMap, mapSetView };
+});
 
 vi.mock('react-leaflet', () => ({
   CircleMarker: ({ children, eventHandlers }: { children: React.ReactNode; eventHandlers?: { click?: () => void } }) => (
@@ -20,9 +30,10 @@ vi.mock('react-leaflet', () => ({
   Marker: ({ children, eventHandlers, icon }: { children: React.ReactNode; eventHandlers?: { click?: () => void }; icon?: { options?: { html?: string } } }) => (
     <button data-climate={icon?.options?.html?.includes('stationMarkerClimate') ? 'true' : 'false'} data-recommended={icon?.options?.html?.includes('stationMarkerRecommended') ? 'true' : 'false'} onClick={eventHandlers?.click} type="button">{children}</button>
   ),
+  Popup: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   TileLayer: () => null,
   Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  useMap: () => ({ setView: mapSetView }),
+  useMap: () => leafletMap,
 }));
 
 vi.mock('../../services/stations/stationService', () => ({
@@ -38,6 +49,7 @@ vi.mock('../../app/providers/authContext', () => ({
 }));
 vi.mock('../../services/trips/tripService', () => ({ tripService: { getActive: vi.fn() } }));
 vi.mock('../../services/climate/climateService', () => ({ climateService: { getStationStatuses: vi.fn() } }));
+vi.mock('../../services/eventMobility/eventMobilityService', () => ({ eventMobilityService: { upcoming: vi.fn() } }));
 
 type PositionSuccess = (position: GeolocationPosition) => void;
 type PositionError = (error: GeolocationPositionError) => void;
@@ -108,6 +120,7 @@ function renderPage() {
           <Route path="/movilidad" element={<CurrentPath />} />
           <Route path="/movilidad/mapa" element={<MapPage />} />
           <Route path="/movilidad/estaciones" element={<CurrentPath />} />
+          <Route path="/movilidad/eventos" element={<CurrentPath />} />
         </Routes>
       </MantineProvider>
     </MemoryRouter>,
@@ -132,6 +145,8 @@ beforeEach(() => {
   });
   vi.mocked(tripService.getActive).mockResolvedValue(null);
   vi.mocked(climateService.getStationStatuses).mockResolvedValue([]);
+  vi.mocked(eventMobilityService.upcoming).mockResolvedValue([]);
+  sessionStorage.clear();
 });
 
 afterEach(() => {
@@ -140,6 +155,42 @@ afterEach(() => {
 });
 
 describe('MapPage', () => {
+  it('muestra el marcador naranja del evento y permite abrir su planificador', async () => {
+    mockLocationSuccess();
+    vi.mocked(stationService.getNearby).mockResolvedValueOnce([]);
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([]);
+    vi.mocked(eventMobilityService.upcoming).mockResolvedValueOnce([{
+      eventId: 'event-future', title: 'Feria comunitaria', zone: 'Centro', address: 'Plaza',
+      latitude: -34.6037, longitude: -58.3816, startsAt: '2030-11-14T15:00:00Z', endsAt: '2030-11-14T18:00:00Z',
+      maxCapacity: 100, registrations: 10, expectedDemand: 10,
+    }]);
+
+    renderPage();
+
+    expect(await screen.findByText('Feria comunitaria')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Planificar llegada' }));
+    expect(screen.getByTestId('current-path')).toHaveTextContent('/movilidad/eventos');
+  });
+
+  it('muestra la alerta contextual y Cerrar la descarta sin calcular una recomendación', async () => {
+    mockLocationSuccess();
+    vi.mocked(stationService.getNearby).mockResolvedValueOnce([]);
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([]);
+    vi.mocked(eventMobilityService.upcoming).mockResolvedValueOnce([{
+      eventId: 'event-active', title: 'Evento en curso', zone: 'Centro', address: 'Plaza',
+      latitude: -34.6037, longitude: -58.3816,
+      startsAt: new Date(Date.now() - 30 * 60_000).toISOString(),
+      endsAt: new Date(Date.now() + 60 * 60_000).toISOString(),
+      maxCapacity: 100, registrations: 10, expectedDemand: 10,
+    }]);
+
+    renderPage();
+
+    expect(await screen.findByText('Hay un evento próximo en esta zona')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
+    expect(screen.queryByText('Hay un evento próximo en esta zona')).not.toBeInTheDocument();
+  });
+
   it('marca la estación afectada sin impedir el mapa ni la selección', async () => {
     mockLocationSuccess();
     vi.mocked(stationService.getNearby).mockResolvedValueOnce([nearbyStation]);
