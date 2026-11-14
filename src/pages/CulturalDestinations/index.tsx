@@ -193,14 +193,11 @@ function EventArrivalPlanner({ event }: Readonly<{ event: CulturalDestination }>
         setOriginError(true);
       }
       if (snapshot.status === 'fulfilled') setAvailability(snapshot.value);
-    });
+    }).catch(() => setOriginError(true));
 
     if (!navigator.geolocation) {
-      Promise.resolve().then(() => {
-        if (requestId !== request.current) return;
-        setGeolocationUnavailable(true);
-        setOriginLoading(false);
-      });
+      setGeolocationUnavailable(true);
+      setOriginLoading(false);
       return () => { request.current += 1; };
     }
     navigator.geolocation.getCurrentPosition(
