@@ -9,13 +9,17 @@ export type RestockTask = {
   distanceMeters: number;
   coverageMeters?: number;
   deadline: string;
+  previousDeadline?: string | null;
+  deadlineChangedAt?: string | null;
+  locationChangedAt?: string | null;
+  outsideCoverage?: boolean;
   capacity: number;
   totalBikes: number;
   availableBikes: number;
   availableSlots: number;
   targetBikes: number;
   status: RestockStatus;
-  resolution: 'STOCK_SUFFICIENT' | 'TARGET_REACHED' | 'MANUAL' | 'EXPIRED' | null;
+  resolution: 'STOCK_SUFFICIENT' | 'TARGET_REACHED' | 'MANUAL' | 'EXPIRED' | 'OUTSIDE_COVERAGE' | null;
   resolvedAt: string | null;
   activityChange?: {
     state: 'PROGRAMADA' | 'SUSPENDIDA' | 'CANCELADA';

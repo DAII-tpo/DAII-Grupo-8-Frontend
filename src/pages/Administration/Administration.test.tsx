@@ -129,20 +129,33 @@ describe('AdministrationPage', () => {
 
   it('muestra el aviso de Espacios y pausa las acciones de un evento suspendido', async () => {
     mockData();
-    vi.mocked(restockService.getUpcoming).mockResolvedValueOnce([{
+    const task = {
       id: 1, activityId: 'festival', activityTitle: 'Festival de Recoleta', stationId: 9, stationName: 'Quintana',
       distanceMeters: 229, availableBikes: 7, totalBikes: 7, availableSlots: 3, capacity: 10, targetBikes: 9,
-      status: 'PENDING', resolution: null, resolvedAt: null, deadline: '2026-11-13T00:22:00Z',
-      activityChange: { state: 'SUSPENDIDA', reason: 'Alerta meteorológica', modifiedAt: '2026-11-12T23:00:00Z' },
-    }]);
+      status: 'PENDING' as const, resolution: null, resolvedAt: null, deadline: '2026-11-13T00:22:00Z',
+      previousDeadline: '2026-11-12T23:22:00Z',
+      deadlineChangedAt: '2026-11-12T22:50:00Z',
+      activityChange: { state: 'SUSPENDIDA' as const, reason: 'Alerta meteorológica', modifiedAt: '2026-11-12T23:00:00Z' },
+    };
+    vi.mocked(restockService.getUpcoming).mockResolvedValueOnce([
+      task, { ...task, id: 2, status: 'EXPIRED', resolution: 'EXPIRED' },
+    ]);
     renderPage();
 
     fireEvent.click(await screen.findByRole('tab', { name: 'Reabastecimiento' }));
     expect(await screen.findByText('Evento suspendido')).toBeInTheDocument();
     expect(screen.getByText('Motivo: Alerta meteorológica')).toBeInTheDocument();
+    expect(screen.getByText('Horario de cierre modificado')).toBeInTheDocument();
+    expect(screen.getByText('Cierre anterior')).toBeVisible();
+    expect(screen.getByText('Cierre nuevo')).toBeVisible();
+    expect(screen.getByText(/Cambio registrado/).querySelector('time'))
+      .toHaveAttribute('datetime', task.deadlineChangedAt);
     expect(screen.getByText('Tarea en pausa')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Editar objetivo' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Ver plan de traslados' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'No realizadas (1)' }));
+    expect(screen.getByText(/Cambios del evento/).closest('details')).not.toHaveAttribute('open');
+    expect(screen.getByText('Horario de cierre modificado')).not.toBeVisible();
   });
 
   it('permite reintentar la carga de tareas desde la misma solapa', async () => {

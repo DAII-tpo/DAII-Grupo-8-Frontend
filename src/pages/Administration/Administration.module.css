@@ -156,3 +156,88 @@
   border-top: 1px solid var(--citypass-cement);
   padding-top: 0.65rem;
 }
+
+.activityChanges {
+  margin-bottom: 1rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--mantine-color-gray-3);
+  border-radius: var(--mantine-radius-md);
+  background: var(--mantine-color-gray-0);
+}
+
+.activityChangesSummary {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 1.75rem;
+  list-style: none;
+  cursor: pointer;
+  font-size: var(--mantine-font-size-sm);
+  font-weight: 700;
+}
+
+.activityChangesSummary::-webkit-details-marker {
+  display: none;
+}
+
+.activityChangesSummary > svg {
+  flex: 0 0 auto;
+  color: var(--mantine-color-dimmed);
+}
+
+.activityChanges[open] .activityChangesChevron {
+  transform: rotate(90deg);
+}
+
+.activityChangeCount {
+  flex: 0 0 auto;
+  min-width: 1.25rem;
+  padding-inline: 0.25rem;
+  text-align: center;
+  border-radius: var(--mantine-radius-sm);
+  background: var(--mantine-color-gray-2);
+  color: var(--mantine-color-gray-7);
+  font-size: var(--mantine-font-size-xs);
+}
+
+.activityChanges ul {
+  margin: 0.55rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.activityChangeRow {
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--mantine-color-gray-3);
+}
+
+.activityChangeHeading,
+.activityDeadlineDetails {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 1.25rem;
+}
+
+.activityChangeHeading {
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.activityDeadlineDetails {
+  margin: 0;
+}
+
+.activityDeadlineDetails dt {
+  color: var(--mantine-color-dimmed);
+  font-size: var(--mantine-font-size-xs);
+}
+
+.activityDeadlineDetails dd {
+  margin: 0;
+  font-size: var(--mantine-font-size-sm);
+}
+
+.activityDeadlineDetails div:last-child dd {
+  font-weight: 700;
+}

@@ -1,7 +1,7 @@
 import { Alert, Badge, Button, Group, Loader, NumberInput, Paper, Progress, Stack, Tabs, Text, TextInput, ThemeIcon, Title } from '@mantine/core';
 import { isAxiosError } from 'axios';
-import { ArrowRight, Bike, Pencil, RefreshCw, Search } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ArrowRight, Bike, ChevronRight, History, Pencil, RefreshCw, Search } from 'lucide-react';
+import { type ReactNode, useEffect, useState } from 'react';
 
 import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
 import { restockService, type EventTransferPlan, type RestockStatus, type RestockTask } from '../../services/restock/restockService';
@@ -15,10 +15,10 @@ type LoadState =
 const deadlineFormat = new Intl.DateTimeFormat('es-AR', {
   dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Argentina/Buenos_Aires',
 });
-const labels: Record<RestockStatus, string> = { PENDING: 'Por realizar', COMPLETED: 'Realizadas', EXPIRED: 'Vencidas' };
+const labels: Record<RestockStatus, string> = { PENDING: 'Por realizar', COMPLETED: 'Realizadas', EXPIRED: 'No realizadas' };
 const resolutions = {
   STOCK_SUFFICIENT: 'Stock suficiente', TARGET_REACHED: 'Reabastecida',
-  MANUAL: 'Confirmada manualmente', EXPIRED: 'Objetivo no alcanzado',
+  MANUAL: 'Confirmada manualmente', EXPIRED: 'Plazo vencido', OUTSIDE_COVERAGE: 'Fuera de la nueva cobertura',
 };
 
 const activityStates = {
@@ -88,6 +88,7 @@ export function RestockPanel() {
   }
   const totals = new Map<string, { total: number; done: number }>();
   for (const task of tasks) {
+    if (task.outsideCoverage) continue;
     const count = totals.get(task.activityId) ?? { total: 0, done: 0 };
     count.total += 1;
     if (task.status === 'COMPLETED') count.done += 1;
@@ -128,7 +129,6 @@ export function RestockPanel() {
         const event = rows[0];
         const count = totals.get(id);
         const change = event.activityChange;
-        const notice = change && activityStates[change.state];
         const paused = change != null && change.state !== 'PROGRAMADA';
         const canPlan = status === 'PENDING' && !paused;
         return (
@@ -150,12 +150,7 @@ export function RestockPanel() {
                 </Button>}
               </Group>
             </Group>
-            {change && notice && <Alert mb="md" color={notice.color} title={notice.label}>
-              <Text size="sm">Actualizado por Espacios el {deadlineFormat.format(new Date(change.modifiedAt))}.
-                {paused && ' El plan de traslados está pausado para este evento.'}
-              </Text>
-              {change.reason && <Text size="sm" mt={4}>Motivo: {change.reason}</Text>}
-            </Alert>}
+            <ActivityChanges key={status} event={event} initiallyOpen={status === 'PENDING'} />
             {canPlan && openPlan === id &&
               <TransferPlan activityId={id} sectionId={`transfer-plan-${event.id}`} refresh={refresh} />}
             <ul className={classes.restockStations} aria-label={`Estaciones de ${event.activityTitle}`}>
@@ -165,6 +160,64 @@ export function RestockPanel() {
         );
       })}
     </Stack>
+  );
+}
+
+function ActivityChanges({ event, initiallyOpen }: { event: RestockTask; initiallyOpen: boolean }) {
+  const { activityChange, previousDeadline, deadlineChangedAt, locationChangedAt } = event;
+  const notice = activityChange && activityStates[activityChange.state];
+  const count = Number(!!activityChange) + Number(!!previousDeadline) + Number(!!locationChangedAt);
+  if (!count) return null;
+
+  return (
+    <details className={classes.activityChanges} open={initiallyOpen}>
+      <summary className={classes.activityChangesSummary}>
+        <ChevronRight className={classes.activityChangesChevron} size={16} aria-hidden="true" />
+        <History size={16} aria-hidden="true" />
+        <span>Cambios del evento</span>
+        <span className={classes.activityChangeCount}>{count}</span>
+      </summary>
+      <ul>
+        {activityChange && notice && (
+          <ActivityChangeRow title={<Badge variant="light" color={notice.color}>{notice.label}</Badge>}
+            timestamp={activityChange.modifiedAt} timestampLabel="Informado por Espacios">
+            {activityChange.state !== 'PROGRAMADA' && <Text size="sm">El plan de traslados está pausado para este evento.</Text>}
+            {activityChange.reason && <Text size="sm">Motivo: {activityChange.reason}</Text>}
+          </ActivityChangeRow>
+        )}
+        {previousDeadline && (
+          <ActivityChangeRow title="Horario de cierre modificado" timestamp={deadlineChangedAt}>
+            <dl className={classes.activityDeadlineDetails}>
+              <div><dt>Cierre anterior</dt><dd>{deadlineFormat.format(new Date(previousDeadline))}</dd></div>
+              <div><dt>Cierre nuevo</dt><dd>{deadlineFormat.format(new Date(event.deadline))}</dd></div>
+            </dl>
+          </ActivityChangeRow>
+        )}
+        {locationChangedAt && (
+          <ActivityChangeRow title="Ubicación modificada" timestamp={locationChangedAt}>
+            <Text size="sm">Se recalcularon las estaciones del evento.</Text>
+          </ActivityChangeRow>
+        )}
+      </ul>
+    </details>
+  );
+}
+
+function ActivityChangeRow({ title, timestamp, timestampLabel = 'Cambio registrado', children }: {
+  title: ReactNode; timestamp?: string | null; timestampLabel?: string; children?: ReactNode;
+}) {
+  return (
+    <li className={classes.activityChangeRow}>
+      <div className={classes.activityChangeHeading}>
+        <Text component="div" size="sm" fw={700}>{title}</Text>
+        {timestamp && (
+          <Text size="xs" c="dimmed">
+            {timestampLabel} · <time dateTime={timestamp}>{deadlineFormat.format(new Date(timestamp))}</time>
+          </Text>
+        )}
+      </div>
+      {children}
+    </li>
   );
 }
 
@@ -200,7 +253,7 @@ function StationCard({ task, paused, onUpdated }: { task: RestockTask; paused: b
         <Group justify="space-between" align="flex-start" gap="xs">
           <div>
             <Title order={4} size="sm">{task.stationName}</Title>
-            <Text size="xs" c="dimmed">{task.distanceMeters} m del evento</Text>
+            <Text size="xs" c="dimmed">{task.outsideCoverage ? 'Fuera de la cobertura actual' : `${task.distanceMeters} m del evento`}</Text>
           </div>
           <Badge variant="light" color={pending ? 'orange' : task.status === 'COMPLETED' ? 'teal' : 'gray'}
             className={classes.restockStationStatus}>
