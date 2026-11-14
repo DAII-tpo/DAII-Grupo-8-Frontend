@@ -9,10 +9,12 @@ import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 
 import { useAuth } from '../../../app/providers/authContext';
 import { stationService } from '../../../services/stations/stationService';
+import { climateService } from '../../../services/climate/climateService';
 import { tripService } from '../../../services/trips/tripService';
 import type { NearbyStation } from '../../../types/nearbyStation';
 import type { Station } from '../../../types/station';
 import type { StationAvailability } from '../../../types/stationAvailability';
+import type { ClimateAlert } from '../../../types/climateAlert';
 import type { RecommendationPurpose, StationRecommendation } from '../../../types/stationRecommendation';
 
 import classes from './StationsMap.module.css';
@@ -31,11 +33,12 @@ type MapStation = {
   name: string;
 };
 
-function createStationIcon(isSelected: boolean, isRecommended: boolean) {
+function createStationIcon(isSelected: boolean, isRecommended: boolean, hasClimateAlert: boolean) {
   const markerClasses = [
     classes.stationMarker,
     isSelected ? classes.stationMarkerSelected : null,
     isRecommended ? classes.stationMarkerRecommended : null,
+    hasClimateAlert ? classes.stationMarkerClimate : null,
   ].filter(Boolean).join(' ');
 
   return divIcon({
@@ -185,6 +188,26 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
   const [isRecommendationLoading, setIsRecommendationLoading] = useState(false);
   const [hasRecommendationError, setHasRecommendationError] = useState(false);
   const [recommendationPurpose, setRecommendationPurpose] = useState<RecommendationPurpose>('PICKUP');
+  const [climateByStation, setClimateByStation] = useState<Record<number, ClimateAlert>>({});
+
+  useEffect(() => {
+    let mounted = true;
+    const loadStatuses = () => {
+      climateService.getStationStatuses()
+        .then((statuses) => {
+          if (!mounted) return;
+          const active: Record<number, ClimateAlert> = {};
+          for (const status of statuses) {
+            if (status.alerta?.activa) active[status.stationId] = status.alerta;
+          }
+          setClimateByStation(active);
+        })
+        .catch(() => { /* El estado climático no bloquea el mapa. */ });
+    };
+    loadStatuses();
+    const timer = window.setInterval(loadStatuses, 30_000);
+    return () => { mounted = false; window.clearInterval(timer); };
+  }, []);
 
   useEffect(() => {
     const setters: MapDataSetters = {
@@ -277,6 +300,7 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
             {mapCenter ? (
               <StationsMapCanvas
                 center={mapCenter}
+                climateByStation={climateByStation}
                 onSelectStation={handleStationSelection}
                 recommendedStationId={recommendedStationId ?? null}
                 selectedStationId={selectedStation?.id ?? null}
@@ -292,6 +316,7 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
           <RecommendationPanel error={hasRecommendationError} loading={isRecommendationLoading} purpose={recommendationPurpose} recommendation={recommendation} />
           <StationDetails
             availability={selectedAvailability}
+            climateAlert={selectedStation ? climateByStation[selectedStation.id] ?? null : null}
             hasAvailabilityError={hasAvailabilityError}
             isAvailabilityLoading={isAvailabilityLoading}
             station={selectedStation}
@@ -324,6 +349,7 @@ function MapStatusAlerts({ backendError, geolocationError, isBackendLoading, isG
 
 type StationsMapCanvasProps = Readonly<{
   center: Coordinates;
+  climateByStation: Record<number, ClimateAlert>;
   onSelectStation: (station: MapStation) => void;
   recommendedStationId: number | null;
   selectedStationId: number | null;
@@ -331,7 +357,7 @@ type StationsMapCanvasProps = Readonly<{
   userLocation: Coordinates | null;
 }>;
 
-function StationsMapCanvas({ center, onSelectStation, recommendedStationId, selectedStationId, stations, userLocation }: StationsMapCanvasProps) {
+function StationsMapCanvas({ center, climateByStation, onSelectStation, recommendedStationId, selectedStationId, stations, userLocation }: StationsMapCanvasProps) {
   return (
     <MapContainer center={center} className={classes.map} zoom={14}>
       <TileLayer
@@ -348,11 +374,13 @@ function StationsMapCanvas({ center, onSelectStation, recommendedStationId, sele
       {stations.map((station) => (
         <Marker
           eventHandlers={{ click: () => onSelectStation(station) }}
-          icon={createStationIcon(selectedStationId === station.id, recommendedStationId === station.id)}
+          icon={createStationIcon(selectedStationId === station.id, recommendedStationId === station.id,
+            Boolean(climateByStation[station.id]))}
           key={station.id}
           position={[station.latitude, station.longitude]}
         >
-          <Tooltip direction="top">{station.name}</Tooltip>
+          <Tooltip direction="top">{station.name}{climateByStation[station.id]
+            ? ` · Alerta ${climateByStation[station.id].nivelCriticidad}` : ''}</Tooltip>
         </Marker>
       ))}
     </MapContainer>
@@ -433,12 +461,13 @@ function EmptyMapState() {
 
 type StationDetailsProps = Readonly<{
   availability: StationAvailability | null;
+  climateAlert: ClimateAlert | null;
   hasAvailabilityError: boolean;
   isAvailabilityLoading: boolean;
   station: MapStation | null;
 }>;
 
-function StationDetails({ availability, hasAvailabilityError, isAvailabilityLoading, station }: StationDetailsProps) {
+function StationDetails({ availability, climateAlert, hasAvailabilityError, isAvailabilityLoading, station }: StationDetailsProps) {
   if (!station) {
     return (
       <Paper className={classes.detailsPanel} radius="md" p="lg">
@@ -460,6 +489,12 @@ function StationDetails({ availability, hasAvailabilityError, isAvailabilityLoad
           <Title className={classes.detailsTitle} order={2}>{station.name}</Title>
           <Text c="dimmed" size="sm">{station.address || 'Sin dirección informada'}</Text>
         </div>
+        {climateAlert ? <Alert color={climateAlert.nivelCriticidad === 'CRITICA' || climateAlert.nivelCriticidad === 'ALTA' ? 'red' : 'orange'}
+          title={`Alerta climática ${climateAlert.nivelCriticidad.toLowerCase()}`}>
+          {climateAlert.fenomeno.replaceAll('_', ' ').toLowerCase()}
+          {climateAlert.nivelCriticidad === 'ALTA' || climateAlert.nivelCriticidad === 'CRITICA'
+            ? ' · No se pueden iniciar viajes desde esta estación.' : null}
+        </Alert> : null}
 
         <div className={classes.metrics}>
           <Metric label="Capacidad" value={station.capacity} />
