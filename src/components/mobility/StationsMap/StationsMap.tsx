@@ -1,17 +1,20 @@
 import 'leaflet/dist/leaflet.css';
 
-import { Alert, Group, Loader, Paper, Stack, Text, Title, UnstyledButton } from '@mantine/core';
+import { Alert, Button, Group, Loader, Paper, Stack, Text, Title, UnstyledButton } from '@mantine/core';
 import { isAxiosError } from 'axios';
-import { divIcon } from 'leaflet';
-import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet';
-import { AlertCircle, Bike, LocateFixed, MapPin, Navigation, Sparkles } from 'lucide-react';
-import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
+import { divIcon, type Map as LeafletMap } from 'leaflet';
+import { CircleMarker, MapContainer, Marker, Popup, TileLayer, Tooltip, useMap } from 'react-leaflet';
+import { AlertCircle, Bike, CalendarDays, LocateFixed, MapPin, Navigation, Sparkles } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '../../../app/providers/authContext';
+import { eventMobilityService } from '../../../services/eventMobility/eventMobilityService';
 import { stationService } from '../../../services/stations/stationService';
 import { climateService } from '../../../services/climate/climateService';
 import { tripService } from '../../../services/trips/tripService';
 import type { NearbyStation } from '../../../types/nearbyStation';
+import type { CulturalDestination } from '../../../types/eventMobility';
 import type { Station } from '../../../types/station';
 import type { StationAvailability } from '../../../types/stationAvailability';
 import type { ClimateAlert } from '../../../types/climateAlert';
@@ -20,6 +23,9 @@ import type { RecommendationPurpose, StationRecommendation } from '../../../type
 import classes from './StationsMap.module.css';
 
 type Coordinates = [number, number];
+type MapBounds = { north: number; south: number; east: number; west: number };
+
+const EVENT_WARNING_LEAD_HOURS = Number(import.meta.env.VITE_EVENT_WARNING_LEAD_HOURS ?? 2);
 
 type MapStation = {
   address: string;
@@ -44,6 +50,15 @@ function createStationIcon(isSelected: boolean, isRecommended: boolean, hasClima
   return divIcon({
     className: classes.stationMarkerHost,
     html: `<span class="${markerClasses}" aria-hidden="true"><svg viewBox="0 0 24 24" role="img"><circle cx="6" cy="17" r="3.25"/><circle cx="18" cy="17" r="3.25"/><path d="m6 17 4-7 3 7m-7 0h7l4-7m-8 0h4m-5-3h3"/></svg></span>`,
+    iconAnchor: [22, 22],
+    iconSize: [44, 44],
+  });
+}
+
+function createEventIcon(isSelected: boolean) {
+  return divIcon({
+    className: classes.eventMarkerHost,
+    html: `<span class="${classes.eventMarker} ${isSelected ? classes.eventMarkerSelected : ''}" aria-hidden="true">★</span>`,
     iconAnchor: [22, 22],
     iconSize: [44, 44],
   });
@@ -173,6 +188,9 @@ function runInBackground(task: Promise<void>) {
 }
 
 export function StationsMap({ showHeading = true }: StationsMapProps) {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const requestedEventId = searchParams.get('eventId');
   const { isAuthenticated } = useAuth();
   const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
   const [stations, setStations] = useState<MapStation[]>([]);
@@ -188,7 +206,17 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
   const [isRecommendationLoading, setIsRecommendationLoading] = useState(false);
   const [hasRecommendationError, setHasRecommendationError] = useState(false);
   const [recommendationPurpose, setRecommendationPurpose] = useState<RecommendationPurpose>('PICKUP');
+  const [events, setEvents] = useState<CulturalDestination[]>([]);
+  const [selectedEvent, setSelectedEvent] = useState<CulturalDestination | null>(null);
   const [climateByStation, setClimateByStation] = useState<Record<number, ClimateAlert>>({});
+  const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
+  const [dismissedEvents, setDismissedEvents] = useState<Set<string>>(() => new Set());
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -245,6 +273,28 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
     );
   }, [isAuthenticated]);
 
+  const loadEvents = useCallback(() => {
+    eventMobilityService.upcoming().then((nextEvents) => {
+      const validEvents = nextEvents.filter((event) => Number.isFinite(event.latitude)
+        && Number.isFinite(event.longitude));
+      setEvents(validEvents);
+      setSelectedEvent((selected) => {
+        const requested = requestedEventId
+          ? validEvents.find((event) => event.eventId === requestedEventId)
+          : null;
+        if (requested) return requested;
+        if (selected && validEvents.some((event) => event.eventId === selected.eventId)) return selected;
+        return null;
+      });
+    }).catch(() => setEvents([]));
+  }, [requestedEventId]);
+
+  useEffect(() => {
+    loadEvents();
+    const refreshId = window.setInterval(loadEvents, 10_000);
+    return () => window.clearInterval(refreshId);
+  }, [loadEvents]);
+
   const selectStation = async (station: MapStation) => {
     setSelectedStation(station);
     setSelectedAvailability(null);
@@ -266,15 +316,42 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
   };
 
   const handleStationSelection = (station: MapStation) => {
+    setSelectedEvent(null);
     selectStation(station).catch(() => undefined);
+  };
+
+  const handleEventSelection = (event: CulturalDestination) => {
+    setSelectedStation(null);
+    setSelectedEvent(event);
   };
 
   const firstStationCenter: Coordinates | null = stations[0]
     ? [stations[0].latitude, stations[0].longitude]
     : null;
   const mapCenter = userLocation ?? firstStationCenter;
+  const selectedEventCenter: Coordinates | null = selectedEvent
+    ? [selectedEvent.latitude, selectedEvent.longitude]
+    : null;
+  const viewportCenter = selectedEventCenter ?? mapCenter;
   const nearbyStations = stations.filter((station) => station.distanceMeters !== null);
   const recommendedStationId = recommendation?.status === 'RECOMMENDED' ? recommendation.station?.stationId : null;
+  const contextualEvent = useMemo(() => {
+    if (!mapBounds) return null;
+    const leadMillis = EVENT_WARNING_LEAD_HOURS * 60 * 60 * 1000;
+    return events
+      .filter((event) => !dismissedEvents.has(event.eventId)
+        && sessionStorage.getItem(`mobility-event-warning:${event.eventId}`) !== 'dismissed')
+      .filter((event) => event.latitude <= mapBounds.north && event.latitude >= mapBounds.south
+        && event.longitude <= mapBounds.east && event.longitude >= mapBounds.west)
+      .filter((event) => now >= new Date(event.startsAt).getTime() - leadMillis
+        && now <= new Date(event.endsAt).getTime())
+      .sort((left, right) => new Date(left.startsAt).getTime() - new Date(right.startsAt).getTime())[0] ?? null;
+  }, [dismissedEvents, events, mapBounds, now]);
+
+  const dismissContextualEvent = (eventId: string) => {
+    sessionStorage.setItem(`mobility-event-warning:${eventId}`, 'dismissed');
+    setDismissedEvents((current) => new Set(current).add(eventId));
+  };
 
   return (
     <Stack gap="lg">
@@ -294,15 +371,36 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
         isGeolocationLoading={isGeolocationLoading}
       />
 
+      {contextualEvent ? (
+        <Alert color="orange" icon={<CalendarDays size={18} />} title="Hay un evento próximo en esta zona">
+          <Stack gap="xs">
+            <Text size="sm">{contextualEvent.title} · {new Date(contextualEvent.startsAt).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</Text>
+            <Group>
+              <Button size="xs" onClick={() => navigate(`/movilidad/eventos?eventId=${encodeURIComponent(contextualEvent.eventId)}`)}>
+                Planificar llegada
+              </Button>
+              <Button size="xs" variant="subtle" onClick={() => dismissContextualEvent(contextualEvent.eventId)}>
+                Cerrar
+              </Button>
+            </Group>
+          </Stack>
+        </Alert>
+      ) : null}
+
       {!isGeolocationLoading && !isBackendLoading && !backendError ? (
         <div className={classes.mapLayout}>
           <Paper className={classes.mapPanel} radius="md" p={0}>
-            {mapCenter ? (
+            {viewportCenter ? (
               <StationsMapCanvas
-                center={mapCenter}
+                center={viewportCenter}
                 climateByStation={climateByStation}
+                events={events}
+                onBoundsChange={setMapBounds}
+                onPlanEvent={(event) => navigate(`/movilidad/eventos?eventId=${encodeURIComponent(event.eventId)}`)}
+                onSelectEvent={handleEventSelection}
                 onSelectStation={handleStationSelection}
                 recommendedStationId={recommendedStationId ?? null}
+                selectedEventId={selectedEvent?.eventId ?? null}
                 selectedStationId={selectedStation?.id ?? null}
                 stations={stations}
                 userLocation={userLocation}
@@ -321,6 +419,12 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
             isAvailabilityLoading={isAvailabilityLoading}
             station={selectedStation}
           />
+          {selectedEvent ? (
+            <EventDetails
+              event={selectedEvent}
+              onPlan={() => navigate(`/movilidad/eventos?eventId=${encodeURIComponent(selectedEvent.eventId)}`)}
+            />
+          ) : null}
            {userLocation ? <NearbyStations stations={nearbyStations} onSelectStation={handleStationSelection} /> : null}
           </Stack>
         </div>
@@ -350,21 +454,27 @@ function MapStatusAlerts({ backendError, geolocationError, isBackendLoading, isG
 type StationsMapCanvasProps = Readonly<{
   center: Coordinates;
   climateByStation: Record<number, ClimateAlert>;
+  events: CulturalDestination[];
+  onBoundsChange: (bounds: MapBounds) => void;
+  onPlanEvent: (event: CulturalDestination) => void;
+  onSelectEvent: (event: CulturalDestination) => void;
   onSelectStation: (station: MapStation) => void;
   recommendedStationId: number | null;
+  selectedEventId: string | null;
   selectedStationId: number | null;
   stations: MapStation[];
   userLocation: Coordinates | null;
 }>;
 
-function StationsMapCanvas({ center, climateByStation, onSelectStation, recommendedStationId, selectedStationId, stations, userLocation }: StationsMapCanvasProps) {
+function StationsMapCanvas({ center, climateByStation, events, onBoundsChange, onPlanEvent, onSelectEvent, onSelectStation, recommendedStationId, selectedEventId, selectedStationId, stations, userLocation }: StationsMapCanvasProps) {
   return (
     <MapContainer center={center} className={classes.map} zoom={14}>
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <MapViewport center={center} />
+      <MapViewport center={center} zoom={selectedEventId ? 16 : undefined} />
+      <MapBoundsObserver onChange={onBoundsChange} />
       {userLocation ? <RecenterToUserControl location={userLocation} /> : null}
       {userLocation ? (
         <CircleMarker center={userLocation} className={classes.userMarker} pathOptions={{ color: '#2F5CA6', fillColor: '#2F5CA6', fillOpacity: 1 }} radius={8}>
@@ -383,8 +493,45 @@ function StationsMapCanvas({ center, climateByStation, onSelectStation, recommen
             ? ` · Alerta ${climateByStation[station.id].nivelCriticidad}` : ''}</Tooltip>
         </Marker>
       ))}
+      {events.map((event) => (
+        <Marker
+          eventHandlers={{ click: () => onSelectEvent(event) }}
+          icon={createEventIcon(selectedEventId === event.eventId)}
+          zIndexOffset={1000}
+          key={`event-${event.eventId}`}
+          position={[event.latitude, event.longitude]}
+        >
+          <Tooltip direction="top">Evento: {event.title}</Tooltip>
+          <Popup>
+            <strong>{event.title}</strong><br />
+            {new Date(event.startsAt).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })} · {new Date(event.startsAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' })}–{new Date(event.endsAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' })}<br />
+            <Button size="xs" mt="xs" onClick={() => onPlanEvent(event)}>Planificar llegada</Button>
+          </Popup>
+        </Marker>
+      ))}
     </MapContainer>
   );
+}
+
+function MapBoundsObserver({ onChange }: Readonly<{ onChange: (bounds: MapBounds) => void }>) {
+  const publishBounds = useCallback((map: LeafletMap) => {
+    if (typeof map.getBounds !== 'function') return;
+    const bounds = map.getBounds();
+    onChange({ north: bounds.getNorth(), south: bounds.getSouth(), east: bounds.getEast(), west: bounds.getWest() });
+  }, [onChange]);
+  const map = useMap();
+  useEffect(() => {
+    publishBounds(map);
+    if (typeof map.on !== 'function') return undefined;
+    const handler = () => publishBounds(map);
+    map.on('moveend', handler);
+    map.on('zoomend', handler);
+    return () => {
+      map.off?.('moveend', handler);
+      map.off?.('zoomend', handler);
+    };
+  }, [map, publishBounds]);
+  return null;
 }
 
 function RecommendationPanel({ error, loading, purpose, recommendation }: Readonly<{ error: boolean; loading: boolean; purpose: RecommendationPurpose; recommendation: StationRecommendation | null }>) {
@@ -413,14 +560,34 @@ function RecommendationPanel({ error, loading, purpose, recommendation }: Readon
   </Stack></Paper>;
 }
 
-function MapViewport({ center }: Readonly<{ center: Coordinates }>) {
+function MapViewport({ center, zoom }: Readonly<{ center: Coordinates; zoom?: number }>) {
   const map = useMap();
+  const [latitude, longitude] = center;
 
   useEffect(() => {
-    map.setView(center);
-  }, [center, map]);
+    if (zoom === undefined) map.setView([latitude, longitude]);
+    else map.setView([latitude, longitude], zoom);
+  }, [latitude, longitude, map, zoom]);
 
   return null;
+}
+
+function EventDetails({ event, onPlan }: Readonly<{
+  event: CulturalDestination;
+  onPlan: () => void;
+}>) {
+  return (
+    <Paper p="lg" withBorder>
+      <Stack gap="sm">
+        <Group><CalendarDays size={20} /><Title order={3}>{event.title}</Title></Group>
+        <Text c="dimmed">{event.address ?? event.zone ?? 'Evento recibido desde Espacios Públicos'}</Text>
+        <Text size="sm">{new Date(event.startsAt).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}–{new Date(event.endsAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' })} · {event.expectedDemand} asistentes estimados</Text>
+        <Button onClick={onPlan}>
+          Planificar llegada
+        </Button>
+      </Stack>
+    </Paper>
+  );
 }
 
 function RecenterToUserControl({ location }: Readonly<{ location: Coordinates }>) {
@@ -485,16 +652,16 @@ function StationDetails({ availability, climateAlert, hasAvailabilityError, isAv
   return (
     <Paper className={classes.detailsPanel} radius="md" p="lg">
       <Stack gap="md">
-        <div>
+          <div>
           <Title className={classes.detailsTitle} order={2}>{station.name}</Title>
           <Text c="dimmed" size="sm">{station.address || 'Sin dirección informada'}</Text>
-        </div>
-        {climateAlert ? <Alert color={climateAlert.nivelCriticidad === 'CRITICA' || climateAlert.nivelCriticidad === 'ALTA' ? 'red' : 'orange'}
-          title={`Alerta climática ${climateAlert.nivelCriticidad.toLowerCase()}`}>
-          {climateAlert.fenomeno.replaceAll('_', ' ').toLowerCase()}
-          {climateAlert.nivelCriticidad === 'ALTA' || climateAlert.nivelCriticidad === 'CRITICA'
-            ? ' · No se pueden iniciar viajes desde esta estación.' : null}
-        </Alert> : null}
+          </div>
+          {climateAlert ? <Alert color={climateAlert.nivelCriticidad === 'CRITICA' || climateAlert.nivelCriticidad === 'ALTA' ? 'red' : 'orange'}
+            title={`Alerta climática ${climateAlert.nivelCriticidad.toLowerCase()}`}>
+            {climateAlert.fenomeno.replaceAll('_', ' ').toLowerCase()}
+            {climateAlert.nivelCriticidad === 'ALTA' || climateAlert.nivelCriticidad === 'CRITICA'
+              ? ' · No se pueden iniciar viajes desde esta estación.' : null}
+          </Alert> : null}
 
         <div className={classes.metrics}>
           <Metric label="Capacidad" value={station.capacity} />

@@ -24,6 +24,11 @@ export const stationService = {
     return response.data;
   },
 
+  async getAllAvailability(): Promise<StationAvailability[]> {
+    const response = await httpClient.get<StationAvailability[]>(`${stationsPath}/availability`, { skipAuth: true });
+    return response.data;
+  },
+
   async getNearby({ lat, lng, radius, limit }: NearbyStationsQuery): Promise<NearbyStation[]> {
     const response = await httpClient.get<NearbyStation[]>(`${stationsPath}/nearby`, {
       skipAuth: true,
