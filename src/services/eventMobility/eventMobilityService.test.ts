@@ -8,11 +8,15 @@ vi.mock('../http/httpClient', () => ({
 }));
 
 describe('eventMobilityService', () => {
-  it('consulta los eventos próximos', async () => {
+  it('deduplica consultas próximas y permite una actualización explícita', async () => {
     const events = [{ eventId: 'ev-1', title: 'Feria', startsAt: '2030-01-01T12:00:00Z', endsAt: '2030-01-01T15:00:00Z' }];
-    vi.mocked(httpClient.get).mockResolvedValueOnce({ data: events });
+    vi.mocked(httpClient.get).mockResolvedValue({ data: events });
     await expect(eventMobilityService.upcoming()).resolves.toEqual(events);
-    expect(httpClient.get).toHaveBeenCalledWith('/api/v1/destinations/events');
+    await expect(eventMobilityService.upcoming()).resolves.toEqual(events);
+    expect(httpClient.get).toHaveBeenCalledTimes(1);
+    await expect(eventMobilityService.upcoming(true)).resolves.toEqual(events);
+    expect(httpClient.get).toHaveBeenCalledTimes(2);
+    expect(httpClient.get).toHaveBeenLastCalledWith('/api/v1/destinations/events');
   });
 
   it('calcula el plan usando el evento y el origen seleccionado', async () => {
@@ -22,6 +26,22 @@ describe('eventMobilityService', () => {
     expect(httpClient.post).toHaveBeenCalledWith('/api/v1/destinations/events/ev/1/mobility-decision', {
       attending: true, originLatitude: -34.6, originLongitude: -58.4,
     });
+  });
+
+  it('no deja que una respuesta vieja invalide la actualización más reciente', async () => {
+    let resolveFirst!: (value: { data: unknown[] }) => void;
+    const firstResponse = new Promise<{ data: unknown[] }>((resolve) => { resolveFirst = resolve; });
+    vi.mocked(httpClient.get)
+      .mockReturnValueOnce(firstResponse)
+      .mockResolvedValueOnce({ data: [{ eventId: 'new' }] });
+
+    const first = eventMobilityService.upcoming(true);
+    const duplicate = eventMobilityService.upcoming(true);
+    expect(httpClient.get).toHaveBeenCalledWith('/api/v1/destinations/events');
+    await expect(duplicate).resolves.toEqual([{ eventId: 'new' }]);
+    resolveFirst({ data: [{ eventId: 'old' }] });
+    await expect(first).resolves.toEqual([{ eventId: 'old' }]);
+    await expect(eventMobilityService.upcoming()).resolves.toEqual([{ eventId: 'new' }]);
   });
 
   it('consulta una intención existente con eventId codificado', async () => {

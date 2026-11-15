@@ -18,6 +18,7 @@ import { stationService } from "../../services/stations/stationService";
 import type { BikeResponse, BikeStatus } from "../../types/bike";
 import type { Station } from "../../types/station";
 import classes from "./Administration.module.css";
+import { RestockTransfers } from "./RestockTransfers";
 
 const initialStatuses: Exclude<BikeStatus, "IN_USE">[] = [
   "AVAILABLE",
@@ -155,6 +156,13 @@ export function BikeManagement() {
       filter === "ALL" ? bikes : bikes.filter((bike) => bike.status === filter),
     [bikes, filter],
   );
+  let emptyMessage = "";
+  if (!stationId) {
+    emptyMessage = "Seleccioná una estación para visualizar sus bicicletas.";
+  } else if (visible.length === 0) {
+    emptyMessage = "No hay bicicletas para el filtro seleccionado.";
+  }
+
   const stationOptions = [
     { value: "", label: "Seleccioná una estación" },
     ...stations.map((station) => ({
@@ -216,6 +224,10 @@ export function BikeManagement() {
           </Button>
         </Stack>
       </Paper>
+      <RestockTransfers
+        formatError={message}
+        onTransferred={() => void loadBikes(stationId)}
+      />
       <Paper className={classes.tablePanel} p="md">
         <Stack>
           <Group grow>
@@ -237,14 +249,8 @@ export function BikeManagement() {
               onChange={(e) => setFilter(e.currentTarget.value)}
             />
           </Group>
-          {!stationId ? (
-            <Text c="dimmed">
-              Seleccioná una estación para visualizar sus bicicletas.
-            </Text>
-          ) : visible.length === 0 ? (
-            <Text c="dimmed">
-              No hay bicicletas para el filtro seleccionado.
-            </Text>
+          {emptyMessage ? (
+            <Text c="dimmed">{emptyMessage}</Text>
           ) : (
             <Table>
               <Table.Thead>
@@ -300,14 +306,14 @@ function BikeRow({
   onStatus,
   onTransfer,
   onDelete,
-}: {
+}: Readonly<{
   bike: BikeResponse;
   pending: string | null;
-  stations: Station[];
+  stations: readonly Station[];
   onStatus: (bike: BikeResponse, status: BikeStatus) => Promise<void>;
   onTransfer: (bike: BikeResponse, station: string) => Promise<void>;
   onDelete: (bike: BikeResponse) => void;
-}) {
+}>) {
   const targets = nextStatuses(bike.status);
   return (
     <Table.Tr>

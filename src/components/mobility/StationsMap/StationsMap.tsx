@@ -1,10 +1,10 @@
 import 'leaflet/dist/leaflet.css';
 
-import { Alert, Button, Group, Loader, Paper, Stack, Text, Title, UnstyledButton } from '@mantine/core';
+import { Alert, Badge, Button, Group, Loader, Paper, Stack, Text, Title, UnstyledButton } from '@mantine/core';
 import { isAxiosError } from 'axios';
 import { divIcon, type Map as LeafletMap } from 'leaflet';
 import { CircleMarker, MapContainer, Marker, Popup, TileLayer, Tooltip, useMap } from 'react-leaflet';
-import { AlertCircle, Bike, CalendarDays, LocateFixed, MapPin, Navigation, Sparkles } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Bike, CalendarDays, LocateFixed, MapPin, Navigation, Sparkles } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -25,7 +25,36 @@ import classes from './StationsMap.module.css';
 type Coordinates = [number, number];
 type MapBounds = { north: number; south: number; east: number; west: number };
 
-const EVENT_WARNING_LEAD_HOURS = Number(import.meta.env.VITE_EVENT_WARNING_LEAD_HOURS ?? 2);
+const EVENT_WARNING_LEAD_HOURS = Number(import.meta.env.VITE_EVENT_WARNING_LEAD_HOURS ?? 24);
+const EVENT_WARNING_RADIUS_METERS = Number(import.meta.env.VITE_EVENT_WARNING_RADIUS_METERS ?? 1500);
+
+type EventTemporalStatus = 'IN_PROGRESS' | 'UPCOMING';
+
+function distanceMeters(origin: Coordinates, event: CulturalDestination) {
+  const earthRadiusMeters = 6_371_000;
+  const toRadians = (value: number) => value * Math.PI / 180;
+  const latitudeDelta = toRadians(event.latitude - origin[0]);
+  const longitudeDelta = toRadians(event.longitude - origin[1]);
+  const originLatitude = toRadians(origin[0]);
+  const eventLatitude = toRadians(event.latitude);
+  const haversine = Math.sin(latitudeDelta / 2) ** 2
+    + Math.cos(originLatitude) * Math.cos(eventLatitude) * Math.sin(longitudeDelta / 2) ** 2;
+  return 2 * earthRadiusMeters * Math.asin(Math.sqrt(haversine));
+}
+
+function isWithinBounds(event: CulturalDestination, bounds: MapBounds | null) {
+  return bounds !== null
+    && event.latitude <= bounds.north && event.latitude >= bounds.south
+    && event.longitude <= bounds.east && event.longitude >= bounds.west;
+}
+
+function temporalStatus(event: CulturalDestination, now: number): EventTemporalStatus | null {
+  const startsAt = new Date(event.startsAt).getTime();
+  const endsAt = new Date(event.endsAt).getTime();
+  if (now >= startsAt && now <= endsAt) return 'IN_PROGRESS';
+  if (now < startsAt && startsAt - now <= EVENT_WARNING_LEAD_HOURS * 60 * 60 * 1000) return 'UPCOMING';
+  return null;
+}
 
 type MapStation = {
   address: string;
@@ -191,6 +220,12 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const requestedEventId = searchParams.get('eventId');
+  const requestedStationId = Number(searchParams.get('stationId'));
+  const requestedLatitude = Number(searchParams.get('latitude'));
+  const requestedLongitude = Number(searchParams.get('longitude'));
+  const isStationFocusRequested = searchParams.get('focus') === 'station'
+    && Number.isFinite(requestedStationId) && Number.isFinite(requestedLatitude) && Number.isFinite(requestedLongitude);
+  const returnTo = searchParams.get('returnTo');
   const { isAuthenticated } = useAuth();
   const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
   const [stations, setStations] = useState<MapStation[]>([]);
@@ -329,24 +364,28 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
     ? [stations[0].latitude, stations[0].longitude]
     : null;
   const mapCenter = userLocation ?? firstStationCenter;
-  const selectedEventCenter: Coordinates | null = selectedEvent
+  const explicitlyRequestedStationCenter: Coordinates | null = isStationFocusRequested
+    ? [requestedLatitude, requestedLongitude]
+    : null;
+  const explicitlyRequestedEventCenter: Coordinates | null = !explicitlyRequestedStationCenter && requestedEventId && selectedEvent?.eventId === requestedEventId
     ? [selectedEvent.latitude, selectedEvent.longitude]
     : null;
-  const viewportCenter = selectedEventCenter ?? mapCenter;
+  const viewportCenter = explicitlyRequestedStationCenter ?? explicitlyRequestedEventCenter ?? mapCenter;
   const nearbyStations = stations.filter((station) => station.distanceMeters !== null);
   const recommendedStationId = recommendation?.status === 'RECOMMENDED' ? recommendation.station?.stationId : null;
   const contextualEvent = useMemo(() => {
-    if (!mapBounds) return null;
-    const leadMillis = EVENT_WARNING_LEAD_HOURS * 60 * 60 * 1000;
     return events
       .filter((event) => !dismissedEvents.has(event.eventId)
         && sessionStorage.getItem(`mobility-event-warning:${event.eventId}`) !== 'dismissed')
-      .filter((event) => event.latitude <= mapBounds.north && event.latitude >= mapBounds.south
-        && event.longitude <= mapBounds.east && event.longitude >= mapBounds.west)
-      .filter((event) => now >= new Date(event.startsAt).getTime() - leadMillis
-        && now <= new Date(event.endsAt).getTime())
-      .sort((left, right) => new Date(left.startsAt).getTime() - new Date(right.startsAt).getTime())[0] ?? null;
-  }, [dismissedEvents, events, mapBounds, now]);
+      .filter((event) => isWithinBounds(event, mapBounds)
+        || (userLocation !== null && distanceMeters(userLocation, event) <= EVENT_WARNING_RADIUS_METERS))
+      .map((event) => ({ event, status: temporalStatus(event, now) }))
+      .filter((candidate): candidate is { event: CulturalDestination; status: EventTemporalStatus } => candidate.status !== null)
+      .sort((left, right) => {
+        if (left.status !== right.status) return left.status === 'IN_PROGRESS' ? -1 : 1;
+        return new Date(left.event.startsAt).getTime() - new Date(right.event.startsAt).getTime();
+      })[0] ?? null;
+  }, [dismissedEvents, events, mapBounds, now, userLocation]);
 
   const dismissContextualEvent = (eventId: string) => {
     sessionStorage.setItem(`mobility-event-warning:${eventId}`, 'dismissed');
@@ -371,15 +410,36 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
         isGeolocationLoading={isGeolocationLoading}
       />
 
+      {returnTo === 'planner' && requestedEventId ? (
+        <Button
+          leftSection={<ArrowLeft size={16} />}
+          style={{ alignSelf: 'flex-start' }}
+          variant="subtle"
+          onClick={() => navigate(`/movilidad/eventos?eventId=${encodeURIComponent(requestedEventId)}&resume=1`)}
+        >
+          Volver al planificador
+        </Button>
+      ) : null}
+      {returnTo === 'events' ? (
+        <Button leftSection={<ArrowLeft size={16} />} style={{ alignSelf: 'flex-start' }} variant="subtle" onClick={() => navigate('/movilidad/eventos')}>
+          Volver a eventos
+        </Button>
+      ) : null}
+
       {contextualEvent ? (
-        <Alert color="orange" icon={<CalendarDays size={18} />} title="Hay un evento próximo en esta zona">
+        <Alert
+          color="orange"
+          icon={<CalendarDays size={18} />}
+          title={contextualEvent.status === 'IN_PROGRESS' ? 'Hay un evento en curso cerca' : 'Hay un evento próximo cerca'}
+        >
           <Stack gap="xs">
-            <Text size="sm">{contextualEvent.title} · {new Date(contextualEvent.startsAt).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</Text>
+            <Text size="sm">{contextualEvent.event.title} · {new Date(contextualEvent.event.startsAt).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</Text>
+            <Text c="dimmed" size="sm">Consultá la ubicación y planificá tu llegada si vas a asistir.</Text>
             <Group>
-              <Button size="xs" onClick={() => navigate(`/movilidad/eventos?eventId=${encodeURIComponent(contextualEvent.eventId)}`)}>
-                Planificar llegada
+              <Button size="xs" onClick={() => handleEventSelection(contextualEvent.event)}>
+                Ver evento
               </Button>
-              <Button size="xs" variant="subtle" onClick={() => dismissContextualEvent(contextualEvent.eventId)}>
+              <Button size="xs" variant="subtle" onClick={() => dismissContextualEvent(contextualEvent.event.eventId)}>
                 Cerrar
               </Button>
             </Group>
@@ -395,6 +455,8 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
                 center={viewportCenter}
                 climateByStation={climateByStation}
                 events={events}
+                focusLocation={explicitlyRequestedStationCenter !== null || explicitlyRequestedEventCenter !== null}
+                focusedStationId={isStationFocusRequested ? requestedStationId : null}
                 onBoundsChange={setMapBounds}
                 onPlanEvent={(event) => navigate(`/movilidad/eventos?eventId=${encodeURIComponent(event.eventId)}`)}
                 onSelectEvent={handleEventSelection}
@@ -411,6 +473,13 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
           </Paper>
 
           <Stack gap="md">
+          {selectedEvent ? (
+            <EventDetails
+              event={selectedEvent}
+              now={now}
+              onPlan={() => navigate(`/movilidad/eventos?eventId=${encodeURIComponent(selectedEvent.eventId)}`)}
+            />
+          ) : null}
           <RecommendationPanel error={hasRecommendationError} loading={isRecommendationLoading} purpose={recommendationPurpose} recommendation={recommendation} />
           <StationDetails
             availability={selectedAvailability}
@@ -419,12 +488,6 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
             isAvailabilityLoading={isAvailabilityLoading}
             station={selectedStation}
           />
-          {selectedEvent ? (
-            <EventDetails
-              event={selectedEvent}
-              onPlan={() => navigate(`/movilidad/eventos?eventId=${encodeURIComponent(selectedEvent.eventId)}`)}
-            />
-          ) : null}
            {userLocation ? <NearbyStations stations={nearbyStations} onSelectStation={handleStationSelection} /> : null}
           </Stack>
         </div>
@@ -455,6 +518,8 @@ type StationsMapCanvasProps = Readonly<{
   center: Coordinates;
   climateByStation: Record<number, ClimateAlert>;
   events: CulturalDestination[];
+  focusLocation: boolean;
+  focusedStationId: number | null;
   onBoundsChange: (bounds: MapBounds) => void;
   onPlanEvent: (event: CulturalDestination) => void;
   onSelectEvent: (event: CulturalDestination) => void;
@@ -466,14 +531,14 @@ type StationsMapCanvasProps = Readonly<{
   userLocation: Coordinates | null;
 }>;
 
-function StationsMapCanvas({ center, climateByStation, events, onBoundsChange, onPlanEvent, onSelectEvent, onSelectStation, recommendedStationId, selectedEventId, selectedStationId, stations, userLocation }: StationsMapCanvasProps) {
+function StationsMapCanvas({ center, climateByStation, events, focusLocation, focusedStationId, onBoundsChange, onPlanEvent, onSelectEvent, onSelectStation, recommendedStationId, selectedEventId, selectedStationId, stations, userLocation }: StationsMapCanvasProps) {
   return (
     <MapContainer center={center} className={classes.map} zoom={14}>
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <MapViewport center={center} zoom={selectedEventId ? 16 : undefined} />
+      <MapViewport center={center} zoom={focusLocation ? 16 : undefined} />
       <MapBoundsObserver onChange={onBoundsChange} />
       {userLocation ? <RecenterToUserControl location={userLocation} /> : null}
       {userLocation ? (
@@ -484,7 +549,7 @@ function StationsMapCanvas({ center, climateByStation, events, onBoundsChange, o
       {stations.map((station) => (
         <Marker
           eventHandlers={{ click: () => onSelectStation(station) }}
-          icon={createStationIcon(selectedStationId === station.id, recommendedStationId === station.id,
+          icon={createStationIcon(selectedStationId === station.id || focusedStationId === station.id, recommendedStationId === station.id,
             Boolean(climateByStation[station.id]))}
           key={station.id}
           position={[station.latitude, station.longitude]}
@@ -572,16 +637,21 @@ function MapViewport({ center, zoom }: Readonly<{ center: Coordinates; zoom?: nu
   return null;
 }
 
-function EventDetails({ event, onPlan }: Readonly<{
+function EventDetails({ event, now, onPlan }: Readonly<{
   event: CulturalDestination;
+  now: number;
   onPlan: () => void;
 }>) {
+  const status = temporalStatus(event, now);
   return (
-    <Paper p="lg" withBorder>
+    <Paper className={classes.eventDetails} p="lg" withBorder>
       <Stack gap="sm">
-        <Group><CalendarDays size={20} /><Title order={3}>{event.title}</Title></Group>
+        <Group justify="space-between" wrap="nowrap">
+          <Group gap="xs" wrap="nowrap"><CalendarDays aria-hidden="true" size={20} /><Title order={3}>{event.title}</Title></Group>
+          <Badge color="orange" variant="light">{status === 'IN_PROGRESS' ? 'En curso' : 'Próximo'}</Badge>
+        </Group>
         <Text c="dimmed">{event.address ?? event.zone ?? 'Evento recibido desde Espacios Públicos'}</Text>
-        <Text size="sm">{new Date(event.startsAt).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}–{new Date(event.endsAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' })} · {event.expectedDemand} asistentes estimados</Text>
+        <Text size="sm">{new Date(event.startsAt).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}–{new Date(event.endsAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' })}</Text>
         <Button onClick={onPlan}>
           Planificar llegada
         </Button>
