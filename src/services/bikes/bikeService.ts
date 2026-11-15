@@ -1,4 +1,4 @@
-import type { BikeCreateRequest, BikeResponse, BikeStatusChangeRequest, BikeTransferRequest } from '../../types/bike';
+import type { BikeCreateRequest, BikeResponse, BikeStatusChangeRequest, BikeTransferRequest, RestockBikeTransferRequest } from '../../types/bike';
 import { httpClient } from '../http/httpClient';
 
 const bikesPath = '/api/v1/bikes';
@@ -9,9 +9,10 @@ export const bikeService = {
     return response.data;
   },
 
-  async getAvailable(stationId: number): Promise<BikeResponse[]> {
+  async getAvailable(stationId: number, signal?: AbortSignal): Promise<BikeResponse[]> {
     const response = await httpClient.get<BikeResponse[]>(`${bikesPath}/available`, {
       params: { stationId },
+      signal,
     });
     return response.data;
   },
@@ -33,6 +34,11 @@ export const bikeService = {
 
   async transfer(bikeId: number, request: BikeTransferRequest): Promise<BikeResponse> {
     const response = await httpClient.patch<BikeResponse>(`${bikesPath}/${bikeId}/station`, request);
+    return response.data;
+  },
+
+  async transferForRestock(request: RestockBikeTransferRequest): Promise<BikeResponse[]> {
+    const response = await httpClient.post<BikeResponse[]>(`${bikesPath}/restock-transfers`, request);
     return response.data;
   },
 

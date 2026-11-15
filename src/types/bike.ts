@@ -23,3 +23,10 @@ export type BikeCreateRequest = {
 
 export type BikeStatusChangeRequest = { status: BikeStatus; reason: string | null };
 export type BikeTransferRequest = { stationId: number; restockTaskId?: number };
+
+export type RestockBikeTransferRequest = {
+  sourceStationId: number;
+  destinationStationId: number;
+  restockTaskId: number;
+  bikeIds: number[];
+};
