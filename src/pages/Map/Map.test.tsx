@@ -182,6 +182,28 @@ describe('MapPage', () => {
     expect(screen.getByText('IDs de estaciones: 3, 7')).toBeInTheDocument();
   });
 
+  it('muestra el detalle mínimo cuando el reclamo no tiene dirección, texto ni estaciones afectadas', async () => {
+    mockLocationSuccess();
+    vi.mocked(stationService.getNearby).mockResolvedValueOnce([]);
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([]);
+    vi.mocked(cicloviaObstructionService.getActive).mockResolvedValueOnce([{
+      id: 13, reclamoId: 'reclamo-minimo', ciudadanoId: null, titulo: null, descripcion: null,
+      direccion: null, barrio: null, latitude: -34.59, longitude: -58.43, impactLevel: 'BAJO',
+      status: 'ACTIVE', affectedStationIds: [], detourDescription: null, emergencyDispatched: false,
+      createdAt: '2026-11-14T10:00:00Z', resolvedAt: null,
+    }]);
+
+    renderPage();
+
+    expect(await screen.findByText('Obstrucciones activas')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Reclamo reclamo-minimo/ }));
+    expect(await screen.findAllByText('Reclamo reclamo-minimo')).toHaveLength(2);
+    expect(await screen.findByText('Sin dirección informada')).toBeInTheDocument();
+    expect(screen.getByText('Activa')).toBeInTheDocument();
+    expect(screen.queryByText(/IDs de estaciones/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Desvío sugerido')).not.toBeInTheDocument();
+  });
+
   it('mantiene el mapa operativo si falla la consulta de obstrucciones', async () => {
     mockLocationSuccess();
     vi.mocked(stationService.getNearby).mockResolvedValueOnce([]);
