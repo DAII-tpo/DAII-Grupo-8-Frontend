@@ -4,7 +4,7 @@ import { Alert, Badge, Button, Group, Loader, Paper, Stack, Text, Title, Unstyle
 import { isAxiosError } from 'axios';
 import { divIcon, type Map as LeafletMap } from 'leaflet';
 import { CircleMarker, MapContainer, Marker, Popup, TileLayer, Tooltip, useMap } from 'react-leaflet';
-import { AlertCircle, ArrowLeft, Bike, CalendarDays, LocateFixed, MapPin, Navigation, Sparkles } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Bike, CalendarDays, LocateFixed, MapPin, Navigation, Sparkles, TriangleAlert } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -13,12 +13,14 @@ import { eventMobilityService } from '../../../services/eventMobility/eventMobil
 import { stationService } from '../../../services/stations/stationService';
 import { climateService } from '../../../services/climate/climateService';
 import { tripService } from '../../../services/trips/tripService';
+import { cicloviaObstructionService } from '../../../services/obstructions/cicloviaObstructionService';
 import type { NearbyStation } from '../../../types/nearbyStation';
 import type { CulturalDestination } from '../../../types/eventMobility';
 import type { Station } from '../../../types/station';
 import type { StationAvailability } from '../../../types/stationAvailability';
 import type { ClimateAlert } from '../../../types/climateAlert';
 import type { RecommendationPurpose, StationRecommendation } from '../../../types/stationRecommendation';
+import type { CicloviaObstruction } from '../../../types/cicloviaObstruction';
 
 import classes from './StationsMap.module.css';
 
@@ -90,6 +92,15 @@ function createEventIcon(isSelected: boolean) {
     html: `<span class="${classes.eventMarker} ${isSelected ? classes.eventMarkerSelected : ''}" aria-hidden="true">★</span>`,
     iconAnchor: [22, 22],
     iconSize: [44, 44],
+  });
+}
+
+function createObstructionIcon() {
+  return divIcon({
+    className: classes.obstructionMarkerHost,
+    html: `<span class="${classes.obstructionMarker}" aria-hidden="true">!</span>`,
+    iconAnchor: [18, 36],
+    iconSize: [36, 42],
   });
 }
 
@@ -242,6 +253,8 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
   const [hasRecommendationError, setHasRecommendationError] = useState(false);
   const [recommendationPurpose, setRecommendationPurpose] = useState<RecommendationPurpose>('PICKUP');
   const [events, setEvents] = useState<CulturalDestination[]>([]);
+  const [obstructions, setObstructions] = useState<CicloviaObstruction[]>([]);
+  const [selectedObstruction, setSelectedObstruction] = useState<CicloviaObstruction | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<CulturalDestination | null>(null);
   const [climateByStation, setClimateByStation] = useState<Record<number, ClimateAlert>>({});
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
@@ -330,6 +343,21 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
     return () => window.clearInterval(refreshId);
   }, [loadEvents]);
 
+  useEffect(() => {
+    let mounted = true;
+    const refresh = () => cicloviaObstructionService.getActive()
+      .then((items) => {
+        if (!mounted) return;
+        const valid = items.filter((item) => Number.isFinite(item.latitude) && Number.isFinite(item.longitude));
+        setObstructions(valid);
+        setSelectedObstruction((selected) => selected ? valid.find((item) => item.id === selected.id) ?? null : null);
+      })
+      .catch(() => { /* Las obstrucciones no bloquean el mapa ni sus funciones existentes. */ });
+    void refresh();
+    const timer = window.setInterval(() => { void refresh(); }, 15_000);
+    return () => { mounted = false; window.clearInterval(timer); };
+  }, []);
+
   const selectStation = async (station: MapStation) => {
     setSelectedStation(station);
     setSelectedAvailability(null);
@@ -352,12 +380,20 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
 
   const handleStationSelection = (station: MapStation) => {
     setSelectedEvent(null);
+    setSelectedObstruction(null);
     selectStation(station).catch(() => undefined);
   };
 
   const handleEventSelection = (event: CulturalDestination) => {
     setSelectedStation(null);
+    setSelectedObstruction(null);
     setSelectedEvent(event);
+  };
+
+  const handleObstructionSelection = (obstruction: CicloviaObstruction) => {
+    setSelectedStation(null);
+    setSelectedEvent(null);
+    setSelectedObstruction(obstruction);
   };
 
   const firstStationCenter: Coordinates | null = stations[0]
@@ -455,11 +491,13 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
                 center={viewportCenter}
                 climateByStation={climateByStation}
                 events={events}
+                obstructions={obstructions}
                 focusLocation={explicitlyRequestedStationCenter !== null || explicitlyRequestedEventCenter !== null}
                 focusedStationId={isStationFocusRequested ? requestedStationId : null}
                 onBoundsChange={setMapBounds}
                 onPlanEvent={(event) => navigate(`/movilidad/eventos?eventId=${encodeURIComponent(event.eventId)}`)}
                 onSelectEvent={handleEventSelection}
+                onSelectObstruction={handleObstructionSelection}
                 onSelectStation={handleStationSelection}
                 recommendedStationId={recommendedStationId ?? null}
                 selectedEventId={selectedEvent?.eventId ?? null}
@@ -480,6 +518,8 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
               onPlan={() => navigate(`/movilidad/eventos?eventId=${encodeURIComponent(selectedEvent.eventId)}`)}
             />
           ) : null}
+          {selectedObstruction ? <ObstructionDetails obstruction={selectedObstruction} /> : null}
+          {!selectedObstruction && !selectedEvent && obstructions.length > 0 ? <ObstructionSummary obstructions={obstructions} onSelect={handleObstructionSelection} /> : null}
           <RecommendationPanel error={hasRecommendationError} loading={isRecommendationLoading} purpose={recommendationPurpose} recommendation={recommendation} />
           <StationDetails
             availability={selectedAvailability}
@@ -518,11 +558,13 @@ type StationsMapCanvasProps = Readonly<{
   center: Coordinates;
   climateByStation: Record<number, ClimateAlert>;
   events: CulturalDestination[];
+  obstructions: CicloviaObstruction[];
   focusLocation: boolean;
   focusedStationId: number | null;
   onBoundsChange: (bounds: MapBounds) => void;
   onPlanEvent: (event: CulturalDestination) => void;
   onSelectEvent: (event: CulturalDestination) => void;
+  onSelectObstruction: (obstruction: CicloviaObstruction) => void;
   onSelectStation: (station: MapStation) => void;
   recommendedStationId: number | null;
   selectedEventId: string | null;
@@ -531,7 +573,7 @@ type StationsMapCanvasProps = Readonly<{
   userLocation: Coordinates | null;
 }>;
 
-function StationsMapCanvas({ center, climateByStation, events, focusLocation, focusedStationId, onBoundsChange, onPlanEvent, onSelectEvent, onSelectStation, recommendedStationId, selectedEventId, selectedStationId, stations, userLocation }: StationsMapCanvasProps) {
+function StationsMapCanvas({ center, climateByStation, events, obstructions, focusLocation, focusedStationId, onBoundsChange, onPlanEvent, onSelectEvent, onSelectObstruction, onSelectStation, recommendedStationId, selectedEventId, selectedStationId, stations, userLocation }: StationsMapCanvasProps) {
   return (
     <MapContainer center={center} className={classes.map} zoom={14}>
       <TileLayer
@@ -574,8 +616,50 @@ function StationsMapCanvas({ center, climateByStation, events, focusLocation, fo
           </Popup>
         </Marker>
       ))}
+      {obstructions.map((obstruction) => (
+        <Marker
+          eventHandlers={{ click: () => onSelectObstruction(obstruction) }}
+          icon={createObstructionIcon()}
+          key={`obstruction-${obstruction.id}`}
+          position={[obstruction.latitude, obstruction.longitude]}
+          zIndexOffset={1200}
+        >
+          <Tooltip direction="top">Obstrucción de ciclovía · {obstruction.impactLevel}</Tooltip>
+          <Popup>
+            <strong>Obstrucción de ciclovía</strong><br />
+            {obstruction.direccion ?? obstruction.barrio ?? 'Ubicación del reclamo'}<br />
+            Impacto {obstruction.impactLevel.toLowerCase()}
+          </Popup>
+        </Marker>
+      ))}
     </MapContainer>
   );
+}
+
+function ObstructionSummary({ obstructions, onSelect }: Readonly<{ obstructions: CicloviaObstruction[]; onSelect: (item: CicloviaObstruction) => void }>) {
+  return <Paper className={classes.obstructionDetails} p="md" withBorder>
+    <Group gap="xs"><TriangleAlert aria-hidden="true" size={18} /><Title order={3}>Obstrucciones activas</Title><Badge color="red">{obstructions.length}</Badge></Group>
+    <Stack gap="xs" mt="sm">
+      {obstructions.map((item) => <UnstyledButton className={classes.obstructionRow} key={item.id} onClick={() => onSelect(item)}>
+        <Group justify="space-between" wrap="nowrap"><div><Text fw={700} size="sm">{item.direccion || item.barrio || `Reclamo ${item.reclamoId}`}</Text><Text c="dimmed" size="xs">Impacto {item.impactLevel.toLowerCase()} · {item.affectedStationIds.length} estaciones</Text></div><Badge color={item.emergencyDispatched ? 'red' : 'orange'}>{item.emergencyDispatched ? 'Emergencias notificadas' : 'Activa'}</Badge></Group>
+      </UnstyledButton>)}
+    </Stack>
+  </Paper>;
+}
+
+function ObstructionDetails({ obstruction }: Readonly<{ obstruction: CicloviaObstruction }>) {
+  return <Paper className={classes.obstructionDetails} p="lg" withBorder>
+    <Stack gap="sm">
+      <Group justify="space-between"><Title order={3}>Obstrucción de ciclovía</Title><Badge color={obstruction.emergencyDispatched ? 'red' : 'orange'}>{obstruction.emergencyDispatched ? 'Emergencias notificadas' : 'Activa'}</Badge></Group>
+      <Text>{obstruction.titulo || `Reclamo ${obstruction.reclamoId}`}</Text>
+      <Text c="dimmed" size="sm">{obstruction.direccion || obstruction.barrio || 'Sin dirección informada'}{obstruction.direccion && obstruction.barrio ? ` · ${obstruction.barrio}` : ''}</Text>
+      {obstruction.descripcion ? <Text size="sm">{obstruction.descripcion}</Text> : null}
+      <div className={classes.metrics}><Metric label="Impacto" value={obstruction.impactLevel} /><Metric label="Estaciones afectadas" value={obstruction.affectedStationIds.length} /></div>
+      {obstruction.affectedStationIds.length ? <Text size="sm">IDs de estaciones: {obstruction.affectedStationIds.join(', ')}</Text> : null}
+      {obstruction.detourDescription ? <Alert color="blue" title="Desvío sugerido">{obstruction.detourDescription}</Alert> : null}
+      <Text c="dimmed" size="xs">Reclamo {obstruction.reclamoId}</Text>
+    </Stack>
+  </Paper>;
 }
 
 function MapBoundsObserver({ onChange }: Readonly<{ onChange: (bounds: MapBounds) => void }>) {
