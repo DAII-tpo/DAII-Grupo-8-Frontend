@@ -1,5 +1,5 @@
 import { MantineProvider } from '@mantine/core';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -8,6 +8,7 @@ import { stationService } from '../../services/stations/stationService';
 import { tripService } from '../../services/trips/tripService';
 import { warmUpRecommendationService } from '../../services/recommendationWarmupService';
 import { mantineTheme } from '../../styles/theme';
+import type { EmergencyResponse } from '../../types/emergency';
 import { MobilityPage } from './index';
 
 const authState = vi.hoisted(() => {
@@ -81,6 +82,28 @@ const activeTrip = {
   destinationStationName: null,
   endedAt: null,
   durationSeconds: null,
+};
+
+const reportedEmergency: EmergencyResponse = {
+  id: 91,
+  code: 'EMG-20261029-0091',
+  status: 'REPORTED',
+  tripId: 3,
+  bikeId: 1,
+  bikeCode: 'BIKE-001',
+  latitude: -34.6037,
+  longitude: -58.3816,
+  accuracyMeters: null,
+  reportedAt: '2026-10-29T22:00:00Z',
+  cancelableUntil: '2026-10-29T22:00:10Z',
+  triageDeadline: '2026-10-29T22:01:10Z',
+  cancelWindowSeconds: 10,
+  triageWindowSeconds: 60,
+  canMove: true,
+  bleeding: false,
+  vehicleInvolved: false,
+  priority: 'P3',
+  sentAt: '2026-10-29T22:00:20Z',
 };
 
 const getCurrentPosition = vi.fn<(success: PositionCallback, error?: PositionErrorCallback) => void>();
@@ -194,33 +217,35 @@ describe('MobilityPage', () => {
 
   it('retoma la emergencia en curso de un viaje pausado', async () => {
     vi.mocked(tripService.getActive).mockResolvedValueOnce({ ...activeTrip, status: 'EMERGENCY' });
-    vi.mocked(emergencyService.getCurrent).mockResolvedValueOnce({
-      id: 91,
-      code: 'EMG-20261029-0091',
-      status: 'REPORTED',
-      tripId: 3,
-      bikeId: 1,
-      bikeCode: 'BIKE-001',
-      latitude: -34.6037,
-      longitude: -58.3816,
-      accuracyMeters: null,
-      reportedAt: '2026-10-29T22:00:00Z',
-      cancelableUntil: '2026-10-29T22:00:10Z',
-      triageDeadline: '2026-10-29T22:01:10Z',
-      cancelWindowSeconds: 10,
-      triageWindowSeconds: 60,
-      canMove: true,
-      bleeding: false,
-      vehicleInvolved: false,
-      priority: 'P3',
-      sentAt: '2026-10-29T22:00:20Z',
-    });
+    vi.mocked(emergencyService.getCurrent).mockResolvedValueOnce(reportedEmergency);
 
     renderPage();
 
     expect(await screen.findByText('Alerta enviada a Emergencias')).toBeInTheDocument();
     expect(screen.getByText('Pausado · emergencia')).toBeInTheDocument();
     expect(emergencyService.getCurrent).toHaveBeenCalledWith();
+  });
+
+  it('cuando Emergencias resuelve la emergencia avisa que el viaje se cerró sin cargo', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      vi.mocked(tripService.getActive)
+        .mockResolvedValueOnce({ ...activeTrip, status: 'EMERGENCY' })
+        .mockResolvedValueOnce(null);
+      vi.mocked(emergencyService.getCurrent).mockResolvedValueOnce(reportedEmergency).mockResolvedValueOnce(null);
+
+      renderPage();
+      expect(await screen.findByText('Alerta enviada a Emergencias')).toBeInTheDocument();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(15_000);
+      });
+
+      expect(await screen.findByText('Emergencias resolvió tu pedido de ayuda')).toBeInTheDocument();
+      expect(await screen.findByText('No tenés un viaje en curso')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('explica el viaje pausado aunque no pueda recuperar la emergencia', async () => {

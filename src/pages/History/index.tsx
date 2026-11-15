@@ -23,6 +23,7 @@ const tripStatusLabels: Record<TripResponse['status'], string> = {
   CANCELLED: 'Cancelado',
   INCIDENT: 'Con incidencia',
   EMERGENCY: 'Pausado por emergencia',
+  CLOSED_BY_EMERGENCY: 'Finalizado sin cargo',
 };
 
 export function HistoryPage() {
@@ -90,7 +91,7 @@ function LoadingState() { return <Paper className={classes.statePanel} radius="m
 function EmptyState() { return <Paper className={classes.statePanel} radius="md" p="xl"><Text c="dimmed">Todavía no tenés viajes finalizados.</Text></Paper>; }
 function ErrorState({ message, onRetry }: Readonly<{ message: string; onRetry: () => void }>) { return <RetryErrorAlert message={message} onRetry={onRetry} title="No se pudo cargar el historial" />; }
 function TripCard({ trip }: Readonly<{ trip: TripResponse }>) {
-  const isCompleted = trip.status === 'COMPLETED';
+  const isCompleted = trip.status === 'COMPLETED' || trip.status === 'CLOSED_BY_EMERGENCY';
   return (
     <Paper className={classes.tripCard} radius="md" p="md">
       <Group justify="space-between" wrap="wrap">
@@ -113,6 +114,11 @@ function TripCard({ trip }: Readonly<{ trip: TripResponse }>) {
         <Metric icon={Play} label="Hora de inicio" value={formatTime(trip.startedAt)} />
         {trip.endedAt ? <Metric icon={Flag} label="Hora de finalización" value={formatTripEnd(trip.startedAt, trip.endedAt)} /> : null}
       </Group>
+      {trip.status === 'CLOSED_BY_EMERGENCY' ? (
+        <Text c="dimmed" mt="sm" size="sm">
+          Viaje cerrado por Emergencias después de tu pedido de ayuda. No se cobró y la bicicleta quedó para revisión.
+        </Text>
+      ) : null}
     </Paper>
   );
 }

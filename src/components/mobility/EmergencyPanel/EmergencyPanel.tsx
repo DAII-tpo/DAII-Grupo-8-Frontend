@@ -14,6 +14,8 @@ import { type Answers, isComplete, questions, suggestPriority } from './triage';
 const holdMilliseconds = 2_000;
 const tickMilliseconds = 250;
 const sendingPollMilliseconds = 3_000;
+// Ya avisada, se consulta cada tanto si Emergencias la resolvió (el backend cierra el viaje solo).
+const resolutionPollMilliseconds = 15_000;
 
 type Deadlines = { cancelAt: number; triageAt: number };
 type Phase = 'confirm' | 'locating' | 'countdown' | 'triage' | 'sending' | 'reported';
@@ -26,6 +28,8 @@ type EmergencyPanelProps = {
   onClose: () => void;
   onEmergencyChange: (emergency: EmergencyResponse) => void;
   onCancelled: () => void;
+  /** Emergencias la resolvió: el viaje quedó cerrado sin cargo. */
+  onResolved: () => void;
 };
 
 /**
@@ -38,6 +42,7 @@ export function EmergencyPanel({
   onClose,
   onEmergencyChange,
   onCancelled,
+  onResolved,
 }: Readonly<EmergencyPanelProps>) {
   const [emergency, setEmergency] = useState<EmergencyResponse | null>(initialEmergency);
   const [deadlines, setDeadlines] = useState<Deadlines | null>(() =>
@@ -74,6 +79,19 @@ export function EmergencyPanel({
     }, sendingPollMilliseconds);
     return () => globalThis.clearInterval(timer);
   }, [phase, updateEmergency]);
+
+  // Cuando Emergencias la resuelve, el backend cierra el viaje y deja de informarla como emergencia en curso.
+  useEffect(() => {
+    if (phase !== 'reported') return undefined;
+    const timer = globalThis.setInterval(() => {
+      emergencyService.getCurrent()
+        .then((current) => {
+          if (current === null) onResolved();
+        })
+        .catch(() => undefined);
+    }, resolutionPollMilliseconds);
+    return () => globalThis.clearInterval(timer);
+  }, [phase, onResolved]);
 
   const requestHelp = async () => {
     setError(null);
