@@ -1,5 +1,5 @@
 import { MantineProvider } from '@mantine/core';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -284,6 +284,7 @@ describe('MapPage', () => {
     renderPage();
 
     const eventMarker = await screen.findByRole('button', { name: /Evento: Feria del parque/ });
+    await waitFor(() => expect(mapSetView).toHaveBeenCalled());
     mapSetView.mockClear();
     fireEvent.click(eventMarker);
 
