@@ -14,6 +14,7 @@ import {
   ArrowRight,
   Bike,
   CircleAlert,
+  CircleCheck,
   Clock3,
   History,
   MapPin,
@@ -71,6 +72,7 @@ export function MobilityPage() {
   const [locationState, setLocationState] = useState<LocationState>('loading');
   const [currentEmergency, setCurrentEmergency] = useState<EmergencyResponse | null>(null);
   const [isRequestingHelp, setIsRequestingHelp] = useState(false);
+  const [isEmergencyResolved, setIsEmergencyResolved] = useState(false);
 
   useEffect(() => {
     warmUpRecommendationService().catch(() => undefined);
@@ -148,6 +150,12 @@ export function MobilityPage() {
 
       <MobilityNavigation />
 
+      {isEmergencyResolved ? (
+        <Alert color="green" icon={<CircleCheck size={18} />} onClose={() => setIsEmergencyResolved(false)} title="Emergencias resolvió tu pedido de ayuda" withCloseButton>
+          El viaje se cerró sin cargo y la bicicleta quedó en la estación más cercana para revisión. Lo ves en tu historial.
+        </Alert>
+      ) : null}
+
       {hasSummaryError ? (
         <Alert color="orange" icon={<CircleAlert size={18} />} title="Parte del resumen no está disponible">
           Podés seguir usando las funciones de Movilidad. Reintentaremos los datos cuando vuelvas a ingresar.
@@ -164,6 +172,12 @@ export function MobilityPage() {
             void loadDashboard();
           }}
           onClose={() => setIsRequestingHelp(false)}
+          onResolved={() => {
+            setIsRequestingHelp(false);
+            setCurrentEmergency(null);
+            setIsEmergencyResolved(true);
+            void loadDashboard();
+          }}
           onEmergencyChange={() => setActiveTrip((trip) => (trip ? { ...trip, status: 'EMERGENCY' } : trip))}
           trip={activeTrip}
         />

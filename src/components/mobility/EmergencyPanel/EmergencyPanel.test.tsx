@@ -55,6 +55,7 @@ const getCurrentPosition = vi.fn<(success: PositionCallback, error?: PositionErr
 const onClose = vi.fn();
 const onCancelled = vi.fn();
 const onEmergencyChange = vi.fn();
+const onResolved = vi.fn();
 
 function renderPanel(initialEmergency: EmergencyResponse | null = null) {
   return render(
@@ -64,6 +65,7 @@ function renderPanel(initialEmergency: EmergencyResponse | null = null) {
         onCancelled={onCancelled}
         onClose={onClose}
         onEmergencyChange={onEmergencyChange}
+        onResolved={onResolved}
         trip={trip}
       />
     </MantineProvider>,
@@ -213,6 +215,17 @@ describe('EmergencyPanel', () => {
 
     await advance(3_000);
     expect(screen.getByText('Alerta enviada a Emergencias')).toBeInTheDocument();
+  });
+
+  it('ya enviada, avisa cuando Emergencias la resuelve y deja de estar en curso', async () => {
+    vi.mocked(emergencyService.getCurrent).mockResolvedValueOnce(reported).mockResolvedValueOnce(null);
+    renderPanel(reported);
+
+    await advance(15_000);
+    expect(onResolved).not.toHaveBeenCalled();
+
+    await advance(15_000);
+    expect(onResolved).toHaveBeenCalledOnce();
   });
 
   it('retoma una emergencia ya enviada al recargar la página', () => {

@@ -58,6 +58,17 @@ describe('HistoryPage', () => {
     expect(tripService.getHistory).toHaveBeenCalledWith(0, 10);
   });
 
+  it('muestra los viajes cerrados sin cargo por una emergencia', async () => {
+    const closed = { ...trip, id: 9, status: 'CLOSED_BY_EMERGENCY' as const, destinationStationName: 'Facultad de Derecho' };
+    vi.mocked(tripService.getHistory).mockResolvedValueOnce({ ...firstPage, content: [closed], totalElements: 1, totalPages: 1, last: true });
+
+    renderPage();
+
+    expect(await screen.findByText('Finalizado sin cargo')).toBeInTheDocument();
+    expect(screen.getByText(/Viaje cerrado por Emergencias/)).toBeInTheDocument();
+    expect(screen.getByText('Facultad de Derecho', { exact: false })).toBeInTheDocument();
+  });
+
   it('muestra el estado vacío para un usuario sin viajes', async () => {
     vi.mocked(tripService.getHistory).mockResolvedValueOnce({ ...firstPage, content: [], totalElements: 0, totalPages: 0, last: true });
     renderPage();

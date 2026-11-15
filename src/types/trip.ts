@@ -1,4 +1,4 @@
-export type TripStatus = 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'INCIDENT' | 'EMERGENCY';
+export type TripStatus = 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'INCIDENT' | 'EMERGENCY' | 'CLOSED_BY_EMERGENCY';
 
 export type TripStartRequest = {
   bikeId: number;
