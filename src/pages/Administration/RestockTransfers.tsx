@@ -5,6 +5,9 @@ import { restockService, type EventTransferPlan, type RestockTask } from '../../
 import type { BikeResponse } from '../../types/bike';
 import classes from './Administration.module.css';
 
+// El encabezado y el menú del sitio usan capas hasta 350.
+const CONFIRMATION_MODAL_Z_INDEX = 400;
+
 type Move = EventTransferPlan['transfers'][number];
 
 type Trip = {
@@ -178,7 +181,7 @@ function ConfirmRestockTrip({ move, task, formatError, onClose, onConfirmed }: R
   };
 
   return (
-    <Modal opened title="Confirmar traslado" onClose={onClose}
+    <Modal opened centered zIndex={CONFIRMATION_MODAL_Z_INDEX} title="Confirmar traslado" onClose={onClose}
       closeOnEscape={!submitting} closeOnClickOutside={!submitting} withCloseButton={!submitting}>
       <Stack gap="sm">
         <Text fw={600}>{move.source.stationName} → {move.destinationName}</Text>
