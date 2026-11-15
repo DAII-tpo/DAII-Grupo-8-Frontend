@@ -19,6 +19,7 @@ import { stationService } from "../../services/stations/stationService";
 import type { BikeResponse, BikeStatus } from "../../types/bike";
 import type { Station } from "../../types/station";
 import classes from "./Administration.module.css";
+import { RestockTransfers } from "./RestockTransfers";
 
 const initialStatuses: Exclude<BikeStatus, "IN_USE">[] = [
   "AVAILABLE",
@@ -236,6 +237,10 @@ export function BikeManagement() {
           </Button>
         </Stack>
       </Paper>
+      <RestockTransfers
+        formatError={message}
+        onTransferred={() => void loadBikes(stationId)}
+      />
       <Paper className={classes.tablePanel} p="md">
         <Stack>
           <Group grow>
