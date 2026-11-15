@@ -1,5 +1,5 @@
 import { MantineProvider } from '@mantine/core';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -7,6 +7,7 @@ import { stationService } from '../../services/stations/stationService';
 import { climateService } from '../../services/climate/climateService';
 import { tripService } from '../../services/trips/tripService';
 import { eventMobilityService } from '../../services/eventMobility/eventMobilityService';
+import { cicloviaObstructionService } from '../../services/obstructions/cicloviaObstructionService';
 import { mantineTheme } from '../../styles/theme';
 import type { TripResponse } from '../../types/trip';
 import { MapPage } from './index';
@@ -51,6 +52,7 @@ vi.mock('../../app/providers/authContext', () => ({
 vi.mock('../../services/trips/tripService', () => ({ tripService: { getActive: vi.fn() } }));
 vi.mock('../../services/climate/climateService', () => ({ climateService: { getStationStatuses: vi.fn() } }));
 vi.mock('../../services/eventMobility/eventMobilityService', () => ({ eventMobilityService: { upcoming: vi.fn() } }));
+vi.mock('../../services/obstructions/cicloviaObstructionService', () => ({ cicloviaObstructionService: { getActive: vi.fn() } }));
 
 type PositionSuccess = (position: GeolocationPosition) => void;
 type PositionError = (error: GeolocationPositionError) => void;
@@ -147,6 +149,7 @@ beforeEach(() => {
   vi.mocked(tripService.getActive).mockResolvedValue(null);
   vi.mocked(climateService.getStationStatuses).mockResolvedValue([]);
   vi.mocked(eventMobilityService.upcoming).mockResolvedValue([]);
+  vi.mocked(cicloviaObstructionService.getActive).mockResolvedValue([]);
   mapGetBounds.mockReturnValue({ getNorth: () => -34.5, getSouth: () => -34.8, getEast: () => -58.2, getWest: () => -58.6 });
   sessionStorage.clear();
 });
@@ -157,6 +160,62 @@ afterEach(() => {
 });
 
 describe('MapPage', () => {
+  it('ubica una obstrucción activa en el mapa y muestra sus datos al seleccionarla', async () => {
+    mockLocationSuccess();
+    vi.mocked(stationService.getNearby).mockResolvedValueOnce([]);
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([]);
+    vi.mocked(cicloviaObstructionService.getActive).mockResolvedValueOnce([{
+      id: 12, reclamoId: 'reclamo-12', ciudadanoId: null, titulo: 'Auto sobre ciclovía',
+      descripcion: 'Bloquea el paso', direccion: 'Av. Santa Fe 3500', barrio: 'Palermo',
+      latitude: -34.589, longitude: -58.431, impactLevel: 'ALTO', status: 'ACTIVE',
+      affectedStationIds: [3, 7], detourDescription: 'Circular por la calle paralela',
+      emergencyDispatched: true, createdAt: '2026-11-14T10:00:00Z', resolvedAt: null,
+    }]);
+
+    renderPage();
+
+    const marker = await screen.findByRole('button', { name: /Obstrucción de ciclovía · ALTO/ });
+    fireEvent.click(marker);
+    expect(await screen.findByText('Emergencias notificadas')).toBeInTheDocument();
+    expect(screen.getByText('Av. Santa Fe 3500 · Palermo')).toBeInTheDocument();
+    expect(screen.getByText('Circular por la calle paralela')).toBeInTheDocument();
+    expect(screen.getByText('IDs de estaciones: 3, 7')).toBeInTheDocument();
+  });
+
+  it('muestra el detalle mínimo cuando el reclamo no tiene dirección, texto ni estaciones afectadas', async () => {
+    mockLocationSuccess();
+    vi.mocked(stationService.getNearby).mockResolvedValueOnce([]);
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([]);
+    vi.mocked(cicloviaObstructionService.getActive).mockResolvedValueOnce([{
+      id: 13, reclamoId: 'reclamo-minimo', ciudadanoId: null, titulo: null, descripcion: null,
+      direccion: null, barrio: null, latitude: -34.59, longitude: -58.43, impactLevel: 'BAJO',
+      status: 'ACTIVE', affectedStationIds: [], detourDescription: null, emergencyDispatched: false,
+      createdAt: '2026-11-14T10:00:00Z', resolvedAt: null,
+    }]);
+
+    renderPage();
+
+    expect(await screen.findByText('Obstrucciones activas')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Reclamo reclamo-minimo/ }));
+    expect(await screen.findAllByText('Reclamo reclamo-minimo')).toHaveLength(2);
+    expect(await screen.findByText('Sin dirección informada')).toBeInTheDocument();
+    expect(screen.getByText('Activa')).toBeInTheDocument();
+    expect(screen.queryByText(/IDs de estaciones/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Desvío sugerido')).not.toBeInTheDocument();
+  });
+
+  it('mantiene el mapa operativo si falla la consulta de obstrucciones', async () => {
+    mockLocationSuccess();
+    vi.mocked(stationService.getNearby).mockResolvedValueOnce([]);
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([]);
+    vi.mocked(cicloviaObstructionService.getActive).mockRejectedValueOnce(new Error('API no disponible'));
+
+    renderPage();
+
+    expect(await screen.findByTestId('map')).toBeInTheDocument();
+    expect(screen.queryByText('Obstrucciones activas')).not.toBeInTheDocument();
+  });
+
   it('muestra el marcador naranja del evento y permite abrir su planificador', async () => {
     mockLocationSuccess();
     vi.mocked(stationService.getNearby).mockResolvedValueOnce([]);
@@ -247,6 +306,7 @@ describe('MapPage', () => {
     renderPage();
 
     const eventMarker = await screen.findByRole('button', { name: /Evento: Feria del parque/ });
+    await waitFor(() => expect(mapSetView).toHaveBeenCalled());
     mapSetView.mockClear();
     fireEvent.click(eventMarker);
 
