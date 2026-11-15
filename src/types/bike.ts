@@ -22,4 +22,4 @@ export type BikeCreateRequest = {
 };
 
 export type BikeStatusChangeRequest = { status: BikeStatus; reason: string | null };
-export type BikeTransferRequest = { stationId: number };
+export type BikeTransferRequest = { stationId: number; restockTaskId?: number };

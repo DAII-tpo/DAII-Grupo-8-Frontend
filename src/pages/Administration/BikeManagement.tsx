@@ -14,6 +14,7 @@ import { isAxiosError } from "axios";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { bikeService } from "../../services/bikes/bikeService";
+import { restockService, type RestockTask } from "../../services/restock/restockService";
 import { stationService } from "../../services/stations/stationService";
 import type { BikeResponse, BikeStatus } from "../../types/bike";
 import type { Station } from "../../types/station";
@@ -57,6 +58,24 @@ export function BikeManagement() {
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [restockTasks, setRestockTasks] = useState<RestockTask[]>([]);
+  const [restockTaskId, setRestockTaskId] = useState("");
+  const selectedTask = restockTasks.find((task) => String(task.id) === restockTaskId);
+
+  const loadRestockTasks = async () => {
+    setPending("restock-tasks");
+    setError(null);
+    try {
+      const tasks = await restockService.getUpcoming();
+      setRestockTasks(tasks.filter((task) => task.status === "PENDING" &&
+        (!task.activityChange || task.activityChange.state === "PROGRAMADA")));
+    } catch (requestError) {
+      setError(message(requestError));
+    } finally {
+      setPending(null);
+    }
+  };
+
   const [confirmDelete, setConfirmDelete] = useState<BikeResponse | null>(null);
   const loadStations = useCallback(async () => {
     try {
@@ -123,13 +142,14 @@ export function BikeManagement() {
     try {
       const updated = await bikeService.transfer(bike.id, {
         stationId: Number(target),
+        ...(selectedTask ? { restockTaskId: selectedTask.id } : {}),
       });
       setBikes((items) =>
         updated.stationId === Number(stationId)
           ? items.map((item) => (item.id === updated.id ? updated : item))
           : items.filter((item) => item.id !== bike.id),
       );
-      setSuccess("La bicicleta fue trasladada.");
+      setSuccess(selectedTask ? "La bicicleta fue trasladada para el evento." : "La bicicleta fue trasladada.");
     } catch (requestError) {
       setError(message(requestError));
     } finally {
@@ -237,6 +257,22 @@ export function BikeManagement() {
               onChange={(e) => setFilter(e.currentTarget.value)}
             />
           </Group>
+          <Group align="end">
+            <Button variant="light" loading={pending === "restock-tasks"} onClick={() => void loadRestockTasks()}>
+              Cargar tareas de reabastecimiento
+            </Button>
+            <NativeSelect
+              label="Tarea de reabastecimiento (opcional)"
+              value={selectedTask ? restockTaskId : ""}
+              onChange={(e) => setRestockTaskId(e.currentTarget.value)}
+              data={[
+                { value: "", label: "Traslado general" },
+                ...restockTasks.map((task) => ({
+                  value: String(task.id), label: `${task.activityTitle} · ${task.stationName}`,
+                })),
+              ]}
+            />
+          </Group>
           {!stationId ? (
             <Text c="dimmed">
               Seleccioná una estación para visualizar sus bicicletas.
@@ -260,7 +296,7 @@ export function BikeManagement() {
                     bike={bike}
                     key={bike.id}
                     pending={pending}
-                    stations={stations}
+                    stations={selectedTask ? stations.filter((station) => station.id === selectedTask.stationId) : stations}
                     onStatus={status}
                     onTransfer={transfer}
                     onDelete={setConfirmDelete}
