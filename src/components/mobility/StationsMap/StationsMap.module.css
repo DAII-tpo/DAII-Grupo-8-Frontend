@@ -113,6 +113,19 @@
   background: color-mix(in srgb, var(--citypass-urban-green) 7%, white);
 }
 
+.eventDetails {
+  border-color: color-mix(in srgb, #f08c00 62%, white);
+  border-top: 4px solid #f08c00;
+  background: color-mix(in srgb, #f08c00 6%, white);
+  box-shadow: 0 12px 28px rgb(20 36 48 / 12%);
+}
+
+.eventDetails h3 {
+  color: var(--citypass-night-blue);
+  font-size: 1.1rem;
+  line-height: 1.3;
+}
+
 .detailsTitle,
 .emptyTitle,
 .nearbyTitle {

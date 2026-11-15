@@ -11,15 +11,16 @@ import { mantineTheme } from '../../styles/theme';
 import type { TripResponse } from '../../types/trip';
 import { MapPage } from './index';
 
-const { leafletMap, mapSetView } = vi.hoisted(() => {
+const { leafletMap, mapGetBounds, mapSetView } = vi.hoisted(() => {
   const mapSetView = vi.fn();
+  const mapGetBounds = vi.fn();
   const leafletMap = {
     setView: mapSetView,
-    getBounds: () => ({ getNorth: () => -34.5, getSouth: () => -34.8, getEast: () => -58.2, getWest: () => -58.6 }),
+    getBounds: mapGetBounds,
     on: vi.fn(),
     off: vi.fn(),
   };
-  return { leafletMap, mapSetView };
+  return { leafletMap, mapGetBounds, mapSetView };
 });
 
 vi.mock('react-leaflet', () => ({
@@ -28,7 +29,7 @@ vi.mock('react-leaflet', () => ({
   ),
   MapContainer: ({ children }: { children: React.ReactNode }) => <div data-testid="map">{children}</div>,
   Marker: ({ children, eventHandlers, icon }: { children: React.ReactNode; eventHandlers?: { click?: () => void }; icon?: { options?: { html?: string } } }) => (
-    <button data-climate={icon?.options?.html?.includes('stationMarkerClimate') ? 'true' : 'false'} data-recommended={icon?.options?.html?.includes('stationMarkerRecommended') ? 'true' : 'false'} onClick={eventHandlers?.click} type="button">{children}</button>
+    <button data-climate={icon?.options?.html?.includes('stationMarkerClimate') ? 'true' : 'false'} data-recommended={icon?.options?.html?.includes('stationMarkerRecommended') ? 'true' : 'false'} data-selected={icon?.options?.html?.includes('stationMarkerSelected') ? 'true' : 'false'} onClick={eventHandlers?.click} type="button">{children}</button>
   ),
   Popup: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   TileLayer: () => null,
@@ -112,9 +113,9 @@ function recommendation(source: 'MODEL' | 'FALLBACK' = 'MODEL', purpose: 'PICKUP
   return { status: 'RECOMMENDED' as const, source, purpose, reason: null, message: 'La mejor opción disponible.', station: recommendedStation, alternatives: [], explanation: null, modelVersion: source === 'MODEL' ? 'v1' : null, generatedAt: '2026-09-23T12:00:00Z' };
 }
 
-function renderPage() {
+function renderPage(initialEntry = '/movilidad/mapa') {
   return render(
-    <MemoryRouter initialEntries={['/movilidad/mapa']}>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <MantineProvider theme={mantineTheme}>
         <Routes>
           <Route path="/movilidad" element={<CurrentPath />} />
@@ -129,7 +130,7 @@ function renderPage() {
 
 function CurrentPath() {
   const location = useLocation();
-  return <output data-testid="current-path">{location.pathname}</output>;
+  return <output data-testid="current-path">{location.pathname}{location.search}</output>;
 }
 
 function mockLocationSuccess() {
@@ -146,6 +147,7 @@ beforeEach(() => {
   vi.mocked(tripService.getActive).mockResolvedValue(null);
   vi.mocked(climateService.getStationStatuses).mockResolvedValue([]);
   vi.mocked(eventMobilityService.upcoming).mockResolvedValue([]);
+  mapGetBounds.mockReturnValue({ getNorth: () => -34.5, getSouth: () => -34.8, getEast: () => -58.2, getWest: () => -58.6 });
   sessionStorage.clear();
 });
 
@@ -169,7 +171,7 @@ describe('MapPage', () => {
 
     expect(await screen.findByText('Feria comunitaria')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Planificar llegada' }));
-    expect(screen.getByTestId('current-path')).toHaveTextContent('/movilidad/eventos');
+    expect(screen.getByTestId('current-path')).toHaveTextContent('/movilidad/eventos?eventId=event-future');
   });
 
   it('muestra la alerta contextual y Cerrar la descarta sin calcular una recomendación', async () => {
@@ -186,9 +188,89 @@ describe('MapPage', () => {
 
     renderPage();
 
-    expect(await screen.findByText('Hay un evento próximo en esta zona')).toBeInTheDocument();
+    expect(await screen.findByText('Hay un evento en curso cerca')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
-    expect(screen.queryByText('Hay un evento próximo en esta zona')).not.toBeInTheDocument();
+    expect(screen.queryByText('Hay un evento en curso cerca')).not.toBeInTheDocument();
+  });
+
+  it('advierte un evento próximo por cercanía al usuario aunque quede fuera del área visible', async () => {
+    mockLocationSuccess();
+    mapGetBounds.mockReturnValue({ getNorth: () => -35, getSouth: () => -35.1, getEast: () => -59, getWest: () => -59.1 });
+    vi.mocked(stationService.getNearby).mockResolvedValueOnce([]);
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([]);
+    vi.mocked(eventMobilityService.upcoming).mockResolvedValueOnce([{
+      eventId: 'event-nearby', title: 'Encuentro barrial', zone: 'Centro', address: 'Plaza',
+      latitude: -34.604, longitude: -58.382,
+      startsAt: new Date(Date.now() + 2 * 60 * 60_000).toISOString(),
+      endsAt: new Date(Date.now() + 4 * 60 * 60_000).toISOString(),
+      maxCapacity: 100, registrations: 10, expectedDemand: 10,
+    }]);
+
+    renderPage();
+
+    expect(await screen.findByText('Hay un evento próximo cerca')).toBeInTheDocument();
+    mapSetView.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Ver evento' }));
+    expect(await screen.findByRole('heading', { name: 'Encuentro barrial' })).toBeInTheDocument();
+    expect(mapSetView).not.toHaveBeenCalled();
+  });
+
+  it('usa el área visible para advertir eventos cuando se rechaza la geolocalización', async () => {
+    getCurrentPosition.mockImplementationOnce((_success, error) => {
+      error?.({ code: 1, message: 'Permission denied' } as GeolocationPositionError);
+    });
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([station]);
+    vi.mocked(eventMobilityService.upcoming).mockResolvedValueOnce([{
+      eventId: 'event-without-location', title: 'Festival en curso', zone: 'Centro', address: 'Plaza',
+      latitude: -34.6037, longitude: -58.3816,
+      startsAt: new Date(Date.now() - 30 * 60_000).toISOString(),
+      endsAt: new Date(Date.now() + 60 * 60_000).toISOString(),
+      maxCapacity: 100, registrations: 10, expectedDemand: 10,
+    }]);
+
+    renderPage();
+
+    expect(await screen.findByText('Hay un evento en curso cerca')).toBeInTheDocument();
+    expect(screen.getByText('Ubicación no disponible')).toBeInTheDocument();
+  });
+
+  it('abre el evento seleccionado sin recentrar ni cambiar el zoom del mapa', async () => {
+    mockLocationSuccess();
+    vi.mocked(stationService.getNearby).mockResolvedValueOnce([]);
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([]);
+    vi.mocked(eventMobilityService.upcoming).mockResolvedValueOnce([{
+      eventId: 'event-marker', title: 'Feria del parque', zone: 'Centro', address: 'Plaza',
+      latitude: -34.6037, longitude: -58.3816, startsAt: '2030-11-14T15:00:00Z', endsAt: '2030-11-14T18:00:00Z',
+      maxCapacity: 100, registrations: 10, expectedDemand: 10,
+    }]);
+
+    renderPage();
+
+    const eventMarker = await screen.findByRole('button', { name: /Evento: Feria del parque/ });
+    mapSetView.mockClear();
+    fireEvent.click(eventMarker);
+
+    expect(await screen.findByRole('heading', { name: 'Feria del parque' })).toBeInTheDocument();
+    expect(mapSetView).not.toHaveBeenCalled();
+  });
+
+  it('destaca una estación solicitada y permite volver al planificador', async () => {
+    mockLocationSuccess();
+    vi.mocked(stationService.getNearby).mockResolvedValueOnce([nearbyStation]);
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([{ ...station, id: 1, name: 'Estacion Centro' }]);
+    vi.mocked(eventMobilityService.upcoming).mockResolvedValueOnce([{
+      eventId: 'event-map', title: 'Feria del parque', zone: 'Centro', address: 'Plaza',
+      latitude: -34.6037, longitude: -58.3816, startsAt: '2030-11-14T15:00:00Z', endsAt: '2030-11-14T18:00:00Z',
+      maxCapacity: 100, registrations: 10, expectedDemand: 10,
+    }]);
+
+    renderPage('/movilidad/mapa?eventId=event-map&focus=station&stationId=1&latitude=-34.61&longitude=-58.41&returnTo=planner');
+
+    const marker = await screen.findByRole('button', { name: 'Estacion Centro' });
+    expect(marker).toHaveAttribute('data-selected', 'true');
+    expect(mapSetView).toHaveBeenLastCalledWith([-34.61, -58.41], 16);
+    fireEvent.click(screen.getByRole('button', { name: 'Volver al planificador' }));
+    expect(screen.getByTestId('current-path')).toHaveTextContent('/movilidad/eventos?eventId=event-map&resume=1');
   });
 
   it('marca la estación afectada sin impedir el mapa ni la selección', async () => {
