@@ -55,7 +55,7 @@ export function CulturalDestinationsPage() {
 
   const openPlanner = (eventId: string) => {
     setSelectedId(eventId);
-    navigate(`/movilidad/eventos?eventId=${encodeURIComponent(eventId)}`, { replace: true });
+    void navigate(`/movilidad/eventos?eventId=${encodeURIComponent(eventId)}`, { replace: true });
   };
 
   return (
@@ -348,7 +348,7 @@ function EventArrivalPlanner({ event, resume }: Readonly<{ event: CulturalDestin
       returnTo: 'planner',
       stationId: station.stationId.toString(),
     });
-    navigate(`/movilidad/mapa?${params.toString()}`);
+    void navigate(`/movilidad/mapa?${params.toString()}`);
   };
 
   const changeOrigin = async (value: string) => {
