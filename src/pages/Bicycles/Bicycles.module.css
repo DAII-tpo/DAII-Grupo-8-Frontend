@@ -111,3 +111,18 @@
   color: var(--citypass-night-blue);
   font-weight: 700;
 }
+
+.climateChip {
+  display: inline-grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 999px;
+  color: white;
+  background: var(--climate-accent, #495057);
+}
+
+.climateCallout {
+  border-left: 4px solid var(--climate-accent, var(--citypass-amber));
+}

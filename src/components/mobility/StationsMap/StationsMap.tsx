@@ -3,15 +3,14 @@ import 'leaflet/dist/leaflet.css';
 import { Alert, Badge, Button, Group, Loader, Paper, Stack, Text, Title, UnstyledButton } from '@mantine/core';
 import { isAxiosError } from 'axios';
 import { divIcon, type Map as LeafletMap } from 'leaflet';
-import { CircleMarker, MapContainer, Marker, Popup, TileLayer, Tooltip, useMap } from 'react-leaflet';
-import { AlertCircle, ArrowLeft, Bike, CalendarDays, LocateFixed, MapPin, Navigation, Sparkles, TriangleAlert } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { Circle, CircleMarker, MapContainer, Marker, Popup, TileLayer, Tooltip, useMap } from 'react-leaflet';
+import { AlertCircle, ArrowLeft, Bike, CalendarDays, CloudAlert, LocateFixed, MapPin, Navigation, Sparkles, TriangleAlert } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type Dispatch, type SetStateAction } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '../../../app/providers/authContext';
 import { eventMobilityService } from '../../../services/eventMobility/eventMobilityService';
 import { stationService } from '../../../services/stations/stationService';
-import { climateService } from '../../../services/climate/climateService';
 import { tripService } from '../../../services/trips/tripService';
 import { cicloviaObstructionService } from '../../../services/obstructions/cicloviaObstructionService';
 import type { NearbyStation } from '../../../types/nearbyStation';
@@ -21,6 +20,24 @@ import type { StationAvailability } from '../../../types/stationAvailability';
 import type { ClimateAlert } from '../../../types/climateAlert';
 import type { RecommendationPurpose, StationRecommendation } from '../../../types/stationRecommendation';
 import type { CicloviaObstruction } from '../../../types/cicloviaObstruction';
+
+import {
+  actionColor,
+  actionLabel,
+  blocksRental,
+  CLIMATE_TONE_COLOR,
+  climateColor,
+  climateTone,
+  compareClimateAlerts,
+  formatClimateDate,
+  neighborhoodsText,
+  phenomenonLabel,
+  phenomenonVisual,
+  severityLabel,
+  stationClimateNotice,
+} from '../climateCopy';
+import { climateGlyphSvg } from '../climateGlyphs';
+import { useStationClimate } from '../useStationClimate';
 
 import classes from './StationsMap.module.css';
 
@@ -70,20 +87,53 @@ type MapStation = {
   name: string;
 };
 
-function createStationIcon(isSelected: boolean, isRecommended: boolean, hasClimateAlert: boolean) {
+const CLIMATE_TONE_CLASS = {
+  blocked: classes.stationMarkerBlocked,
+  confirm: classes.stationMarkerConfirm,
+  notice: classes.stationMarkerNotice,
+} as const;
+
+const CLIMATE_ZONE_RADIUS_METERS = 280;
+
+function createStationIcon(isSelected: boolean, isRecommended: boolean, climate: ClimateAlert | null) {
   const markerClasses = [
     classes.stationMarker,
     isSelected ? classes.stationMarkerSelected : null,
     isRecommended ? classes.stationMarkerRecommended : null,
-    hasClimateAlert ? classes.stationMarkerClimate : null,
+    climate ? classes.stationMarkerClimate : null,
+    climate ? CLIMATE_TONE_CLASS[climateTone(climate)] : null,
   ].filter(Boolean).join(' ');
+  const wrapperClasses = [
+    classes.stationMarkerWrap,
+    climate && blocksRental(climate) ? classes.stationMarkerPulse : null,
+  ].filter(Boolean).join(' ');
+  const badge = climate
+    ? `<span class="${classes.climateBadge}" style="--climate-accent:${phenomenonVisual(climate.fenomeno).accent}">${climateGlyphSvg(climate.fenomeno)}</span>`
+    : '';
 
   return divIcon({
     className: classes.stationMarkerHost,
-    html: `<span class="${markerClasses}" aria-hidden="true"><svg viewBox="0 0 24 24" role="img"><circle cx="6" cy="17" r="3.25"/><circle cx="18" cy="17" r="3.25"/><path d="m6 17 4-7 3 7m-7 0h7l4-7m-8 0h4m-5-3h3"/></svg></span>`,
+    html: `<span class="${wrapperClasses}" aria-hidden="true"><span class="${markerClasses}"><svg viewBox="0 0 24 24" role="img"><circle cx="6" cy="17" r="3.25"/><circle cx="18" cy="17" r="3.25"/><path d="m6 17 4-7 3 7m-7 0h7l4-7m-8 0h4m-5-3h3"/></svg></span>${badge}</span>`,
     iconAnchor: [22, 22],
     iconSize: [44, 44],
   });
+}
+
+type ClimateZoneSummary = Readonly<{ alert: ClimateAlert; stationCount: number }>;
+
+/** Alertas distintas que afectan estaciones, de la más restrictiva a la menos, con su cantidad de estaciones. */
+function summarizeClimate(climateByStation: Readonly<Record<number, ClimateAlert>>): ClimateZoneSummary[] {
+  const byAlert = new Map<string, { alert: ClimateAlert; stationCount: number }>();
+  for (const alert of Object.values(climateByStation)) {
+    const current = byAlert.get(alert.alertaId);
+    if (current) current.stationCount += 1;
+    else byAlert.set(alert.alertaId, { alert, stationCount: 1 });
+  }
+  return [...byAlert.values()].sort((left, right) => compareClimateAlerts(left.alert, right.alert));
+}
+
+function climateTooltip(alert: ClimateAlert) {
+  return ` · ${phenomenonLabel(alert.fenomeno)}: ${actionLabel(alert.accion).toLowerCase()}`;
 }
 
 function createEventIcon(isSelected: boolean) {
@@ -256,7 +306,7 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
   const [obstructions, setObstructions] = useState<CicloviaObstruction[]>([]);
   const [selectedObstruction, setSelectedObstruction] = useState<CicloviaObstruction | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<CulturalDestination | null>(null);
-  const [climateByStation, setClimateByStation] = useState<Record<number, ClimateAlert>>({});
+  const climateByStation = useStationClimate();
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
   const [dismissedEvents, setDismissedEvents] = useState<Set<string>>(() => new Set());
   const [now, setNow] = useState(() => Date.now());
@@ -264,25 +314,6 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30_000);
     return () => window.clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    let mounted = true;
-    const loadStatuses = () => {
-      climateService.getStationStatuses()
-        .then((statuses) => {
-          if (!mounted) return;
-          const active: Record<number, ClimateAlert> = {};
-          for (const status of statuses) {
-            if (status.alerta?.activa) active[status.stationId] = status.alerta;
-          }
-          setClimateByStation(active);
-        })
-        .catch(() => { /* El estado climático no bloquea el mapa. */ });
-    };
-    loadStatuses();
-    const timer = window.setInterval(loadStatuses, 30_000);
-    return () => { mounted = false; window.clearInterval(timer); };
   }, []);
 
   useEffect(() => {
@@ -423,6 +454,8 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
       })[0] ?? null;
   }, [dismissedEvents, events, mapBounds, now, userLocation]);
 
+  const climateZones = useMemo(() => summarizeClimate(climateByStation), [climateByStation]);
+
   const dismissContextualEvent = (eventId: string) => {
     sessionStorage.setItem(`mobility-event-warning:${eventId}`, 'dismissed');
     setDismissedEvents((current) => new Set(current).add(eventId));
@@ -490,6 +523,7 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
               <StationsMapCanvas
                 center={viewportCenter}
                 climateByStation={climateByStation}
+                climateZones={climateZones}
                 events={events}
                 obstructions={obstructions}
                 focusLocation={explicitlyRequestedStationCenter !== null || explicitlyRequestedEventCenter !== null}
@@ -519,6 +553,7 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
             />
           ) : null}
           {selectedObstruction ? <ObstructionDetails obstruction={selectedObstruction} /> : null}
+          {!selectedObstruction && !selectedEvent && climateZones.length > 0 ? <ClimateSummary zones={climateZones} /> : null}
           {!selectedObstruction && !selectedEvent && obstructions.length > 0 ? <ObstructionSummary obstructions={obstructions} onSelect={handleObstructionSelection} /> : null}
           <RecommendationPanel error={hasRecommendationError} loading={isRecommendationLoading} purpose={recommendationPurpose} recommendation={recommendation} />
           <StationDetails
@@ -556,7 +591,8 @@ function MapStatusAlerts({ backendError, geolocationError, isBackendLoading, isG
 
 type StationsMapCanvasProps = Readonly<{
   center: Coordinates;
-  climateByStation: Record<number, ClimateAlert>;
+  climateByStation: Readonly<Record<number, ClimateAlert>>;
+  climateZones: ClimateZoneSummary[];
   events: CulturalDestination[];
   obstructions: CicloviaObstruction[];
   focusLocation: boolean;
@@ -573,7 +609,7 @@ type StationsMapCanvasProps = Readonly<{
   userLocation: Coordinates | null;
 }>;
 
-function StationsMapCanvas({ center, climateByStation, events, obstructions, focusLocation, focusedStationId, onBoundsChange, onPlanEvent, onSelectEvent, onSelectObstruction, onSelectStation, recommendedStationId, selectedEventId, selectedStationId, stations, userLocation }: StationsMapCanvasProps) {
+function StationsMapCanvas({ center, climateByStation, climateZones, events, obstructions, focusLocation, focusedStationId, onBoundsChange, onPlanEvent, onSelectEvent, onSelectObstruction, onSelectStation, recommendedStationId, selectedEventId, selectedStationId, stations, userLocation }: StationsMapCanvasProps) {
   return (
     <MapContainer center={center} className={classes.map} zoom={14}>
       <TileLayer
@@ -588,16 +624,25 @@ function StationsMapCanvas({ center, climateByStation, events, obstructions, foc
           <Tooltip direction="top">Tu ubicación</Tooltip>
         </CircleMarker>
       ) : null}
+      {stations.filter((station) => climateByStation[station.id]).map((station) => {
+        const color = CLIMATE_TONE_COLOR[climateTone(climateByStation[station.id])];
+        return <Circle
+          center={[station.latitude, station.longitude]}
+          interactive={false}
+          key={`climate-zone-${station.id}`}
+          pathOptions={{ color, dashArray: '4 6', fillColor: color, fillOpacity: 0.13, opacity: 0.55, weight: 1.5 }}
+          radius={CLIMATE_ZONE_RADIUS_METERS}
+        />;
+      })}
       {stations.map((station) => (
         <Marker
           eventHandlers={{ click: () => onSelectStation(station) }}
           icon={createStationIcon(selectedStationId === station.id || focusedStationId === station.id, recommendedStationId === station.id,
-            Boolean(climateByStation[station.id]))}
+            climateByStation[station.id] ?? null)}
           key={station.id}
           position={[station.latitude, station.longitude]}
         >
-          <Tooltip direction="top">{station.name}{climateByStation[station.id]
-            ? ` · Alerta ${climateByStation[station.id].nivelCriticidad}` : ''}</Tooltip>
+          <Tooltip direction="top">{station.name}{climateByStation[station.id] ? climateTooltip(climateByStation[station.id]) : ''}</Tooltip>
         </Marker>
       ))}
       {events.map((event) => (
@@ -632,8 +677,56 @@ function StationsMapCanvas({ center, climateByStation, events, obstructions, foc
           </Popup>
         </Marker>
       ))}
+      {climateZones.length > 0 ? <ClimateLegend zones={climateZones} /> : null}
     </MapContainer>
   );
+}
+
+function ClimateLegend({ zones }: Readonly<{ zones: ClimateZoneSummary[] }>) {
+  return <aside aria-label="Alertas climáticas en el mapa" className={classes.climateLegend}>
+    <Text className={classes.climateLegendTitle}>Zonas con alerta climática</Text>
+    {zones.map(({ alert }) => {
+      const { Icon, accent } = phenomenonVisual(alert.fenomeno);
+      return <div className={classes.climateLegendRow} key={alert.alertaId}>
+        <span className={classes.climateChip} style={{ '--climate-accent': accent } as CSSProperties}><Icon aria-hidden="true" size={13} /></span>
+        <span className={classes.climateLegendText}>{phenomenonLabel(alert.fenomeno)}{alert.barrios.length ? ` · ${neighborhoodsText(alert.barrios)}` : ''}</span>
+        <span
+          aria-label={actionLabel(alert.accion)}
+          className={classes.climateLegendSwatch}
+          role="img"
+          style={{ background: CLIMATE_TONE_COLOR[climateTone(alert)] }}
+          title={actionLabel(alert.accion)}
+        />
+      </div>;
+    })}
+  </aside>;
+}
+
+function ClimateSummary({ zones }: Readonly<{ zones: ClimateZoneSummary[] }>) {
+  const anyBlocked = zones.some(({ alert }) => blocksRental(alert));
+  return <Paper className={classes.climateSummary} p="md" withBorder>
+    <Group gap="xs"><CloudAlert aria-hidden="true" size={18} /><Title order={3}>Alertas climáticas activas</Title><Badge color={anyBlocked ? 'red' : 'orange'}>{zones.length}</Badge></Group>
+    <Stack gap="xs" mt="sm">
+      {zones.map(({ alert, stationCount }) => {
+        const { Icon, accent } = phenomenonVisual(alert.fenomeno);
+        return <div className={classes.climateSummaryRow} key={alert.alertaId} style={{ '--climate-accent': accent } as CSSProperties}>
+          <Group align="flex-start" gap="sm" wrap="nowrap">
+            <span className={classes.climateChipLarge}><Icon aria-hidden="true" size={18} /></span>
+            <div className={classes.climateSummaryText}>
+              <Group gap={6} justify="space-between" wrap="wrap">
+                <Text fw={700} size="sm">{phenomenonLabel(alert.fenomeno)}</Text>
+                <Badge color={actionColor(alert.accion)} size="xs" variant={blocksRental(alert) ? 'filled' : 'light'}>{actionLabel(alert.accion)}</Badge>
+              </Group>
+              <Text c="dimmed" size="xs">
+                {alert.barrios.length ? neighborhoodsText(alert.barrios) : 'Área afectada'} · {stationCount} {stationCount === 1 ? 'estación' : 'estaciones'} · hasta {formatClimateDate(alert.vigenciaHasta)}
+              </Text>
+            </div>
+          </Group>
+        </div>;
+      })}
+    </Stack>
+    {anyBlocked ? <Text c="dimmed" mt="sm" size="xs">Las devoluciones están permitidas en todas las estaciones.</Text> : null}
+  </Paper>;
 }
 
 function ObstructionSummary({ obstructions, onSelect }: Readonly<{ obstructions: CicloviaObstruction[]; onSelect: (item: CicloviaObstruction) => void }>) {
@@ -810,12 +903,7 @@ function StationDetails({ availability, climateAlert, hasAvailabilityError, isAv
           <Title className={classes.detailsTitle} order={2}>{station.name}</Title>
           <Text c="dimmed" size="sm">{station.address || 'Sin dirección informada'}</Text>
           </div>
-          {climateAlert ? <Alert color={climateAlert.nivelCriticidad === 'CRITICA' || climateAlert.nivelCriticidad === 'ALTA' ? 'red' : 'orange'}
-            title={`Alerta climática ${climateAlert.nivelCriticidad.toLowerCase()}`}>
-            {climateAlert.fenomeno.replaceAll('_', ' ').toLowerCase()}
-            {climateAlert.nivelCriticidad === 'ALTA' || climateAlert.nivelCriticidad === 'CRITICA'
-              ? ' · No se pueden iniciar viajes desde esta estación.' : null}
-          </Alert> : null}
+          {climateAlert ? <StationClimateAlert alert={climateAlert} /> : null}
 
         <div className={classes.metrics}>
           <Metric label="Capacidad" value={station.capacity} />
@@ -838,6 +926,26 @@ function StationDetails({ availability, climateAlert, hasAvailabilityError, isAv
       </Stack>
     </Paper>
   );
+}
+
+function StationClimateAlert({ alert }: Readonly<{ alert: ClimateAlert }>) {
+  const { Icon, accent } = phenomenonVisual(alert.fenomeno);
+  return <Alert
+    className={classes.stationClimateAlert}
+    color={climateColor(alert)}
+    icon={<Icon aria-hidden="true" size={18} />}
+    style={{ '--climate-accent': accent } as CSSProperties}
+    title={`${phenomenonLabel(alert.fenomeno)} · nivel ${severityLabel(alert.nivelCriticidad)}`}
+  >
+    <Stack gap={4}>
+      <Group gap={6}>
+        <Badge color={actionColor(alert.accion)} size="sm" variant={blocksRental(alert) ? 'filled' : 'light'}>{actionLabel(alert.accion)}</Badge>
+      </Group>
+      <Text size="sm">{stationClimateNotice(alert)}</Text>
+      {blocksRental(alert) ? <Text size="sm">Podés devolver bicicletas en esta estación.</Text> : null}
+      <Text c="dimmed" size="xs">Vigencia estimada hasta {formatClimateDate(alert.vigenciaHasta)}.</Text>
+    </Stack>
+  </Alert>;
 }
 
 function Metric({ label, value }: Readonly<{ label: string; value: number | string }>) {

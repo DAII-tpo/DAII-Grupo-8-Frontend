@@ -25,12 +25,13 @@ const { leafletMap, mapGetBounds, mapSetView } = vi.hoisted(() => {
 });
 
 vi.mock('react-leaflet', () => ({
+  Circle: () => <span data-testid="climate-zone" />,
   CircleMarker: ({ children, eventHandlers }: { children: React.ReactNode; eventHandlers?: { click?: () => void } }) => (
     <button onClick={eventHandlers?.click} type="button">{children}</button>
   ),
   MapContainer: ({ children }: { children: React.ReactNode }) => <div data-testid="map">{children}</div>,
   Marker: ({ children, eventHandlers, icon }: { children: React.ReactNode; eventHandlers?: { click?: () => void }; icon?: { options?: { html?: string } } }) => (
-    <button data-climate={icon?.options?.html?.includes('stationMarkerClimate') ? 'true' : 'false'} data-recommended={icon?.options?.html?.includes('stationMarkerRecommended') ? 'true' : 'false'} data-selected={icon?.options?.html?.includes('stationMarkerSelected') ? 'true' : 'false'} onClick={eventHandlers?.click} type="button">{children}</button>
+    <button data-blocked={icon?.options?.html?.includes('stationMarkerBlocked') ? 'true' : 'false'} data-climate={icon?.options?.html?.includes('stationMarkerClimate') ? 'true' : 'false'} data-recommended={icon?.options?.html?.includes('stationMarkerRecommended') ? 'true' : 'false'} data-selected={icon?.options?.html?.includes('stationMarkerSelected') ? 'true' : 'false'} onClick={eventHandlers?.click} type="button">{children}</button>
   ),
   Popup: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   TileLayer: () => null,
@@ -339,18 +340,45 @@ describe('MapPage', () => {
     vi.mocked(stationService.getAll).mockResolvedValueOnce([{ ...station, id: 1, name: 'Estacion Centro' }]);
     vi.mocked(climateService.getStationStatuses).mockResolvedValueOnce([{
       stationId: 1,
-      alerta: { alertaId: 'weather-1', nivelCriticidad: 'ALTA', fenomeno: 'GRANIZO',
+      alerta: { alertaId: 'weather-1', nivelCriticidad: 'MEDIA', fenomeno: 'TORMENTA_ELECTRICA',
         barrios: ['San Nicolás'], vigenciaDesde: '2026-11-12T10:00:00Z',
-        vigenciaHasta: '2026-11-13T10:00:00Z', activa: true },
+        vigenciaHasta: '2026-11-13T10:00:00Z', activa: true, accion: 'BLOQUEO', bloqueaAlquiler: true },
     }]);
 
     renderPage();
 
-    const marker = await screen.findByRole('button', { name: /Estacion Centro · Alerta ALTA/ });
+    const marker = await screen.findByRole('button', { name: /Estacion Centro · Tormenta eléctrica: alquiler bloqueado/ });
     expect(marker).toHaveAttribute('data-climate', 'true');
+    expect(marker).toHaveAttribute('data-blocked', 'true');
+    expect(screen.getAllByTestId('climate-zone')).toHaveLength(1);
+    expect(screen.getByRole('complementary', { name: 'Alertas climáticas en el mapa' })).toHaveTextContent('Tormenta eléctrica · San Nicolás');
+    expect(screen.getByText('Alertas climáticas activas')).toBeInTheDocument();
     fireEvent.click(marker);
-    expect(await screen.findByText('Alerta climática alta')).toBeInTheDocument();
+    expect(await screen.findByText('Tormenta eléctrica · nivel media')).toBeInTheDocument();
+    expect(screen.getByText('No se pueden iniciar viajes desde esta estación.')).toBeInTheDocument();
+    expect(screen.getByText('Podés devolver bicicletas en esta estación.')).toBeInTheDocument();
     expect(screen.getByTestId('map')).toBeInTheDocument();
+  });
+
+  it('una alerta que solo pide confirmación no marca la estación como bloqueada', async () => {
+    mockLocationSuccess();
+    vi.mocked(stationService.getNearby).mockResolvedValueOnce([nearbyStation]);
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([{ ...station, id: 1, name: 'Estacion Centro' }]);
+    vi.mocked(climateService.getStationStatuses).mockResolvedValueOnce([{
+      stationId: 1,
+      alerta: { alertaId: 'weather-2', nivelCriticidad: 'ALTA', fenomeno: 'LLUVIA_INTENSA',
+        barrios: ['San Nicolás'], vigenciaDesde: '2026-11-12T10:00:00Z',
+        vigenciaHasta: '2026-11-13T10:00:00Z', activa: true, accion: 'CONFIRMACION', bloqueaAlquiler: false },
+    }]);
+
+    renderPage();
+
+    const marker = await screen.findByRole('button', { name: /Estacion Centro · Lluvia intensa: requiere confirmación/ });
+    expect(marker).toHaveAttribute('data-climate', 'true');
+    expect(marker).toHaveAttribute('data-blocked', 'false');
+    fireEvent.click(marker);
+    expect(await screen.findByText('Para retirar una bicicleta vas a tener que aceptar el riesgo climático.')).toBeInTheDocument();
+    expect(screen.queryByText('No se pueden iniciar viajes desde esta estación.')).not.toBeInTheDocument();
   });
   it('permite volver a Inicio desde la navegación interna', () => {
     mockLocationSuccess();
