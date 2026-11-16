@@ -1,0 +1,53 @@
+.card {
+  --climate-accent: var(--citypass-amber);
+
+  border: 1px solid color-mix(in srgb, var(--climate-accent) 28%, white);
+  border-left: 5px solid var(--climate-accent);
+  border-radius: 0.75rem;
+  box-shadow: 0 6px 18px rgb(20 36 48 / 7%);
+  background:
+    linear-gradient(100deg, color-mix(in srgb, var(--climate-accent) 9%, white) 0%, white 55%);
+}
+
+/* Mantine fija el tamaño del contenedor del ícono; se libera y el círculo lo dibuja .chip. */
+.icon {
+  width: auto;
+  height: auto;
+  margin-top: 0;
+  margin-inline-end: 0.85rem;
+}
+
+.chip {
+  display: flex;
+  flex: 0 0 auto;
+  width: 2.5rem;
+  height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: white;
+  background: var(--climate-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--climate-accent) 18%, transparent);
+}
+
+.chip > svg {
+  display: block;
+  flex: 0 0 auto;
+}
+
+.body {
+  gap: 0.2rem;
+}
+
+.title {
+  width: 100%;
+  color: var(--citypass-night-blue);
+}
+
+.heading {
+  width: 100%;
+}
+
+.toggle {
+  align-self: flex-start;
+}
