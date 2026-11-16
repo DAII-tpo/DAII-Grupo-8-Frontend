@@ -19,7 +19,20 @@ export function MobilityAnalyticsPage() {
         : 'No se pudo cargar Analítica. Intentá nuevamente.');
     } finally { setLoading(false); }
   }, []);
-  useEffect(() => { void loadDashboard(); }, [loadDashboard]);
+  useEffect(() => {
+    let active = true;
+    analyticsService.getEmbed()
+      .then((response) => { if (active) setHtml(response); })
+      .catch((cause: unknown) => {
+        if (!active) return;
+        setHtml(null);
+        setError(axios.isAxiosError(cause) && cause.response?.status === 403
+          ? 'Tu usuario no tiene permiso para consultar este tablero.'
+          : 'No se pudo cargar Analítica. Intentá nuevamente.');
+      })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
   return (
     <Stack className={pageClasses.page} gap="lg">
       <MobilityPageHeader title="Analítica" subtitle="Tableros e indicadores del módulo de BI." />
