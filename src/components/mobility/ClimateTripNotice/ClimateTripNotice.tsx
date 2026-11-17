@@ -1,9 +1,9 @@
-import { Alert, Text } from '@mantine/core';
-import { CloudLightning } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Alert, Stack, Text } from '@mantine/core';
+import { useEffect, useState, type CSSProperties } from 'react';
 
 import { climateService } from '../../../services/climate/climateService';
 import type { ClimateTripNotification } from '../../../types/climateAlert';
+import { formatClimateDate, phenomenonLabel, phenomenonRiskHint, phenomenonVisual } from '../climateCopy';
 
 export function ClimateTripNotice({ tripId }: Readonly<{ tripId: number }>) {
   const [notice, setNotice] = useState<ClimateTripNotification | null>(null);
@@ -24,11 +24,24 @@ export function ClimateTripNotice({ tripId }: Readonly<{ tripId: number }>) {
 
   if (!notice) return null;
 
-  return <Alert color="red" icon={<CloudLightning size={18} />} title="Alerta climática crítica durante tu viaje">
-    <Text size="sm">La alerta {notice.alerta.fenomeno.replaceAll('_', ' ').toLowerCase()} afecta tu estación de origen.
-      Podés devolver la bicicleta igualmente.</Text>
-    {notice.suggestedStationName
-      ? <Text size="sm">Estación sugerida para devolverla: {notice.suggestedStationName}.</Text>
-      : null}
+  const { alerta } = notice;
+  const { Icon, accent } = phenomenonVisual(alerta.fenomeno);
+  const hint = phenomenonRiskHint(alerta.fenomeno);
+
+  return <Alert
+    color="red"
+    icon={<Icon aria-hidden="true" size={18} />}
+    style={{ borderLeft: `4px solid ${accent}` } as CSSProperties}
+    title={`${phenomenonLabel(alerta.fenomeno)}: alerta durante tu viaje`}
+  >
+    <Stack gap={4}>
+      <Text size="sm">
+        La alerta afecta a tu estación de origen{hint ? ` (${hint})` : ''}. Podés devolver la bicicleta en cualquier estación.
+      </Text>
+      {notice.suggestedStationName
+        ? <Text fw={600} size="sm">Estación sugerida para devolverla: {notice.suggestedStationName}.</Text>
+        : <Text size="sm">No encontramos otra estación libre de la alerta cerca: podés devolverla igual en la más cercana.</Text>}
+      <Text c="dimmed" size="xs">Vigencia estimada hasta {formatClimateDate(alerta.vigenciaHasta)}.</Text>
+    </Stack>
   </Alert>;
 }

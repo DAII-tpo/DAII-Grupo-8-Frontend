@@ -15,10 +15,22 @@ import {
 } from '@mantine/core';
 import { isAxiosError } from 'axios';
 import { AlertCircle, Bike, Clock3, MapPin, Play, Route, Siren } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 
 import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
 import { ClimateTripNotice } from '../../components/mobility/ClimateTripNotice/ClimateTripNotice';
+import {
+  actionColor,
+  actionLabel,
+  blocksRental,
+  climateColor,
+  formatClimateDate,
+  phenomenonLabel,
+  phenomenonVisual,
+  stationClimateNotice,
+  stationOptionSuffix,
+} from '../../components/mobility/climateCopy';
+import { useStationClimate } from '../../components/mobility/useStationClimate';
 import { MobilityFeatureBanner } from '../../components/mobility/MobilityFeatureBanner';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
@@ -26,6 +38,7 @@ import { bikeService } from '../../services/bikes/bikeService';
 import { stationService } from '../../services/stations/stationService';
 import { tripService } from '../../services/trips/tripService';
 import type { BikeResponse } from '../../types/bike';
+import type { ClimateAlert } from '../../types/climateAlert';
 import type { Station } from '../../types/station';
 import type { StationAvailability } from '../../types/stationAvailability';
 import type { TripResponse } from '../../types/trip';
@@ -122,7 +135,11 @@ function StartTripFlow({ onTripStarted }: Readonly<StartTripFlowProps>) {
   const [selectedBikeId, setSelectedBikeId] = useState<number | null>(null);
   const [isStartingTrip, setIsStartingTrip] = useState(false);
   const [startTripError, setStartTripError] = useState<string | null>(null);
-  const [climateConfirmation, setClimateConfirmation] = useState<string | null>(null);
+  const [climateConfirmation, setClimateConfirmation] = useState<ClimateTripConflict | null>(null);
+  const [climateBlock, setClimateBlock] = useState<ClimateTripConflict | null>(null);
+  const climateByStation = useStationClimate();
+  const selectedClimate = selectedStationId === null ? null : climateByStation[selectedStationId] ?? null;
+  const isBlockedByClimate = selectedClimate !== null && blocksRental(selectedClimate);
 
   const loadStations = useCallback(async () => {
     setIsLoadingStations(true);
@@ -149,6 +166,7 @@ function StartTripFlow({ onTripStarted }: Readonly<StartTripFlowProps>) {
     setSelectedBikeId(null);
     setStartTripError(null);
     setClimateConfirmation(null);
+    setClimateBlock(null);
 
     if (!Number.isSafeInteger(stationId) || stationId <= 0) {
       return;
@@ -171,6 +189,7 @@ function StartTripFlow({ onTripStarted }: Readonly<StartTripFlowProps>) {
 
     setIsStartingTrip(true);
     setStartTripError(null);
+    setClimateBlock(null);
 
     try {
       onTripStarted(await tripService.start({
@@ -181,7 +200,10 @@ function StartTripFlow({ onTripStarted }: Readonly<StartTripFlowProps>) {
     } catch (error) {
       const conflict = climateTripConflict(error);
       if (conflict?.code === 'CONFIRMACION_RIESGO_CLIMATICO_REQUERIDA' && !acceptClimateRisk) {
-        setClimateConfirmation(conflict.message);
+        setClimateConfirmation(conflict);
+      } else if (conflict?.code === 'ALQUILER_BLOQUEADO_POR_CLIMA') {
+        setClimateConfirmation(null);
+        setClimateBlock(conflict);
       } else {
         setClimateConfirmation(null);
         setStartTripError(conflict?.message ?? startTripErrorMessage(error));
@@ -236,12 +258,14 @@ function StartTripFlow({ onTripStarted }: Readonly<StartTripFlowProps>) {
             {sortedStations.map((station) => (
               <option key={station.id} value={station.id}>
                 {station.name}{station.address ? ` - ${station.address}` : ''}
+                {climateByStation[station.id] ? stationOptionSuffix(climateByStation[station.id]) : ''}
               </option>
             ))}
           </NativeSelect>
         </Stack>
       </Paper>
 
+      {selectedClimate ? <StationClimateCallout alert={selectedClimate} /> : null}
       {selectedStationId !== null && isLoadingBikes ? <LoadingPanel message="Cargando bicicletas disponibles..." /> : null}
       {bikesError ? <Alert color="red" icon={<AlertCircle size={18} />} title="No se pudieron cargar las bicicletas">{bikesError}</Alert> : null}
       {selectedStationId !== null && !isLoadingBikes && !bikesError && bikes.length === 0 ? (
@@ -270,8 +294,12 @@ function StartTripFlow({ onTripStarted }: Readonly<StartTripFlowProps>) {
               </Stack>
             </Radio.Group>
             {startTripError ? <Alert color="red" icon={<AlertCircle size={18} />} title="No se pudo iniciar el viaje">{startTripError}</Alert> : null}
+            {climateBlock ? <ClimateBlockAlert conflict={climateBlock} /> : null}
+            {isBlockedByClimate && !climateBlock
+              ? <Text c="red.8" size="sm">No se pueden iniciar viajes desde esta estación mientras rija la alerta climática.</Text>
+              : null}
             <Button
-              disabled={selectedBikeId === null}
+              disabled={selectedBikeId === null || isBlockedByClimate}
               leftSection={<Play size={16} />}
               loading={isStartingTrip}
               onClick={() => { startTrip().catch(() => undefined); }}
@@ -285,10 +313,13 @@ function StartTripFlow({ onTripStarted }: Readonly<StartTripFlowProps>) {
         centered
         onClose={() => setClimateConfirmation(null)}
         opened={climateConfirmation !== null}
-        title="Confirmar riesgo climático"
+        title={<ClimateModalTitle fenomeno={climateConfirmation?.fenomeno ?? null} />}
       >
         <Stack gap="md">
-          <Text>{climateConfirmation}</Text>
+          <Text>{climateConfirmation ? asSentence(climateConfirmation.message) : null}</Text>
+          {climateConfirmation?.vigenciaHasta
+            ? <Text c="dimmed" size="sm">Vigencia estimada hasta {formatClimateDate(climateConfirmation.vigenciaHasta)}.</Text>
+            : null}
           <Group justify="flex-end">
             <Button onClick={() => setClimateConfirmation(null)} variant="default">Cancelar</Button>
             <Button loading={isStartingTrip} onClick={() => { startTrip(true).catch(() => undefined); }}>
@@ -600,8 +631,16 @@ function startTripErrorMessage(error: unknown) {
 
 type ClimateTripConflict = {
   code: 'CONFIRMACION_RIESGO_CLIMATICO_REQUERIDA' | 'ALQUILER_BLOQUEADO_POR_CLIMA';
+  /** Mensaje del backend; ya incluye el riesgo del fenómeno ("… (riesgo de rayos)"). */
   message: string;
+  fenomeno: string | null;
+  vigenciaHasta: string | null;
 };
+
+function stringField(data: object, field: string): string | null {
+  const value: unknown = (data as Record<string, unknown>)[field];
+  return typeof value === 'string' && value.trim() ? value : null;
+}
 
 function climateTripConflict(error: unknown): ClimateTripConflict | null {
   if (!isAxiosError(error) || error.response?.status !== 409) return null;
@@ -610,11 +649,62 @@ function climateTripConflict(error: unknown): ClimateTripConflict | null {
   if (data.code !== 'CONFIRMACION_RIESGO_CLIMATICO_REQUERIDA'
       && data.code !== 'ALQUILER_BLOQUEADO_POR_CLIMA') return null;
   if (typeof data.message !== 'string') return null;
-  const phenomenon = 'fenomeno' in data && typeof data.fenomeno === 'string'
-    ? ` Fenómeno: ${data.fenomeno.replaceAll('_', ' ').toLowerCase()}.` : '';
-  const until = 'vigenciaHasta' in data && typeof data.vigenciaHasta === 'string'
-    ? ` Vigencia estimada hasta ${new Date(data.vigenciaHasta).toLocaleString('es-AR')}.` : '';
-  return { code: data.code, message: `${data.message}${phenomenon}${until}` };
+  return {
+    code: data.code,
+    message: data.message,
+    fenomeno: stringField(data, 'fenomeno'),
+    vigenciaHasta: stringField(data, 'vigenciaHasta'),
+  };
+}
+
+function asSentence(text: string) {
+  const trimmed = text.trim();
+  return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+}
+
+function ClimateIconChip({ fenomeno, size = 16 }: Readonly<{ fenomeno: string | null; size?: number }>) {
+  const { Icon, accent } = phenomenonVisual(fenomeno ?? '');
+  return <span className={classes.climateChip} style={{ '--climate-accent': accent } as CSSProperties}>
+    <Icon aria-hidden="true" size={size} />
+  </span>;
+}
+
+function ClimateModalTitle({ fenomeno }: Readonly<{ fenomeno: string | null }>) {
+  return <Group gap="xs" wrap="nowrap">
+    <ClimateIconChip fenomeno={fenomeno} />
+    <span>Confirmar riesgo climático</span>
+  </Group>;
+}
+
+function StationClimateCallout({ alert }: Readonly<{ alert: ClimateAlert }>) {
+  const { Icon, accent } = phenomenonVisual(alert.fenomeno);
+  const blocked = blocksRental(alert);
+  return <Alert
+    className={classes.climateCallout}
+    color={climateColor(alert)}
+    icon={<Icon aria-hidden="true" size={18} />}
+    style={{ '--climate-accent': accent } as CSSProperties}
+    title={<Group gap="xs" justify="space-between" wrap="wrap">
+      <span>{phenomenonLabel(alert.fenomeno)} en esta estación</span>
+      <Badge color={actionColor(alert.accion)} size="sm" variant={blocked ? 'filled' : 'light'}>{actionLabel(alert.accion)}</Badge>
+    </Group>}
+  >
+    <Text size="sm">
+      {stationClimateNotice(alert)}{blocked ? ' Las devoluciones siguen permitidas.' : ''}
+    </Text>
+    <Text c="dimmed" size="xs">Vigencia estimada hasta {formatClimateDate(alert.vigenciaHasta)}.</Text>
+  </Alert>;
+}
+
+function ClimateBlockAlert({ conflict }: Readonly<{ conflict: ClimateTripConflict }>) {
+  const { Icon } = phenomenonVisual(conflict.fenomeno ?? '');
+  const cause = conflict.fenomeno ? phenomenonLabel(conflict.fenomeno).toLowerCase() : 'alerta climática';
+  return <Alert color="red" icon={<Icon aria-hidden="true" size={18} />} title={`Alquiler bloqueado por ${cause}`}>
+    <Text size="sm">{asSentence(conflict.message)} Las devoluciones siguen permitidas.</Text>
+    {conflict.vigenciaHasta
+      ? <Text c="dimmed" size="xs">Vigencia estimada hasta {formatClimateDate(conflict.vigenciaHasta)}.</Text>
+      : null}
+  </Alert>;
 }
 
 function availabilityErrorMessage(error: unknown) {

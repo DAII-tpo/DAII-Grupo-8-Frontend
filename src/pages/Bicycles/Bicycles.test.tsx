@@ -21,7 +21,7 @@ vi.mock('../../app/providers/authContext', () => ({
 vi.mock('../../services/bikes/bikeService', () => ({ bikeService: { getAvailable: vi.fn() } }));
 vi.mock('../../services/stations/stationService', () => ({ stationService: { getAll: vi.fn(), getAvailability: vi.fn() } }));
 vi.mock('../../services/trips/tripService', () => ({ tripService: { end: vi.fn(), getActive: vi.fn(), start: vi.fn() } }));
-vi.mock('../../services/climate/climateService', () => ({ climateService: { getTripNotifications: vi.fn() } }));
+vi.mock('../../services/climate/climateService', () => ({ climateService: { getStationStatuses: vi.fn(), getTripNotifications: vi.fn() } }));
 
 const station = {
   id: 2,
@@ -132,6 +132,7 @@ afterEach(() => {
 
 beforeEach(() => {
   vi.mocked(climateService.getTripNotifications).mockResolvedValue([]);
+  vi.mocked(climateService.getStationStatuses).mockResolvedValue([]);
 });
 
 describe('BicyclesPage', () => {
@@ -176,13 +177,13 @@ describe('BicyclesPage', () => {
     expect(await screen.findByRole('combobox', { name: 'Estación destino' })).toBeInTheDocument();
   });
 
-  it('avisa al usuario con viaje activo sobre una alerta crítica y la estación sugerida', async () => {
+  it('avisa al usuario con viaje activo sobre la alerta y la estación sugerida', async () => {
     mockActiveTrip();
     vi.mocked(climateService.getTripNotifications).mockResolvedValueOnce([{
       tripId: activeTrip.id,
-      alerta: { alertaId: 'weather-1', nivelCriticidad: 'CRITICA', fenomeno: 'GRANIZO',
+      alerta: { alertaId: 'weather-1', nivelCriticidad: 'ALTA', fenomeno: 'GRANIZO',
         barrios: ['Palermo'], vigenciaDesde: '2026-11-12T10:00:00Z',
-        vigenciaHasta: '2026-11-13T10:00:00Z', activa: true },
+        vigenciaHasta: '2026-11-13T10:00:00Z', activa: true, accion: 'BLOQUEO_Y_AVISO_VIAJES', bloqueaAlquiler: true },
       suggestedStationId: 4,
       suggestedStationName: 'Retiro',
       notifiedAt: '2026-11-12T10:05:00Z',
@@ -190,9 +191,69 @@ describe('BicyclesPage', () => {
 
     renderPage();
 
-    expect(await screen.findByText('Alerta climática crítica durante tu viaje')).toBeInTheDocument();
+    expect(await screen.findByText('Granizo: alerta durante tu viaje')).toBeInTheDocument();
+    expect(screen.getByText(/caída de granizo/)).toBeInTheDocument();
     expect(screen.getByText(/Estación sugerida para devolverla: Retiro/)).toBeInTheDocument();
     expect(await screen.findByRole('combobox', { name: 'Estación destino' })).toBeInTheDocument();
+  });
+
+  it('sin estación sugerida aclara que se puede devolver igual', async () => {
+    mockActiveTrip();
+    vi.mocked(climateService.getTripNotifications).mockResolvedValueOnce([{
+      tripId: activeTrip.id,
+      alerta: { alertaId: 'weather-1', nivelCriticidad: 'MEDIA', fenomeno: 'TORMENTA_ELECTRICA',
+        barrios: ['Palermo'], vigenciaDesde: '2026-11-12T10:00:00Z',
+        vigenciaHasta: '2026-11-13T10:00:00Z', activa: true, accion: 'BLOQUEO_Y_AVISO_VIAJES', bloqueaAlquiler: true },
+      suggestedStationId: null,
+      suggestedStationName: null,
+      notifiedAt: '2026-11-12T10:05:00Z',
+    }]);
+
+    renderPage();
+
+    expect(await screen.findByText('Tormenta eléctrica: alerta durante tu viaje')).toBeInTheDocument();
+    expect(screen.getByText(/podés devolverla igual en la más cercana/)).toBeInTheDocument();
+    expect(screen.queryByText(/Estación sugerida para devolverla/)).not.toBeInTheDocument();
+  });
+
+  it('anticipa el bloqueo climático de la estación de origen y no deja iniciar el viaje', async () => {
+    mockNoActiveTrip();
+    vi.mocked(climateService.getStationStatuses).mockResolvedValue([{
+      stationId: station.id,
+      alerta: { alertaId: 'weather-1', nivelCriticidad: 'MEDIA', fenomeno: 'TORMENTA_ELECTRICA',
+        barrios: ['San Nicolás'], vigenciaDesde: '2026-11-12T10:00:00Z',
+        vigenciaHasta: '2026-11-13T10:00:00Z', activa: true, accion: 'BLOQUEO', bloqueaAlquiler: true },
+    }]);
+    vi.mocked(bikeService.getAvailable).mockResolvedValueOnce([bike]);
+
+    renderPage();
+
+    expect(await screen.findByRole('option', { name: /Estacion Centro .* · bloqueada por clima/ })).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Estación de origen' }), { target: { value: '2' } });
+    expect(await screen.findByText('Tormenta eléctrica en esta estación')).toBeInTheDocument();
+    expect(screen.getByText(/Las devoluciones siguen permitidas/)).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('radio', { name: 'BIKE-001 - City Bike' }));
+    expect(screen.getByRole('button', { name: 'Iniciar viaje' })).toBeDisabled();
+    expect(tripService.start).not.toHaveBeenCalled();
+  });
+
+  it('una alerta que solo pide confirmación avisa pero deja iniciar el viaje', async () => {
+    mockNoActiveTrip();
+    vi.mocked(climateService.getStationStatuses).mockResolvedValue([{
+      stationId: station.id,
+      alerta: { alertaId: 'weather-2', nivelCriticidad: 'ALTA', fenomeno: 'LLUVIA_INTENSA',
+        barrios: ['San Nicolás'], vigenciaDesde: '2026-11-12T10:00:00Z',
+        vigenciaHasta: '2026-11-13T10:00:00Z', activa: true, accion: 'CONFIRMACION', bloqueaAlquiler: false },
+    }]);
+    vi.mocked(bikeService.getAvailable).mockResolvedValueOnce([bike]);
+
+    renderPage();
+
+    expect(await screen.findByRole('option', { name: /Estacion Centro .* · requiere aceptar riesgo climático/ })).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Estación de origen' }), { target: { value: '2' } });
+    expect(await screen.findByText('Requiere confirmación')).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('radio', { name: 'BIKE-001 - City Bike' }));
+    expect(screen.getByRole('button', { name: 'Iniciar viaje' })).toBeEnabled();
   });
 
   it('consulta la disponibilidad al seleccionar una estación destino', async () => {
@@ -464,7 +525,8 @@ describe('BicyclesPage', () => {
     fireEvent.click(await screen.findByRole('radio', { name: 'BIKE-001 - City Bike' }));
     fireEvent.click(screen.getByRole('button', { name: 'Iniciar viaje' }));
 
-    expect(await screen.findByText(/No se puede retirar por alerta climática/)).toBeInTheDocument();
+    expect(await screen.findByText('Alquiler bloqueado por granizo')).toBeInTheDocument();
+    expect(screen.getByText(/No se puede retirar por alerta climática\. Las devoluciones siguen permitidas\./)).toBeInTheDocument();
     expect(screen.queryByText('Confirmar riesgo climático')).not.toBeInTheDocument();
     expect(tripService.start).toHaveBeenCalledTimes(1);
   });
