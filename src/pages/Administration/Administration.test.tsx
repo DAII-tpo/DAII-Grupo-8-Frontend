@@ -53,8 +53,8 @@ const maintenance = {
   resolution: null,
 };
 
-function renderPage() {
-  return render(<MemoryRouter initialEntries={['/movilidad/administracion']}><MantineProvider theme={mantineTheme}><AdministrationPage /></MantineProvider></MemoryRouter>);
+function renderPage(path = '/movilidad/administracion') {
+  return render(<MemoryRouter initialEntries={[path]}><MantineProvider theme={mantineTheme}><AdministrationPage /></MantineProvider></MemoryRouter>);
 }
 
 function mockData() {
@@ -397,6 +397,44 @@ describe('AdministrationPage', () => {
     expect(screen.getByText('Gestión de bicicletas')).toBeInTheDocument();
   });
 
+  it('abre directamente la pestaña Analítica indicada por la URL', async () => {
+    mockData();
+    renderPage('/movilidad/administracion?tab=analytics');
+    expect(await screen.findByTitle('Dashboard de Analítica de Movilidad')).toBeInTheDocument();
+    expect(analyticsService.getEmbed).toHaveBeenCalledOnce();
+  });
+
+  it('muestra el permiso denegado que devuelve el endpoint de BI', async () => {
+    mockData();
+    vi.mocked(analyticsService.getEmbed).mockRejectedValueOnce(httpError(403));
+    renderPage();
+    await screen.findByRole('img', { name: 'Estado de incidencias' });
+    fireEvent.click(screen.getByRole('tab', { name: 'Analítica' }));
+    expect(await screen.findByText('Tu usuario no tiene permiso para consultar este tablero.')).toBeInTheDocument();
+  });
+
+  it('muestra un error recuperable si BI no está disponible', async () => {
+    mockData();
+    vi.mocked(analyticsService.getEmbed).mockRejectedValueOnce(httpError(503));
+    renderPage();
+    await screen.findByRole('img', { name: 'Estado de incidencias' });
+    fireEvent.click(screen.getByRole('tab', { name: 'Analítica' }));
+    expect(await screen.findByText('No se pudo cargar Analítica. Intentá nuevamente.')).toBeInTheDocument();
+  });
+
+  it('ignora la respuesta de BI si se desmonta la pestaña antes de recibirla', async () => {
+    mockData();
+    let resolveEmbed!: (html: string) => void;
+    vi.mocked(analyticsService.getEmbed).mockReturnValueOnce(new Promise((resolve) => { resolveEmbed = resolve; }));
+    const view = renderPage();
+    await screen.findByRole('img', { name: 'Estado de incidencias' });
+    fireEvent.click(screen.getByRole('tab', { name: 'Analítica' }));
+    await vi.waitFor(() => expect(analyticsService.getEmbed).toHaveBeenCalledOnce());
+    fireEvent.click(screen.getByRole('tab', { name: 'Resumen' }));
+    resolveEmbed('<html>late</html>');
+    await Promise.resolve();
+    view.unmount();
+  });
   it('carga el embed autenticado de BI en la pestaña Analítica administrativa', async () => {
     mockData();
     renderPage();
