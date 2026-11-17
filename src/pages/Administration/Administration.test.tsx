@@ -8,6 +8,7 @@ import { incidentService } from '../../services/incidents/incidentService';
 import { maintenanceService } from '../../services/maintenance/maintenanceService';
 import { restockService } from '../../services/restock/restockService';
 import { stationService } from '../../services/stations/stationService';
+import { analyticsService } from '../../services/analytics/analyticsService';
 import { mantineTheme } from '../../styles/theme';
 import { AdministrationPage } from './index';
 
@@ -19,6 +20,7 @@ vi.mock('../../services/maintenance/maintenanceService', () => ({ maintenanceSer
 vi.mock('../../services/stations/stationService', () => ({ stationService: { getAll: vi.fn() } }));
 vi.mock('../../services/bikes/bikeService', () => ({ bikeService: { getAll: vi.fn(), getByStation: vi.fn() } }));
 vi.mock('../../services/restock/restockService', () => ({ restockService: { getUpcoming: vi.fn(), getTransferPlans: vi.fn(), updateTarget: vi.fn(), complete: vi.fn() } }));
+vi.mock('../../services/analytics/analyticsService', () => ({ analyticsService: { getEmbed: vi.fn() } }));
 vi.mock('./StationManagement', () => ({ StationManagement: () => <div>Gestión de estaciones</div> }));
 vi.mock('./BikeManagement', () => ({ BikeManagement: () => <div>Gestión de bicicletas</div> }));
 
@@ -65,6 +67,7 @@ function httpError(status: number) {
 }
 
 beforeEach(() => {
+  vi.mocked(analyticsService.getEmbed).mockResolvedValue('<html><body>BI Dashboard</body></html>');
   vi.mocked(stationService.getAll).mockResolvedValue([]);
   vi.mocked(bikeService.getAll).mockResolvedValue([]);
   vi.mocked(bikeService.getByStation).mockResolvedValue([]);
@@ -394,7 +397,7 @@ describe('AdministrationPage', () => {
     expect(screen.getByText('Gestión de bicicletas')).toBeInTheDocument();
   });
 
-  it('muestra la analítica demostrativa sin realizar requests adicionales', async () => {
+  it('carga el embed autenticado de BI en la pestaña Analítica administrativa', async () => {
     mockData();
     renderPage();
 
@@ -409,13 +412,10 @@ describe('AdministrationPage', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: 'Analítica' }));
 
-    expect(await screen.findByText('Datos demostrativos')).toBeInTheDocument();
-    expect(screen.getByText('Total de bicicletas')).toBeInTheDocument();
-    expect(screen.getByText('Bicicletas por estación')).toBeInTheDocument();
-    expect(screen.getByText('Viajes por hora')).toBeInTheDocument();
-    expect(screen.getByText('Estaciones con mayor demanda')).toBeInTheDocument();
-    expect(screen.getByText('Predicción de disponibilidad')).toBeInTheDocument();
-    expect(screen.getByText('Alertas operativas')).toBeInTheDocument();
+    const frame = await screen.findByTitle('Dashboard de Analítica de Movilidad');
+    expect(frame).toHaveAttribute('srcdoc', '<html><body>BI Dashboard</body></html>');
+    expect(frame).toHaveAttribute('sandbox', 'allow-scripts');
+    expect(analyticsService.getEmbed).toHaveBeenCalledOnce();
     expect(vi.mocked(bikeService.getAll).mock.calls).toHaveLength(initialRequestCounts.bikes);
     expect(vi.mocked(incidentService.getAll).mock.calls).toHaveLength(initialRequestCounts.incidents);
     expect(vi.mocked(maintenanceService.getAll).mock.calls).toHaveLength(initialRequestCounts.maintenance);
