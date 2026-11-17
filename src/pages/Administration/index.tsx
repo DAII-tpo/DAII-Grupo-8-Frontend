@@ -12,7 +12,7 @@ import { incidentService } from '../../services/incidents/incidentService';
 import { maintenanceService } from '../../services/maintenance/maintenanceService';
 import { stationService } from '../../services/stations/stationService';
 import { BikeManagement } from './BikeManagement';
-import { AnalyticsDashboard } from './AnalyticsDashboard';
+import { MobilityAnalyticsEmbed } from '../MobilityAnalytics';
 import { StationManagement } from './StationManagement';
 import { RestockPanel } from './RestockPanel';
 import type { AdminIncidentResponse, IncidentStatus } from '../../types/incident';
@@ -20,6 +20,7 @@ import type { MaintenanceResponse } from '../../types/maintenance';
 import type { BikeResponse, BikeStatus } from '../../types/bike';
 import type { Station } from '../../types/station';
 import pageClasses from '../../styles/mobilityPage.module.css';
+import { useSearchParams } from 'react-router-dom';
 
 import classes from './Administration.module.css';
 
@@ -41,6 +42,8 @@ const maintenanceStatusLabels = {
 
 export function AdministrationPage() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') === 'analytics' ? 'analytics' : 'summary';
   const hasAuthenticatedUser = user !== null;
   const [incidents, setIncidents] = useState<AdminIncidentResponse[]>([]);
   const [maintenance, setMaintenance] = useState<MaintenanceResponse[]>([]);
@@ -158,7 +161,7 @@ export function AdministrationPage() {
         <>
           {actionError ? <Alert color="red" icon={<AlertCircle size={18} />} title="No se pudo completar la operación">{actionError}</Alert> : null}
           {actionSuccess ? <Alert color="green" icon={<CheckCircle2 size={18} />} title="Operación realizada">{actionSuccess}</Alert> : null}
-          <Tabs classNames={{ list: mobilityNavigationClasses.tabsList }} defaultValue="summary" keepMounted={false}>
+          <Tabs classNames={{ list: mobilityNavigationClasses.tabsList }} defaultValue={initialTab} keepMounted={false}>
             <Tabs.List>
               <Tabs.Tab value="summary">Resumen</Tabs.Tab>
               <Tabs.Tab value="analytics">Analítica</Tabs.Tab>
@@ -172,7 +175,7 @@ export function AdministrationPage() {
               <AdministrationSummary bikes={bikes} incidents={incidents} maintenance={maintenance} stations={stations} />
             </Tabs.Panel>
             <Tabs.Panel pt="md" value="analytics">
-              <AnalyticsDashboard />
+              <MobilityAnalyticsEmbed />
             </Tabs.Panel>
             <Tabs.Panel pt="md" value="incidents">
               <Stack gap="lg">

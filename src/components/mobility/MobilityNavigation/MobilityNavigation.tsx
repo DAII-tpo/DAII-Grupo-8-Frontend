@@ -11,7 +11,6 @@ const navigationItems = [
   { label: 'Bicicletas/Viajes', path: '/movilidad/bicicletas', value: 'bicicletas' },
   { label: 'Historial', path: '/movilidad/historial', value: 'historial' },
   { label: 'Reportes', path: '/movilidad/reportes', value: 'reportes' },
-  { label: 'Analítica', path: '/movilidad/analitica', value: 'analitica' },
 ];
 
 export function MobilityNavigation() {
