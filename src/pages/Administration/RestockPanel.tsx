@@ -15,6 +15,7 @@ type LoadState =
 const deadlineFormat = new Intl.DateTimeFormat('es-AR', {
   dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Argentina/Buenos_Aires',
 });
+type RestockView = RestockStatus | 'HISTORY';
 const labels: Record<RestockStatus, string> = { PENDING: 'Por realizar', COMPLETED: 'Realizadas', EXPIRED: 'No realizadas' };
 const resolutions = {
   STOCK_SUFFICIENT: 'Stock suficiente', TARGET_REACHED: 'Reabastecida',
@@ -40,7 +41,7 @@ function errorMessage(error: unknown) {
 
 export function RestockPanel() {
   const [query, setQuery] = useState('');
-  const [status, setStatus] = useState<RestockStatus>('PENDING');
+  const [status, setStatus] = useState<RestockView>('PENDING');
   const [refresh, setRefresh] = useState(0);
   const [openPlan, setOpenPlan] = useState<string | null>(null);
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
@@ -77,15 +78,10 @@ export function RestockPanel() {
   };
 
   const tasks = state.kind === 'ready' ? state.tasks : [];
-  const search = normalize(query);
-  const events = new Map<string, RestockTask[]>();
-  const visible = tasks.filter((task) => task.status === status &&
-    (normalize(task.activityTitle).includes(search) || normalize(task.stationName).includes(search)));
-  for (const task of visible) {
-    const group = events.get(task.activityId);
-    if (group) group.push(task);
-    else events.set(task.activityId, [task]);
-  }
+  const grouped = groupActivities(tasks);
+  const history = [...grouped.values()].filter((rows) => activityOutcome(rows) !== 'PENDING');
+  const activeTasks = tasks.filter((task) => task.activityChange?.state !== 'CANCELADA');
+  const events = visibleActivities(grouped, status, query);
   const totals = new Map<string, { total: number; done: number }>();
   for (const task of tasks) {
     if (task.outsideCoverage) continue;
@@ -114,13 +110,14 @@ export function RestockPanel() {
             <>
               <TextInput label="Buscar por evento o estación" placeholder="Ingresá un nombre" leftSection={<Search size={16} />}
                 value={query} onChange={(event) => setQuery(event.currentTarget.value)} />
-              <Tabs value={status} onChange={(value) => { if (value) setStatus(value as RestockStatus); }}>
+              <Tabs value={status} onChange={(value) => { if (value) setStatus(value as RestockView); }}>
                 <Tabs.List>
                   {(Object.keys(labels) as RestockStatus[]).map((key) =>
-                    <Tabs.Tab value={key} key={key}>{labels[key]} ({tasks.filter((task) => task.status === key).length})</Tabs.Tab>)}
+                    <Tabs.Tab value={key} key={key}>{labels[key]} ({activeTasks.filter((task) => task.status === key).length})</Tabs.Tab>)}
+                  <Tabs.Tab value="HISTORY">Historial ({history.length})</Tabs.Tab>
                 </Tabs.List>
               </Tabs>
-              {visible.length === 0 && <Text c="dimmed">No hay tareas para mostrar en esta sección.</Text>}
+              {events.size === 0 && <Text c="dimmed">No hay tareas para mostrar en esta sección.</Text>}
             </>
           ))}
         </Stack>
@@ -130,6 +127,7 @@ export function RestockPanel() {
         const count = totals.get(id);
         const change = event.activityChange;
         const paused = change != null && change.state !== 'PROGRAMADA';
+        const historical = status === 'HISTORY';
         const canPlan = status === 'PENDING' && !paused;
         return (
           <Paper className={classes.tablePanel} radius="md" p="lg" key={id}>
@@ -142,6 +140,9 @@ export function RestockPanel() {
                 </Text>
               </div>
               <Group gap="sm">
+                {historical && <Badge variant="light" color={activityOutcome(rows) === 'CANCELLED' ? 'red' : 'gray'}>
+                  {activityOutcomeLabels[activityOutcome(rows)]}
+                </Badge>}
                 {count && <Badge variant="light">{count.done} de {count.total} estaciones realizadas</Badge>}
                 {canPlan && <Button variant="light" size="sm" leftSection={<Bike size={16} />}
                   aria-expanded={openPlan === id} aria-controls={openPlan === id ? `transfer-plan-${event.id}` : undefined}
@@ -153,13 +154,68 @@ export function RestockPanel() {
             <ActivityChanges key={status} event={event} initiallyOpen={status === 'PENDING'} />
             {canPlan && openPlan === id &&
               <TransferPlan activityId={id} sectionId={`transfer-plan-${event.id}`} refresh={refresh} />}
-            <ul className={classes.restockStations} aria-label={`Estaciones de ${event.activityTitle}`}>
-              {rows.map((task) => <StationCard key={task.id} task={task} paused={paused} onUpdated={replace} />)}
-            </ul>
+            <ActivityStations rows={rows} historical={historical} paused={paused} onUpdated={replace} />
           </Paper>
         );
       })}
     </Stack>
+  );
+}
+
+type ActivityOutcome = 'PENDING' | 'COMPLETED' | 'EXPIRED' | 'CANCELLED';
+const activityOutcomeLabels: Record<ActivityOutcome, string> = {
+  PENDING: 'Por realizar', COMPLETED: 'Realizada', EXPIRED: 'No realizada', CANCELLED: 'Cancelada',
+};
+
+function groupActivities(tasks: RestockTask[]) {
+  const grouped = new Map<string, RestockTask[]>();
+  for (const task of tasks) {
+    const rows = grouped.get(task.activityId);
+    if (rows) rows.push(task);
+    else grouped.set(task.activityId, [task]);
+  }
+  return grouped;
+}
+
+function activityOutcome(rows: RestockTask[]): ActivityOutcome {
+  if (rows.some((task) => task.activityChange?.state === 'CANCELADA')) return 'CANCELLED';
+  const covered = rows.filter((task) => !task.outsideCoverage);
+  if (covered.some((task) => task.status === 'PENDING')) return 'PENDING';
+  if (covered.length === 0 || covered.some((task) => task.status === 'EXPIRED')) return 'EXPIRED';
+  return 'COMPLETED';
+}
+
+function visibleActivities(grouped: Map<string, RestockTask[]>, view: RestockView, query: string) {
+  const search = normalize(query);
+  const visible = new Map<string, RestockTask[]>();
+  for (const [id, rows] of grouped) {
+    if (!rows.some((task) => normalize(task.activityTitle).includes(search) ||
+      normalize(task.stationName).includes(search))) continue;
+    if (view === 'HISTORY') {
+      if (activityOutcome(rows) !== 'PENDING') visible.set(id, rows);
+      continue;
+    }
+    if (activityOutcome(rows) === 'CANCELLED') continue;
+    const matching = rows.filter((task) => task.status === view);
+    if (matching.length > 0) visible.set(id, matching);
+  }
+  return visible;
+}
+
+function ActivityStations({ rows, historical, paused, onUpdated }: Readonly<{
+  rows: RestockTask[]; historical: boolean; paused: boolean; onUpdated: (task: RestockTask) => void;
+}>) {
+  const stations = (
+    <ul className={classes.restockStations} aria-label={`Estaciones de ${rows[0].activityTitle}`}>
+      {rows.map((task) => <StationCard key={task.id} task={task} paused={paused || historical} onUpdated={onUpdated} />)}
+    </ul>
+  );
+  if (!historical) return stations;
+  return (
+    <details>
+      <summary>Ver estaciones de la actividad ({rows.length})</summary>
+      <div style={{ marginTop: '0.75rem' }}>{stations}</div>
+    </details>
   );
 }
 
