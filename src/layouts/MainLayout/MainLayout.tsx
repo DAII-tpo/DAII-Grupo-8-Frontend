@@ -13,6 +13,7 @@ import type { ComponentType } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../../app/providers/authContext';
+import { administrationNavigationItems, administrationSection } from '../../components/mobility/MobilityNavigation/administrationNavigation';
 import { mobilityNavigationItems } from '../../components/mobility/MobilityNavigation';
 import { BrandLogo } from '../../components/common/BrandLogo';
 import { ClimateAlertBanner } from '../../components/mobility/ClimateAlertBanner/ClimateAlertBanner';
@@ -25,6 +26,7 @@ type NavigationItem = {
   label: string;
   path: string;
   action?: 'logout';
+  tab?: string;
 };
 
 const accountNavigationItems: NavigationItem[] = [
@@ -47,6 +49,7 @@ export function MainLayout() {
   const { logout, user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const isAdministration = location.pathname === '/movilidad/administracion';
   const menuIcon = sidebarOpened ? <X size={28} /> : <Menu size={32} />;
   const mobileMenuIcon = mobileOpened ? <X size={28} /> : <Menu size={32} />;
 
@@ -142,6 +145,19 @@ export function MainLayout() {
                     }}
                   />
                 ))}
+                {isAdministration && (
+                  <div className={classes.adminNavigation} role="group" aria-label="Secciones de administración">
+                    {administrationNavigationItems.map((item) => (
+                      <NavigationLink
+                        key={item.tab}
+                        item={{ ...item, path: `/movilidad/administracion?tab=${item.tab}` }}
+                        pathname={location.pathname}
+                        search={location.search}
+                        onNavigate={() => { if (mobileOpened) toggleMobile(); }}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             </>
           ) : null}
@@ -187,13 +203,17 @@ type NavigationLinkProps = {
   item: NavigationItem;
   onNavigate: () => void;
   pathname: string;
+  search?: string;
 };
 
-function NavigationLink({ item, onNavigate, pathname }: Readonly<NavigationLinkProps>) {
+function NavigationLink({ item, onNavigate, pathname, search = '' }: Readonly<NavigationLinkProps>) {
   const Icon = item.icon;
   let isActive = pathname === item.path || pathname.startsWith(item.path + '/');
   if (item.path === '/movilidad') isActive = pathname === '/' || pathname === item.path;
   if (item.path === '/movilidad/bicicletas' && pathname === '/movilidad/viaje-activo') isActive = true;
+
+  if (item.tab) isActive = pathname === '/movilidad/administracion' &&
+    administrationSection(search).tab === item.tab;
 
   return (
     <Tooltip label={item.label} disabled position="right">

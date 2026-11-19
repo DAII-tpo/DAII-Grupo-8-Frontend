@@ -50,6 +50,22 @@ describe('MainLayout', () => {
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
   });
 
+  it('muestra las secciones administrativas solo al ADMIN dentro de administración', () => {
+    renderLayout(staff, '/movilidad/administracion?tab=restock');
+    const sections = within(screen.getByRole('group', { name: 'Secciones de administración' }));
+    expect(sections.getAllByRole('link')).toHaveLength(7);
+    expect(sections.getByRole('link', { name: 'Reabastecimiento' })).toHaveAttribute('aria-current', 'page');
+    expect(sections.getByRole('link', { name: 'Resumen' })).not.toHaveAttribute('aria-current');
+    fireEvent.click(sections.getByRole('link', { name: 'Resumen' }));
+    expect(sections.getByRole('link', { name: 'Resumen' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('oculta las secciones al ciudadano aunque abra una URL administrativa', () => {
+    renderLayout(citizen, '/movilidad/administracion?tab=restock');
+    expect(screen.queryByRole('group', { name: 'Secciones de administración' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Administración' })).not.toBeInTheDocument();
+  });
+
   it('asocia el viaje activo a Bicicletas/Viajes', () => {
     renderLayout(citizen, '/movilidad/viaje-activo');
     expect(screen.getByRole('link', { name: 'Bicicletas/Viajes' })).toHaveAttribute('aria-current', 'page');
