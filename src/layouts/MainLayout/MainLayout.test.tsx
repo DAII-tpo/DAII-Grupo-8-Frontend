@@ -50,7 +50,7 @@ describe('MainLayout', () => {
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
   });
 
-  it('muestra las secciones administrativas solo al ADMIN dentro de administración', () => {
+  it('muestra las secciones administrativas al ADMIN y marca la sección elegida', () => {
     renderLayout(staff, '/movilidad/administracion?tab=restock');
     const sections = within(screen.getByRole('group', { name: 'Secciones de administración' }));
     expect(sections.getAllByRole('link')).toHaveLength(7);
@@ -82,6 +82,7 @@ describe('MainLayout', () => {
     renderLayout(staff);
     expect(screen.getByText('Gestión')).toBeInTheDocument();
     expect(screen.getByText('Administrador')).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Secciones de administración' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Administración' })).toHaveAttribute('href', '/movilidad/administracion');
   });
 
