@@ -162,7 +162,6 @@ describe('BicyclesPage', () => {
 
     expect(await screen.findByRole('combobox', { name: 'Estación de origen' })).toBeInTheDocument();
     expect(tripService.getActive).toHaveBeenCalledWith();
-    expect(screen.getByRole('tab', { name: 'Bicicletas/Viajes' })).toHaveAttribute('data-active', 'true');
   });
 
   it('muestra el viaje activo y no permite iniciar otro', async () => {
@@ -531,14 +530,4 @@ describe('BicyclesPage', () => {
     expect(tripService.start).toHaveBeenCalledTimes(1);
   });
 
-  it('permite navegar a Estaciones desde la navegación interna', async () => {
-    mockNoActiveTrip();
-
-    renderPage();
-
-    await screen.findByRole('combobox', { name: 'Estación de origen' });
-    fireEvent.click(screen.getByRole('tab', { name: 'Estaciones' }));
-
-    expect(screen.getByTestId('current-path')).toHaveTextContent('/movilidad/estaciones');
-  });
 });

@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
 
 import { PlaceholderPage } from '../../components/common/PlaceholderPage';
 import { AuthLayout } from '../../layouts/AuthLayout/AuthLayout';
@@ -7,7 +7,6 @@ import { ActiveTripPage } from '../../pages/ActiveTrip';
 import { AdministrationPage } from '../../pages/Administration';
 import { BicyclesPage } from '../../pages/Bicycles';
 import { HistoryPage } from '../../pages/History';
-import { HomePage } from '../../pages/Home';
 import { LoginPage } from '../../pages/Login';
 import { MapPage } from '../../pages/Map';
 import { MobilityPage } from '../../pages/Mobility';
@@ -32,7 +31,7 @@ export const router = createBrowserRouter([
       </RequireAuth>
     ),
     children: [
-      { index: true, element: <HomePage /> },
+      { index: true, element: <Navigate to="/movilidad" replace /> },
       { path: 'movilidad', element: <MobilityPage /> },
       { path: 'movilidad/mapa', element: <MapPage /> },
       { path: 'movilidad/estaciones', element: <StationsPage /> },

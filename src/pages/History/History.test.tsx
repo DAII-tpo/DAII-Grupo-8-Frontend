@@ -54,7 +54,6 @@ describe('HistoryPage', () => {
     expect(screen.getByText('11:00 hs')).toBeInTheDocument();
     expect(screen.getByText('12:05 hs')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Anterior' })).toBeDisabled();
-    expect(screen.getByRole('tab', { name: 'Historial' })).toHaveAttribute('data-active', 'true');
     expect(tripService.getHistory).toHaveBeenCalledWith(0, 10);
   });
 

@@ -8,26 +8,12 @@ import {
   UnstyledButton,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import {
-  BarChart3,
-  Bike,
-  CalendarDays,
-  Home,
-  LogOut,
-  Menu,
-  MessageSquare,
-  Settings,
-  ShieldCheck,
-  Siren,
-  Trees,
-  Trash2,
-  User,
-  X,
-} from 'lucide-react';
+import { LogOut, Menu, Settings, ShieldCheck, User, X } from 'lucide-react';
 import type { ComponentType } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../../app/providers/authContext';
+import { mobilityNavigationItems } from '../../components/mobility/MobilityNavigation';
 import { BrandLogo } from '../../components/common/BrandLogo';
 import { ClimateAlertBanner } from '../../components/mobility/ClimateAlertBanner/ClimateAlertBanner';
 import { canAccessAdministration, getDisplayName, type AuthUser } from '../../types/auth';
@@ -41,21 +27,6 @@ type NavigationItem = {
   action?: 'logout';
 };
 
-const moduleNavigationItems: NavigationItem[] = [
-  { icon: Home, label: 'Inicio', path: '/' },
-  { icon: Bike, label: 'Movilidad', path: '/movilidad' },
-  { icon: Trash2, label: 'Residuos', path: '/residuos' },
-  { icon: MessageSquare, label: 'Reclamos', path: '/reclamos' },
-  { icon: Siren, label: 'Emergencias', path: '/emergencias' },
-  { icon: Trees, label: 'Espacios Públicos', path: '/espacios-publicos' },
-  {
-    icon: CalendarDays,
-    label: 'Cultura y Eventos',
-    path: '/cultura-eventos',
-  },
-  { icon: BarChart3, label: 'Analítica', path: '/analitica' },
-];
-
 const accountNavigationItems: NavigationItem[] = [
   { icon: User, label: 'Mi Cuenta', path: '/mi-cuenta' },
   { icon: Settings, label: 'Configuración', path: '/configuracion' },
@@ -65,7 +36,7 @@ const accountNavigationItems: NavigationItem[] = [
 const managementNavigationItems: NavigationItem[] = [
   {
     icon: ShieldCheck,
-    label: 'Movilidad',
+    label: 'Administración',
     path: '/movilidad/administracion',
   },
 ];
@@ -123,7 +94,7 @@ export function MainLayout() {
             <div className={classes.mobileBrand}>
               <BrandLogo compact />
             </div>
-            <Text className={classes.headerTitle} visibleFrom="sm">Servicios de la ciudad</Text>
+            <Text className={classes.headerTitle} visibleFrom="sm">Movilidad urbana</Text>
           </Group>
           <Group className={classes.userSummary} gap="sm" wrap="nowrap">
             <Avatar className={classes.avatar} radius="xl">UD</Avatar>
@@ -140,19 +111,14 @@ export function MainLayout() {
           <div className={classes.sidebarBrand}>
             <BrandLogo compact />
           </div>
-          <Text className={classes.sectionLabel}>Servicios</Text>
+          <Text className={classes.sectionLabel}>Movilidad</Text>
           <div className={classes.navSection}>
-            {moduleNavigationItems.map((item) => (
+            {mobilityNavigationItems.map((item) => (
               <NavigationLink
                 key={item.path}
                 item={item}
                 pathname={location.pathname}
                 onNavigate={() => {
-                  if (item.action === 'logout') {
-                    void logout().finally(() => { void navigate('/login', { replace: true }); });
-                    return;
-                  }
-
                   if (mobileOpened) {
                     toggleMobile();
                   }
@@ -187,6 +153,11 @@ export function MainLayout() {
                 item={item}
                 pathname={location.pathname}
                 onNavigate={() => {
+                  if (item.action === 'logout') {
+                    void logout().finally(() => { void navigate('/login', { replace: true }); });
+                    return;
+                  }
+
                   if (mobileOpened) {
                     toggleMobile();
                   }
@@ -205,7 +176,7 @@ export function MainLayout() {
 
       <AppShell.Footer>
         <Text className={classes.footerText}>
-          © 2026 CityPass+ · Servicios urbanos en un solo lugar
+          © 2026 CityPass+ · Movilidad urbana
         </Text>
       </AppShell.Footer>
     </AppShell>
@@ -218,22 +189,18 @@ type NavigationLinkProps = {
   pathname: string;
 };
 
-function NavigationLink({ item, onNavigate, pathname }: NavigationLinkProps) {
+function NavigationLink({ item, onNavigate, pathname }: Readonly<NavigationLinkProps>) {
   const Icon = item.icon;
-  const isActive =
-    item.path === '/'
-      ? pathname === item.path
-      : item.path === '/movilidad'
-        ? (pathname === item.path
-          || pathname.startsWith('/movilidad/'))
-          && !pathname.startsWith('/movilidad/administracion')
-        : pathname.startsWith(item.path);
+  let isActive = pathname === item.path || pathname.startsWith(item.path + '/');
+  if (item.path === '/movilidad') isActive = pathname === '/' || pathname === item.path;
+  if (item.path === '/movilidad/bicicletas' && pathname === '/movilidad/viaje-activo') isActive = true;
 
   return (
     <Tooltip label={item.label} disabled position="right">
       <UnstyledButton
-        component={NavLink}
+        component={Link}
         to={item.path}
+        aria-current={isActive ? 'page' : undefined}
         className={`${classes.navItem} ${isActive ? classes.navItemActive : ''}`}
         onClick={onNavigate}
       >

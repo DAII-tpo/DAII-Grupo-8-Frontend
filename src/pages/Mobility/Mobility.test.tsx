@@ -1,5 +1,5 @@
 import { MantineProvider } from '@mantine/core';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -268,11 +268,5 @@ describe('MobilityPage', () => {
     expect(screen.getByRole('link', { name: 'Ver todas las estaciones' })).toHaveAttribute('href', '/movilidad/mapa');
   });
 
-  it('mantiene la navegación interna y permite abrir el mapa', async () => {
-    renderPage();
 
-    await waitFor(() => expect(screen.getByRole('tab', { name: 'Inicio' })).toHaveAttribute('data-active', 'true'));
-    fireEvent.click(screen.getByRole('tab', { name: 'Mapa' }));
-    expect(screen.getByTestId('current-path')).toHaveTextContent('/movilidad/mapa');
-  });
 });

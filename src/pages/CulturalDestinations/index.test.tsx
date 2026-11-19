@@ -13,7 +13,6 @@ vi.mock('../../services/eventMobility/eventMobilityService', () => ({
 vi.mock('../../services/stations/stationService', () => ({
   stationService: { getAll: vi.fn(), getAllAvailability: vi.fn(), getAvailability: vi.fn(), getRecommendation: vi.fn() },
 }));
-vi.mock('../../components/mobility/MobilityNavigation', () => ({ MobilityNavigation: () => null }));
 const event = { eventId: 'ev-1', title: 'Festival', zone: 'Centro', address: null,
   latitude: -34.6, longitude: -58.4, startsAt: '2026-11-01T15:00:00Z',
   endsAt: '2026-11-01T18:00:00Z', registrations: 12, maxCapacity: 100, expectedDemand: 12 };

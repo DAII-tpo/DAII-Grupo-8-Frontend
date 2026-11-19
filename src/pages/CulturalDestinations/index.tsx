@@ -2,7 +2,6 @@ import { Alert, Badge, Button, Group, Loader, NativeSelect, Paper, SimpleGrid, S
 import { CalendarDays, CircleAlert, MapPin, Navigation, RefreshCw, Route } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { eventMobilityService } from '../../services/eventMobility/eventMobilityService';
 import { stationService } from '../../services/stations/stationService';
@@ -64,7 +63,6 @@ export function CulturalDestinationsPage() {
         title="Eventos y destinos"
         subtitle="Llegá a los eventos culturales en bicicleta y encontrá una estación segura donde devolverla."
       />
-      <MobilityNavigation />
 
       <Group justify="space-between">
         <Text c="dimmed" size="sm">Eventos publicados por Espacios Públicos.</Text>

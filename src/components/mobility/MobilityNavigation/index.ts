@@ -1,1 +1,1 @@
-export { MobilityNavigation } from './MobilityNavigation';
+export { mobilityNavigationItems } from './MobilityNavigation';
