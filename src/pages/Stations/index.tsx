@@ -19,7 +19,6 @@ import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
 import { MobilityFeatureBanner } from '../../components/mobility/MobilityFeatureBanner';
 import { stationService } from '../../services/stations/stationService';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
-import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
 import pageClasses from '../../styles/mobilityPage.module.css';
 import type { Station, StationStatus } from '../../types/station';
 import type { StationAvailability } from '../../types/stationAvailability';
@@ -124,7 +123,6 @@ export function StationsPage() {
         subtitle="Consultá el estado, la ubicación y la disponibilidad de cada estación."
       />
 
-      <MobilityNavigation />
 
       <MobilityFeatureBanner
         description="Buscá por nombre o dirección, compará cercanía y abrí la disponibilidad dentro de cada estación."

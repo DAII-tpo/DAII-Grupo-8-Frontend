@@ -17,7 +17,6 @@ import { isAxiosError } from 'axios';
 import { AlertCircle, Bike, Clock3, MapPin, Play, Route, Siren } from 'lucide-react';
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 
-import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
 import { ClimateTripNotice } from '../../components/mobility/ClimateTripNotice/ClimateTripNotice';
 import {
   actionColor,
@@ -54,7 +53,6 @@ export function BicyclesPage() {
         subtitle="Elegí una estación y una bicicleta disponible para iniciar tu viaje."
       />
 
-      <MobilityNavigation />
 
       <MobilityFeatureBanner
         description="Seleccioná una estación, elegí una bicicleta disponible y seguí el estado del recorrido hasta devolverla."

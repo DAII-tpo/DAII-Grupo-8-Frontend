@@ -1,8 +1,7 @@
 import { MantineProvider } from '@mantine/core';
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { afterEach, expect, it, vi } from 'vitest';
-vi.mock('../../components/mobility/MobilityNavigation', () => ({ MobilityNavigation: () => null }));
+import { afterEach, expect, it } from 'vitest';
 afterEach(cleanup);
 function Destination() { const location = useLocation(); return <output data-testid="destination">{location.pathname}{location.search}</output>; }
 it('redirige la ruta anterior a la analítica de administración', async () => {

@@ -1,35 +1,11 @@
-import { Tabs } from '@mantine/core';
-import { NavLink, useLocation } from 'react-router-dom';
+import { Bike, CalendarDays, History, Home, Map, MapPin, MessageSquare } from 'lucide-react';
 
-import classes from './MobilityNavigation.module.css';
-
-const navigationItems = [
-  { label: 'Inicio', path: '/movilidad', value: 'inicio' },
-  { label: 'Mapa', path: '/movilidad/mapa', value: 'mapa' },
-  { label: 'Estaciones', path: '/movilidad/estaciones', value: 'estaciones' },
-  { label: 'Eventos', path: '/movilidad/eventos', value: 'eventos' },
-  { label: 'Bicicletas/Viajes', path: '/movilidad/bicicletas', value: 'bicicletas' },
-  { label: 'Historial', path: '/movilidad/historial', value: 'historial' },
-  { label: 'Reportes', path: '/movilidad/reportes', value: 'reportes' },
+export const mobilityNavigationItems = [
+  { icon: Home, label: 'Inicio', path: '/movilidad' },
+  { icon: Map, label: 'Mapa', path: '/movilidad/mapa' },
+  { icon: MapPin, label: 'Estaciones', path: '/movilidad/estaciones' },
+  { icon: CalendarDays, label: 'Eventos', path: '/movilidad/eventos' },
+  { icon: Bike, label: 'Bicicletas/Viajes', path: '/movilidad/bicicletas' },
+  { icon: History, label: 'Historial', path: '/movilidad/historial' },
+  { icon: MessageSquare, label: 'Reportes', path: '/movilidad/reportes' },
 ];
-
-export function MobilityNavigation() {
-  const { pathname } = useLocation();
-  const activeItem = navigationItems.find((item) => item.path === pathname);
-
-  return (
-    <Tabs classNames={{ list: classes.tabsList }} value={activeItem?.value ?? null}>
-      <Tabs.List>
-        {navigationItems.map((item) => (
-          <Tabs.Tab
-            key={item.value}
-            renderRoot={(props) => <NavLink {...props} end to={item.path} />}
-            value={item.value}
-          >
-            {item.label}
-          </Tabs.Tab>
-        ))}
-      </Tabs.List>
-    </Tabs>
-  );
-}

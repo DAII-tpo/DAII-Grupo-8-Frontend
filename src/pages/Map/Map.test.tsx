@@ -380,31 +380,7 @@ describe('MapPage', () => {
     expect(await screen.findByText('Para retirar una bicicleta vas a tener que aceptar el riesgo climático.')).toBeInTheDocument();
     expect(screen.queryByText('No se pueden iniciar viajes desde esta estación.')).not.toBeInTheDocument();
   });
-  it('permite volver a Inicio desde la navegación interna', () => {
-    mockLocationSuccess();
-    vi.mocked(stationService.getNearby).mockResolvedValueOnce([]);
 
-    renderPage();
-
-    expect(screen.getByRole('tab', { name: 'Mapa' })).toHaveAttribute('data-active', 'true');
-
-    fireEvent.click(screen.getByRole('tab', { name: 'Inicio' }));
-
-    expect(screen.getByTestId('current-path')).toHaveTextContent('/movilidad');
-  });
-
-  it('permite navegar al directorio de estaciones desde la navegación interna', () => {
-    mockLocationSuccess();
-    vi.mocked(stationService.getNearby).mockResolvedValueOnce([]);
-
-    renderPage();
-
-    expect(screen.getByRole('tab', { name: 'Mapa' })).toHaveAttribute('data-active', 'true');
-
-    fireEvent.click(screen.getByRole('tab', { name: 'Estaciones' }));
-
-    expect(screen.getByTestId('current-path')).toHaveTextContent('/movilidad/estaciones');
-  });
 
   it('consulta estaciones cercanas con la ubicación obtenida y permite seleccionarlas', async () => {
     mockLocationSuccess();

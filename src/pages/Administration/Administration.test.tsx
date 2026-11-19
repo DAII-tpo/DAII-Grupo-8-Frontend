@@ -1,6 +1,6 @@
 import { MantineProvider } from '@mantine/core';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { bikeService } from '../../services/bikes/bikeService';
@@ -10,8 +10,10 @@ import { restockService } from '../../services/restock/restockService';
 import { stationService } from '../../services/stations/stationService';
 import { analyticsService } from '../../services/analytics/analyticsService';
 import { mantineTheme } from '../../styles/theme';
+import { MainLayout } from '../../layouts/MainLayout/MainLayout';
 import { AdministrationPage } from './index';
 
+vi.mock('../../components/mobility/ClimateAlertBanner/ClimateAlertBanner', () => ({ ClimateAlertBanner: () => null }));
 vi.mock('../../app/providers/authContext', () => ({
   useAuth: () => ({ user: { email: 'staff@municipio.gob.ar', role: 'ADMIN', userId: 2 } }),
 }));
@@ -54,7 +56,11 @@ const maintenance = {
 };
 
 function renderPage(path = '/movilidad/administracion') {
-  return render(<MemoryRouter initialEntries={[path]}><MantineProvider theme={mantineTheme}><AdministrationPage /></MantineProvider></MemoryRouter>);
+  return render(<MemoryRouter initialEntries={[path]}><MantineProvider theme={mantineTheme}><Routes><Route element={<MainLayout />}><Route path="/movilidad/administracion" element={<AdministrationPage />} /></Route></Routes></MantineProvider></MemoryRouter>);
+}
+
+function adminLink(name: string) {
+  return within(screen.getByRole('group', { name: 'Secciones de administración' })).getByRole('link', { name });
 }
 
 function mockData() {
@@ -98,7 +104,7 @@ describe('AdministrationPage', () => {
     }]);
     renderPage();
 
-    const tab = await screen.findByRole('tab', { name: 'Reabastecimiento' });
+    const tab = adminLink('Reabastecimiento');
     expect(restockService.getUpcoming).not.toHaveBeenCalled();
     fireEvent.click(tab);
     const stations = await screen.findByRole('list', { name: 'Estaciones de Festival de Recoleta' });
@@ -145,7 +151,7 @@ describe('AdministrationPage', () => {
     ]);
     renderPage();
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Reabastecimiento' }));
+    fireEvent.click(adminLink('Reabastecimiento'));
     expect(await screen.findByText('Evento suspendido')).toBeInTheDocument();
     expect(screen.getByText('Motivo: Alerta meteorológica')).toBeInTheDocument();
     expect(screen.getByText('Horario de cierre modificado')).toBeInTheDocument();
@@ -174,7 +180,7 @@ describe('AdministrationPage', () => {
     vi.mocked(restockService.complete).mockRejectedValueOnce(httpError(500));
 
     renderPage();
-    fireEvent.click(await screen.findByRole('tab', { name: 'Reabastecimiento' }));
+    fireEvent.click(adminLink('Reabastecimiento'));
     const stations = within(await screen.findByRole('list', { name: 'Estaciones de Feria de Primavera' }));
     expect(stations.getByText(/Sin lugar para recibir bicis/)).toBeInTheDocument();
     fireEvent.click(stations.getByRole('button', { name: 'Editar objetivo' }));
@@ -198,7 +204,7 @@ describe('AdministrationPage', () => {
       .mockResolvedValueOnce([]);
     renderPage();
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Reabastecimiento' }));
+    fireEvent.click(adminLink('Reabastecimiento'));
     expect(await screen.findByText('El backend configurado todavía no ofrece el listado de reabastecimiento.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
     expect(await screen.findByText('No hay tareas de reabastecimiento.')).toBeInTheDocument();
@@ -296,10 +302,10 @@ describe('AdministrationPage', () => {
     renderPage();
 
     expect(await screen.findByRole('img', { name: 'Estado de incidencias' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('tab', { name: 'Incidencias' }));
+    fireEvent.click(adminLink('Incidencias'));
     expect(await screen.findByText('Rueda desinflada')).toBeInTheDocument();
     expect(screen.getByText('ana@example.com')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Administración de Movilidad' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Administración · Incidencias' })).toBeInTheDocument();
     expect(incidentService.getAll).toHaveBeenCalledWith();
     expect(maintenanceService.getAll).toHaveBeenCalledWith();
   });
@@ -311,7 +317,7 @@ describe('AdministrationPage', () => {
     renderPage();
 
     await screen.findByRole('img', { name: 'Estado de incidencias' });
-    fireEvent.click(screen.getByRole('tab', { name: 'Incidencias' }));
+    fireEvent.click(adminLink('Incidencias'));
     expect(await screen.findByText('No hay incidencias registradas.')).toBeInTheDocument();
   });
 
@@ -322,7 +328,7 @@ describe('AdministrationPage', () => {
     renderPage();
 
     await screen.findByRole('img', { name: 'Estado de incidencias' });
-    fireEvent.click(screen.getByRole('tab', { name: 'Incidencias' }));
+    fireEvent.click(adminLink('Incidencias'));
     fireEvent.click(await screen.findByRole('button', { name: 'En revisión' }));
 
     expect(await screen.findByText('El estado de la incidencia fue actualizado.')).toBeInTheDocument();
@@ -336,8 +342,8 @@ describe('AdministrationPage', () => {
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Mantenimiento' }));
-    fireEvent.change(screen.getByRole('combobox', { name: 'Incidencia para mantenimiento' }), { target: { value: '8' } });
+    fireEvent.click(adminLink('Mantenimiento'));
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Incidencia para mantenimiento' }), { target: { value: '8' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'Detalle de mantenimiento' }), { target: { value: 'Revisar rueda' } });
     fireEvent.click(screen.getByRole('button', { name: 'Iniciar mantenimiento' }));
 
@@ -360,8 +366,8 @@ describe('AdministrationPage', () => {
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Mantenimiento' }));
-    fireEvent.change(screen.getByRole('textbox', { name: 'Resolución mantenimiento 3' }), { target: { value: 'Rueda reparada' } });
+    fireEvent.click(adminLink('Mantenimiento'));
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Resolución mantenimiento 3' }), { target: { value: 'Rueda reparada' } });
     fireEvent.click(screen.getByRole('button', { name: 'Finalizar' }));
 
     expect(await screen.findByText('El mantenimiento fue finalizado.')).toBeInTheDocument();
@@ -376,25 +382,36 @@ describe('AdministrationPage', () => {
     renderPage();
 
     await screen.findByRole('img', { name: 'Estado de incidencias' });
-    fireEvent.click(screen.getByRole('tab', { name: 'Incidencias' }));
+    fireEvent.click(adminLink('Incidencias'));
     fireEvent.click(await screen.findByRole('button', { name: 'En revisión' }));
 
     expect(await screen.findByText('La operación no puede realizarse con el estado actual.')).toBeInTheDocument();
     expect(screen.getByText('Rueda desinflada')).toBeInTheDocument();
   });
 
-  it('mantiene accesibles las tabs de incidencias, mantenimiento, estaciones y bicicletas', async () => {
+  it('permite cambiar las secciones administrativas desde el lateral', async () => {
     mockData();
     renderPage();
 
     await screen.findByRole('img', { name: 'Estado de incidencias' });
-    expect(screen.getByRole('tab', { name: 'Incidencias' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Mantenimiento' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('tab', { name: 'Estaciones' }));
+    expect(adminLink('Incidencias')).toBeInTheDocument();
+    expect(adminLink('Mantenimiento')).toBeInTheDocument();
+    fireEvent.click(adminLink('Estaciones'));
     expect(screen.getByText('Gestión de estaciones')).toBeInTheDocument();
     expect(screen.queryByRole('img', { name: 'Ocupación de estaciones' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('tab', { name: 'Bicicletas' }));
+    fireEvent.click(adminLink('Bicicletas'));
     expect(screen.getByText('Gestión de bicicletas')).toBeInTheDocument();
+  });
+
+  it.each([
+    ['incidents', 'Incidencias'], ['maintenance', 'Mantenimiento'],
+    ['stations', 'Estaciones'], ['restock', 'Reabastecimiento'], ['bikes', 'Bicicletas'],
+  ])('abre directamente la sección %s indicada por la URL', async (tab, label) => {
+    mockData();
+    vi.mocked(restockService.getUpcoming).mockResolvedValue([]);
+    renderPage('/movilidad/administracion?tab=' + tab);
+    expect(await screen.findByRole('heading', { name: 'Administración · ' + label })).toBeInTheDocument();
+    expect(adminLink(label)).toHaveAttribute('aria-current', 'page');
   });
 
   it('abre directamente la pestaña Analítica indicada por la URL', async () => {
@@ -409,7 +426,7 @@ describe('AdministrationPage', () => {
     vi.mocked(analyticsService.getEmbed).mockRejectedValueOnce(httpError(403));
     renderPage();
     await screen.findByRole('img', { name: 'Estado de incidencias' });
-    fireEvent.click(screen.getByRole('tab', { name: 'Analítica' }));
+    fireEvent.click(adminLink('Analítica'));
     expect(await screen.findByText('Tu usuario no tiene permiso para consultar este tablero.')).toBeInTheDocument();
   });
 
@@ -418,7 +435,7 @@ describe('AdministrationPage', () => {
     vi.mocked(analyticsService.getEmbed).mockRejectedValueOnce(httpError(503));
     renderPage();
     await screen.findByRole('img', { name: 'Estado de incidencias' });
-    fireEvent.click(screen.getByRole('tab', { name: 'Analítica' }));
+    fireEvent.click(adminLink('Analítica'));
     expect(await screen.findByText('No se pudo cargar Analítica. Intentá nuevamente.')).toBeInTheDocument();
   });
 
@@ -428,9 +445,9 @@ describe('AdministrationPage', () => {
     vi.mocked(analyticsService.getEmbed).mockReturnValueOnce(new Promise((resolve) => { resolveEmbed = resolve; }));
     const view = renderPage();
     await screen.findByRole('img', { name: 'Estado de incidencias' });
-    fireEvent.click(screen.getByRole('tab', { name: 'Analítica' }));
+    fireEvent.click(adminLink('Analítica'));
     await vi.waitFor(() => expect(analyticsService.getEmbed).toHaveBeenCalledOnce());
-    fireEvent.click(screen.getByRole('tab', { name: 'Resumen' }));
+    fireEvent.click(adminLink('Resumen'));
     resolveEmbed('<html>late</html>');
     await Promise.resolve();
     view.unmount();
@@ -448,7 +465,7 @@ describe('AdministrationPage', () => {
       stations: vi.mocked(stationService.getAll).mock.calls.length,
     };
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Analítica' }));
+    fireEvent.click(adminLink('Analítica'));
 
     const frame = await screen.findByTitle('Dashboard de Analítica de Movilidad');
     expect(frame).toHaveAttribute('srcdoc', '<html><body>BI Dashboard</body></html>');

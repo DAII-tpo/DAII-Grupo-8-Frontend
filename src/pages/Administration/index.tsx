@@ -1,11 +1,11 @@
-import { Alert, Badge, Button, Group, Loader, NativeSelect, Paper, ScrollArea, SimpleGrid, Stack, Tabs, Table, Text, Textarea, TextInput, Title } from '@mantine/core';
+import { Alert, Badge, Button, Group, Loader, NativeSelect, Paper, ScrollArea, SimpleGrid, Stack, Table, Text, Textarea, TextInput, Title } from '@mantine/core';
 import { isAxiosError } from 'axios';
 import { AlertCircle, Bike, CheckCircle2, ParkingCircle, RefreshCw, Search, Wrench } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { useAuth } from '../../app/providers/authContext';
-import mobilityNavigationClasses from '../../components/mobility/MobilityNavigation/MobilityNavigation.module.css';
+import { administrationSection } from '../../components/mobility/MobilityNavigation/administrationNavigation';
 import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
 import { bikeService } from '../../services/bikes/bikeService';
 import { incidentService } from '../../services/incidents/incidentService';
@@ -43,7 +43,7 @@ const maintenanceStatusLabels = {
 export function AdministrationPage() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
-  const initialTab = searchParams.get('tab') === 'analytics' ? 'analytics' : 'summary';
+  const section = administrationSection(searchParams.toString());
   const hasAuthenticatedUser = user !== null;
   const [incidents, setIncidents] = useState<AdminIncidentResponse[]>([]);
   const [maintenance, setMaintenance] = useState<MaintenanceResponse[]>([]);
@@ -147,10 +147,46 @@ export function AdministrationPage() {
     }
   };
 
+  const sections: Record<string, ReactNode> = {
+    summary: (
+      <AdministrationSummary bikes={bikes} incidents={incidents} maintenance={maintenance} stations={stations} />
+    ),
+    analytics: (
+      <MobilityAnalyticsEmbed />
+    ),
+    incidents: (
+      <Stack gap="lg">
+        <AdminBarChart description="Comparación de incidencias según su estado actual." data={incidentChartData(incidents)} title="Incidencias por estado" tone="red" />
+        <IncidentsPanel incidents={incidents} onUpdate={updateIncident} pendingAction={pendingAction} />
+      </Stack>
+    ),
+    maintenance: (
+      <Stack gap="lg">
+        <AdminBarChart description="Distribución de las tareas de mantenimiento registradas." data={maintenanceChartData(maintenance)} title="Mantenimientos por estado" tone="amber" />
+        <MaintenancePanel
+          incidents={incidents}
+          maintenance={maintenance}
+          onComplete={completeMaintenance}
+          onCreate={createMaintenance}
+          pendingAction={pendingAction}
+        />
+      </Stack>
+    ),
+    stations: (
+      <StationManagement bikeCountByStation={bikeCountByStation} />
+    ),
+    restock: (
+      <RestockPanel />
+    ),
+    bikes: (
+      <Stack gap="lg"><BikeStatusChart bikes={bikes} /><BikeManagement /></Stack>
+    ),
+  };
+
   return (
     <Stack className={pageClasses.page} gap="lg">
       <MobilityPageHeader
-        title="Administración de Movilidad"
+        title={`Administración · ${section.label}`}
         subtitle="Gestioná la operación del servicio desde un espacio separado de la experiencia ciudadana."
         action={<Button leftSection={<RefreshCw size={16} />} loading={isLoading} onClick={() => void loadAdministrationData()} variant="light">Actualizar datos</Button>}
       />
@@ -161,44 +197,7 @@ export function AdministrationPage() {
         <>
           {actionError ? <Alert color="red" icon={<AlertCircle size={18} />} title="No se pudo completar la operación">{actionError}</Alert> : null}
           {actionSuccess ? <Alert color="green" icon={<CheckCircle2 size={18} />} title="Operación realizada">{actionSuccess}</Alert> : null}
-          <Tabs classNames={{ list: mobilityNavigationClasses.tabsList }} defaultValue={initialTab} keepMounted={false}>
-            <Tabs.List>
-              <Tabs.Tab value="summary">Resumen</Tabs.Tab>
-              <Tabs.Tab value="analytics">Analítica</Tabs.Tab>
-              <Tabs.Tab value="incidents">Incidencias</Tabs.Tab>
-              <Tabs.Tab value="maintenance">Mantenimiento</Tabs.Tab>
-              <Tabs.Tab value="stations">Estaciones</Tabs.Tab>
-              <Tabs.Tab value="restock">Reabastecimiento</Tabs.Tab>
-              <Tabs.Tab value="bikes">Bicicletas</Tabs.Tab>
-            </Tabs.List>
-            <Tabs.Panel pt="md" value="summary">
-              <AdministrationSummary bikes={bikes} incidents={incidents} maintenance={maintenance} stations={stations} />
-            </Tabs.Panel>
-            <Tabs.Panel pt="md" value="analytics">
-              <MobilityAnalyticsEmbed />
-            </Tabs.Panel>
-            <Tabs.Panel pt="md" value="incidents">
-              <Stack gap="lg">
-                <AdminBarChart description="Comparación de incidencias según su estado actual." data={incidentChartData(incidents)} title="Incidencias por estado" tone="red" />
-                <IncidentsPanel incidents={incidents} onUpdate={updateIncident} pendingAction={pendingAction} />
-              </Stack>
-            </Tabs.Panel>
-            <Tabs.Panel pt="md" value="maintenance">
-              <Stack gap="lg">
-                <AdminBarChart description="Distribución de las tareas de mantenimiento registradas." data={maintenanceChartData(maintenance)} title="Mantenimientos por estado" tone="amber" />
-                <MaintenancePanel
-                  incidents={incidents}
-                  maintenance={maintenance}
-                  onComplete={completeMaintenance}
-                  onCreate={createMaintenance}
-                  pendingAction={pendingAction}
-                />
-              </Stack>
-            </Tabs.Panel>
-            <Tabs.Panel pt="md" value="stations"><StationManagement bikeCountByStation={bikeCountByStation} /></Tabs.Panel>
-            <Tabs.Panel pt="md" value="restock"><RestockPanel /></Tabs.Panel>
-            <Tabs.Panel pt="md" value="bikes"><Stack gap="lg"><BikeStatusChart bikes={bikes} /><BikeManagement /></Stack></Tabs.Panel>
-          </Tabs>
+          {sections[section.tab]}
         </>
       ) : null}
     </Stack>

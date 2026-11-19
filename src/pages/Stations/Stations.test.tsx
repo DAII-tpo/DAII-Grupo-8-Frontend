@@ -53,29 +53,7 @@ function CurrentPath() {
 }
 
 describe('StationsPage', () => {
-  it('permite volver a Inicio desde la navegación interna', () => {
-    vi.mocked(stationService.getAll).mockResolvedValueOnce([]);
 
-    renderPage();
-
-    expect(screen.getByRole('tab', { name: 'Estaciones' })).toHaveAttribute('data-active', 'true');
-
-    fireEvent.click(screen.getByRole('tab', { name: 'Inicio' }));
-
-    expect(screen.getByTestId('current-path')).toHaveTextContent('/movilidad');
-  });
-
-  it('permite navegar al mapa desde la navegación interna', () => {
-    vi.mocked(stationService.getAll).mockResolvedValueOnce([]);
-
-    renderPage();
-
-    expect(screen.getByRole('tab', { name: 'Estaciones' })).toHaveAttribute('data-active', 'true');
-
-    fireEvent.click(screen.getByRole('tab', { name: 'Mapa' }));
-
-    expect(screen.getByTestId('current-path')).toHaveTextContent('/movilidad/mapa');
-  });
 
   it('muestra el estado vacío cuando la API no devuelve estaciones', async () => {
     vi.mocked(stationService.getAll).mockResolvedValueOnce([]);

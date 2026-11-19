@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { MobilityFeatureBanner } from '../../components/mobility/MobilityFeatureBanner';
 import { useAuth } from '../../app/providers/authContext';
-import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { RetryErrorAlert } from '../../components/common/RetryErrorAlert';
 import { incidentService } from '../../services/incidents/incidentService';
@@ -158,7 +157,6 @@ export function ReportsPage() {
         title="Reportar un problema"
         subtitle="Informá una incidencia relacionada con la bicicleta que estás utilizando."
       />
-      <MobilityNavigation />
 
       <MobilityFeatureBanner
         description="Durante un viaje activo podés informar un problema y asociarlo directamente con la bicicleta que estás usando."

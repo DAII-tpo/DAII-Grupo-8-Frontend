@@ -3,7 +3,6 @@ import { isAxiosError } from 'axios';
 import { Activity, Bike, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Flag, Play, Route } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
-import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
 import { useAuth } from '../../app/providers/authContext';
 import { MobilityFeatureBanner } from '../../components/mobility/MobilityFeatureBanner';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
@@ -55,7 +54,6 @@ export function HistoryPage() {
   return (
     <Stack className={pageClasses.page} gap="lg">
       <MobilityPageHeader title="Historial" subtitle="Revisá tus viajes finalizados y el detalle de cada recorrido." />
-      <MobilityNavigation />
       <MobilityFeatureBanner description="Consultá origen, destino, bicicleta y duración de cada viaje registrado en tu cuenta." icon={Activity} label="Tu actividad" title="Todos tus recorridos organizados" tone="amber" />
       {isLoading ? <LoadingState /> : null}
       {error ? <ErrorState message={error} onRetry={() => void loadHistory(page)} /> : null}

@@ -28,7 +28,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 
 import { EmergencyPanel } from '../../components/mobility/EmergencyPanel';
-import { MobilityNavigation } from '../../components/mobility/MobilityNavigation';
 import { useAuth } from '../../app/providers/authContext';
 import { MobilityPageHeader } from '../../components/mobility/MobilityPageHeader';
 import { emergencyService } from '../../services/emergencies/emergencyService';
@@ -148,7 +147,6 @@ export function MobilityPage() {
         action={<Badge className={classes.statusBadge}>Servicio operativo</Badge>}
       />
 
-      <MobilityNavigation />
 
       {isEmergencyResolved ? (
         <Alert color="green" icon={<CircleCheck size={18} />} onClose={() => setIsEmergencyResolved(false)} title="Emergencias resolvió tu pedido de ayuda" withCloseButton>
