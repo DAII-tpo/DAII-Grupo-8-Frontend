@@ -48,6 +48,13 @@ const EVENT_WARNING_LEAD_HOURS = Number(import.meta.env.VITE_EVENT_WARNING_LEAD_
 const EVENT_WARNING_RADIUS_METERS = Number(import.meta.env.VITE_EVENT_WARNING_RADIUS_METERS ?? 1500);
 
 type EventTemporalStatus = 'IN_PROGRESS' | 'UPCOMING';
+type EventWarningScope = 'NEARBY' | 'VISIBLE';
+type ContextualEvent = {
+  distance: number | null;
+  event: CulturalDestination;
+  scope: EventWarningScope;
+  status: EventTemporalStatus;
+};
 
 function distanceMeters(origin: Coordinates, event: CulturalDestination) {
   const earthRadiusMeters = 6_371_000;
@@ -306,6 +313,7 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
   const [obstructions, setObstructions] = useState<CicloviaObstruction[]>([]);
   const [selectedObstruction, setSelectedObstruction] = useState<CicloviaObstruction | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<CulturalDestination | null>(null);
+  const [focusedEventId, setFocusedEventId] = useState<string | null>(null);
   const climateByStation = useStationClimate();
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
   const [dismissedEvents, setDismissedEvents] = useState<Set<string>>(() => new Set());
@@ -410,18 +418,21 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
   };
 
   const handleStationSelection = (station: MapStation) => {
+    setFocusedEventId(null);
     setSelectedEvent(null);
     setSelectedObstruction(null);
     selectStation(station).catch(() => undefined);
   };
 
   const handleEventSelection = (event: CulturalDestination) => {
+    setFocusedEventId(null);
     setSelectedStation(null);
     setSelectedObstruction(null);
     setSelectedEvent(event);
   };
 
   const handleObstructionSelection = (obstruction: CicloviaObstruction) => {
+    setFocusedEventId(null);
     setSelectedStation(null);
     setSelectedEvent(null);
     setSelectedObstruction(obstruction);
@@ -434,7 +445,8 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
   const explicitlyRequestedStationCenter: Coordinates | null = isStationFocusRequested
     ? [requestedLatitude, requestedLongitude]
     : null;
-  const explicitlyRequestedEventCenter: Coordinates | null = !explicitlyRequestedStationCenter && requestedEventId && selectedEvent?.eventId === requestedEventId
+  const explicitlyRequestedEventCenter: Coordinates | null = !explicitlyRequestedStationCenter && selectedEvent
+    && (selectedEvent.eventId === requestedEventId || selectedEvent.eventId === focusedEventId)
     ? [selectedEvent.latitude, selectedEvent.longitude]
     : null;
   const viewportCenter = explicitlyRequestedStationCenter ?? explicitlyRequestedEventCenter ?? mapCenter;
@@ -444,12 +456,18 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
     return events
       .filter((event) => !dismissedEvents.has(event.eventId)
         && sessionStorage.getItem(`mobility-event-warning:${event.eventId}`) !== 'dismissed')
-      .filter((event) => isWithinBounds(event, mapBounds)
-        || (userLocation !== null && distanceMeters(userLocation, event) <= EVENT_WARNING_RADIUS_METERS))
-      .map((event) => ({ event, status: temporalStatus(event, now) }))
-      .filter((candidate): candidate is { event: CulturalDestination; status: EventTemporalStatus } => candidate.status !== null)
+      .map((event) => {
+        const distance = userLocation === null ? null : distanceMeters(userLocation, event);
+        const scope: EventWarningScope | null = distance !== null && distance <= EVENT_WARNING_RADIUS_METERS
+          ? 'NEARBY'
+          : isWithinBounds(event, mapBounds) ? 'VISIBLE' : null;
+        return { distance, event, scope, status: temporalStatus(event, now) };
+      })
+      .filter((candidate): candidate is ContextualEvent => candidate.scope !== null && candidate.status !== null)
       .sort((left, right) => {
         if (left.status !== right.status) return left.status === 'IN_PROGRESS' ? -1 : 1;
+        if (left.scope !== right.scope) return left.scope === 'NEARBY' ? -1 : 1;
+        if (left.distance !== null && right.distance !== null && left.distance !== right.distance) return left.distance - right.distance;
         return new Date(left.event.startsAt).getTime() - new Date(right.event.startsAt).getTime();
       })[0] ?? null;
   }, [dismissedEvents, events, mapBounds, now, userLocation]);
@@ -499,13 +517,23 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
         <Alert
           color="orange"
           icon={<CalendarDays size={18} />}
-          title={contextualEvent.status === 'IN_PROGRESS' ? 'Hay un evento en curso cerca' : 'Hay un evento próximo cerca'}
+          title={contextualEvent.status === 'IN_PROGRESS'
+            ? contextualEvent.scope === 'NEARBY' ? 'Hay un evento en curso cerca' : 'Hay un evento en curso en el área visible'
+            : contextualEvent.scope === 'NEARBY' ? 'Hay un evento próximo cerca' : 'Hay un evento próximo en el área visible'}
         >
           <Stack gap="xs">
-            <Text size="sm">{contextualEvent.event.title} · {new Date(contextualEvent.event.startsAt).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</Text>
-            <Text c="dimmed" size="sm">Consultá la ubicación y planificá tu llegada si vas a asistir.</Text>
+            <Text size="sm">
+              {contextualEvent.event.title} · {new Date(contextualEvent.event.startsAt).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}
+              {'–'}{new Date(contextualEvent.event.endsAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' })}
+            </Text>
+            <Text c="dimmed" size="sm">Atención: hay un evento cerca. Se espera mucha concurrencia y las estaciones de bicicletas de la zona podrían tener alta demanda. Te recomendamos revisar otras estaciones.</Text>
             <Group>
-              <Button size="xs" onClick={() => handleEventSelection(contextualEvent.event)}>
+              <Button size="xs" onClick={() => {
+                setFocusedEventId(contextualEvent.event.eventId);
+                setSelectedStation(null);
+                setSelectedObstruction(null);
+                setSelectedEvent(contextualEvent.event);
+              }}>
                 Ver evento
               </Button>
               <Button size="xs" variant="subtle" onClick={() => dismissContextualEvent(contextualEvent.event.eventId)}>

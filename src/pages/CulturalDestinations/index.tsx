@@ -10,6 +10,7 @@ import type { EventArrivalIntent, EventMobilityDecision } from '../../types/even
 import type { Station } from '../../types/station';
 import type { StationAvailability } from '../../types/stationAvailability';
 import type { StationRecommendation } from '../../types/stationRecommendation';
+import type { TripPlanningNavigationState } from '../../types/tripPlanningNavigation';
 import pageClasses from '../../styles/mobilityPage.module.css';
 import classes from './CulturalDestinations.module.css';
 
@@ -492,6 +493,19 @@ function EventArrivalPlanner({ event, resume }: Readonly<{ event: CulturalDestin
         <Alert color="teal" title="Intención de llegada registrada">
           Listo, vas a <strong>{event.title}</strong> y elegiste <strong>{confirmedDestinationName}</strong> para devolver tu bicicleta. Esto mejora la proyección, pero no reserva un anclaje.
           <Group mt="sm">
+            <Button
+              size="xs"
+              onClick={() => navigate('/movilidad/bicicletas', {
+                state: {
+                  tripPlanning: {
+                    ...(origin ? { originStationId: origin.stationId } : {}),
+                    destinationStationId: arrivalIntent.stationId,
+                  },
+                } satisfies TripPlanningNavigationState,
+              })}
+            >
+              Iniciar viaje hacia el evento
+            </Button>
             <Button size="xs" onClick={() => navigate('/movilidad/mapa')}>Volver al mapa</Button>
             <Button size="xs" variant="subtle" loading={intentLoading} onClick={() => void cancelIntent()}>Cancelar intención</Button>
           </Group>
