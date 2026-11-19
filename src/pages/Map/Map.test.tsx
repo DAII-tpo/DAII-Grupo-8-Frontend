@@ -281,6 +281,52 @@ describe('MapPage', () => {
     expect(mapSetView).toHaveBeenCalledWith([-34.604, -58.382], 16);
   });
 
+  it('advierte un evento visible fuera del radio sin presentarlo como cercano', async () => {
+    mockLocationSuccess();
+    vi.mocked(stationService.getNearby).mockResolvedValueOnce([]);
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([]);
+    vi.mocked(eventMobilityService.upcoming).mockResolvedValueOnce([{
+      eventId: 'event-far', title: 'Evento lejano', zone: 'Centro', address: 'Plaza',
+      latitude: -34.79, longitude: -58.59,
+      startsAt: new Date(Date.now() + 2 * 60 * 60_000).toISOString(),
+      endsAt: new Date(Date.now() + 4 * 60 * 60_000).toISOString(),
+      maxCapacity: 100, registrations: 10, expectedDemand: 10,
+    }]);
+
+    renderPage();
+
+    await screen.findByRole('button', { name: /Evento: Evento lejano/ });
+    expect(screen.queryByText('Hay un evento próximo cerca')).not.toBeInTheDocument();
+    expect(await screen.findByText('Hay un evento próximo en el área visible')).toBeInTheDocument();
+  });
+
+  it('prioriza el evento cercano por distancia antes que por hora de inicio', async () => {
+    mockLocationSuccess();
+    vi.mocked(stationService.getNearby).mockResolvedValueOnce([]);
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([]);
+    vi.mocked(eventMobilityService.upcoming).mockResolvedValueOnce([
+      {
+        eventId: 'event-farther', title: 'Evento más lejano', zone: 'Centro', address: 'Plaza',
+        latitude: -34.612, longitude: -58.3816,
+        startsAt: new Date(Date.now() + 60 * 60_000).toISOString(),
+        endsAt: new Date(Date.now() + 3 * 60 * 60_000).toISOString(),
+        maxCapacity: 100, registrations: 10, expectedDemand: 10,
+      },
+      {
+        eventId: 'event-closer', title: 'Evento más cercano', zone: 'Centro', address: 'Plaza',
+        latitude: -34.605, longitude: -58.3816,
+        startsAt: new Date(Date.now() + 2 * 60 * 60_000).toISOString(),
+        endsAt: new Date(Date.now() + 4 * 60 * 60_000).toISOString(),
+        maxCapacity: 100, registrations: 10, expectedDemand: 10,
+      },
+    ]);
+
+    renderPage();
+
+    const eventAlert = await screen.findByRole('alert', { name: 'Hay un evento próximo cerca' });
+    expect(eventAlert).toHaveTextContent('Evento más cercano');
+  });
+
   it('usa el área visible para advertir eventos cuando se rechaza la geolocalización', async () => {
     getCurrentPosition.mockImplementationOnce((_success, error) => {
       error?.({ code: 1, message: 'Permission denied' } as GeolocationPositionError);
@@ -296,7 +342,7 @@ describe('MapPage', () => {
 
     renderPage();
 
-    expect(await screen.findByText('Hay un evento en curso cerca')).toBeInTheDocument();
+    expect(await screen.findByText('Hay un evento en curso en el área visible')).toBeInTheDocument();
     expect(screen.getByText('Ubicación no disponible')).toBeInTheDocument();
   });
 
