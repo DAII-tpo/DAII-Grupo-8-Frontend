@@ -93,9 +93,9 @@ function CurrentPath() {
   return <output data-testid="current-path">{location.pathname}</output>;
 }
 
-function renderPage() {
+function renderPage(initialEntry: string | { pathname: string; state: unknown } = '/movilidad/bicicletas') {
   return render(
-    <MemoryRouter initialEntries={['/movilidad/bicicletas']}>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <MantineProvider theme={mantineTheme}>
         <Routes>
           <Route path="/movilidad" element={<CurrentPath />} />
@@ -400,6 +400,53 @@ describe('BicyclesPage', () => {
 
     expect(await screen.findByRole('radio', { name: 'BIKE-001 - City Bike' })).toBeInTheDocument();
     expect(bikeService.getAvailable).toHaveBeenCalledWith(2);
+  });
+
+  it('preselecciona un origen planificado válido sin iniciar el viaje automáticamente', async () => {
+    mockNoActiveTrip();
+    vi.mocked(bikeService.getAvailable).mockResolvedValueOnce([bike]);
+
+    renderPage({
+      pathname: '/movilidad/bicicletas',
+      state: { tripPlanning: { originStationId: 2, destinationStationId: 2 } },
+    });
+
+    expect(await screen.findByRole('combobox', { name: 'Estación de origen' })).toHaveValue('2');
+    expect(await screen.findByRole('radio', { name: 'BIKE-001 - City Bike' })).toBeInTheDocument();
+    expect(bikeService.getAvailable).toHaveBeenCalledWith(2);
+    expect(tripService.start).not.toHaveBeenCalled();
+  });
+
+  it('preselecciona el destino planificado después de iniciar el viaje', async () => {
+    vi.mocked(tripService.getActive).mockResolvedValueOnce(null);
+    vi.mocked(stationService.getAll).mockResolvedValueOnce([station]).mockResolvedValueOnce([station]);
+    vi.mocked(bikeService.getAvailable).mockResolvedValueOnce([bike]);
+    vi.mocked(tripService.start).mockResolvedValueOnce(activeTrip);
+    vi.mocked(stationService.getAvailability).mockResolvedValueOnce(stationAvailability);
+
+    renderPage({
+      pathname: '/movilidad/bicicletas',
+      state: { tripPlanning: { originStationId: 2, destinationStationId: 2 } },
+    });
+
+    fireEvent.click(await screen.findByRole('radio', { name: 'BIKE-001 - City Bike' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Iniciar viaje' }));
+
+    expect(await screen.findByRole('combobox', { name: 'Estación destino' })).toHaveValue('2');
+    expect(stationService.getAvailability).toHaveBeenCalledWith(2);
+  });
+
+  it('ignora estaciones planificadas que ya no existen', async () => {
+    mockNoActiveTrip();
+
+    renderPage({
+      pathname: '/movilidad/bicicletas',
+      state: { tripPlanning: { originStationId: 999, destinationStationId: 998 } },
+    });
+
+    expect(await screen.findByRole('combobox', { name: 'Estación de origen' })).toHaveValue('');
+    expect(bikeService.getAvailable).not.toHaveBeenCalled();
+    expect(tripService.start).not.toHaveBeenCalled();
   });
 
   it('ordena las estaciones de origen y conserva el stationId seleccionado', async () => {

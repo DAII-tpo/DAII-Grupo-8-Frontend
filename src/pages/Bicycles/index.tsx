@@ -16,6 +16,7 @@ import {
 import { isAxiosError } from 'axios';
 import { AlertCircle, Bike, Clock3, MapPin, Play, Route, Siren } from 'lucide-react';
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
+import { useLocation } from 'react-router-dom';
 
 import { ClimateTripNotice } from '../../components/mobility/ClimateTripNotice/ClimateTripNotice';
 import {
@@ -41,11 +42,14 @@ import type { ClimateAlert } from '../../types/climateAlert';
 import type { Station } from '../../types/station';
 import type { StationAvailability } from '../../types/stationAvailability';
 import type { TripResponse } from '../../types/trip';
+import type { TripPlanningNavigationState } from '../../types/tripPlanningNavigation';
 import pageClasses from '../../styles/mobilityPage.module.css';
 
 import classes from './Bicycles.module.css';
 
 export function BicyclesPage() {
+  const location = useLocation();
+  const planning = readTripPlanning(location.state);
   return (
     <Stack className={pageClasses.page} gap="lg">
       <MobilityPageHeader
@@ -62,12 +66,26 @@ export function BicyclesPage() {
         tone="sky"
       />
 
-      <TripManager />
+      <TripManager planning={planning} />
     </Stack>
   );
 }
 
-function TripManager() {
+type TripPlanning = NonNullable<TripPlanningNavigationState['tripPlanning']>;
+
+function readTripPlanning(state: unknown): TripPlanning | null {
+  if (!state || typeof state !== 'object' || !('tripPlanning' in state)) return null;
+  const planning = (state as TripPlanningNavigationState).tripPlanning;
+  if (!planning || !Number.isSafeInteger(planning.destinationStationId) || planning.destinationStationId <= 0) return null;
+  return {
+    destinationStationId: planning.destinationStationId,
+    ...(Number.isSafeInteger(planning.originStationId) && (planning.originStationId ?? 0) > 0
+      ? { originStationId: planning.originStationId }
+      : {}),
+  };
+}
+
+function TripManager({ planning }: Readonly<{ planning: TripPlanning | null }>) {
   const [activeTrip, setActiveTrip] = useState<TripResponse | null>(null);
   const [completedTrip, setCompletedTrip] = useState<TripResponse | null>(null);
   const [isLoadingActiveTrip, setIsLoadingActiveTrip] = useState(true);
@@ -112,17 +130,18 @@ function TripManager() {
   }
 
   if (activeTrip) {
-    return <ActiveTripPanel onTripCompleted={setCompletedTrip} trip={activeTrip} />;
+    return <ActiveTripPanel initialDestinationStationId={planning?.destinationStationId} onTripCompleted={setCompletedTrip} trip={activeTrip} />;
   }
 
-  return <StartTripFlow onTripStarted={setActiveTrip} />;
+  return <StartTripFlow initialOriginStationId={planning?.originStationId} onTripStarted={setActiveTrip} />;
 }
 
 type StartTripFlowProps = {
+  initialOriginStationId?: number;
   onTripStarted: (trip: TripResponse) => void;
 };
 
-function StartTripFlow({ onTripStarted }: Readonly<StartTripFlowProps>) {
+function StartTripFlow({ initialOriginStationId, onTripStarted }: Readonly<StartTripFlowProps>) {
   const [stations, setStations] = useState<Station[]>([]);
   const [isLoadingStations, setIsLoadingStations] = useState(true);
   const [stationsError, setStationsError] = useState(false);
@@ -144,13 +163,25 @@ function StartTripFlow({ onTripStarted }: Readonly<StartTripFlowProps>) {
     setStationsError(false);
 
     try {
-      setStations(await stationService.getAll());
+      const loadedStations = await stationService.getAll();
+      setStations(loadedStations);
+      if (initialOriginStationId !== undefined && loadedStations.some((station) => station.id === initialOriginStationId)) {
+        setSelectedStationId(initialOriginStationId);
+        setIsLoadingBikes(true);
+        try {
+          setBikes(await bikeService.getAvailable(initialOriginStationId));
+        } catch (error) {
+          setBikesError(availableBikesErrorMessage(error));
+        } finally {
+          setIsLoadingBikes(false);
+        }
+      }
     } catch {
       setStationsError(true);
     } finally {
       setIsLoadingStations(false);
     }
-  }, []);
+  }, [initialOriginStationId]);
 
   useEffect(() => {
     void Promise.resolve().then(loadStations);
@@ -331,11 +362,12 @@ function StartTripFlow({ onTripStarted }: Readonly<StartTripFlowProps>) {
 }
 
 type ActiveTripPanelProps = {
+  initialDestinationStationId?: number;
   onTripCompleted: (trip: TripResponse) => void;
   trip: TripResponse;
 };
 
-function ActiveTripPanel({ onTripCompleted, trip }: Readonly<ActiveTripPanelProps>) {
+function ActiveTripPanel({ initialDestinationStationId, onTripCompleted, trip }: Readonly<ActiveTripPanelProps>) {
   const isPausedByEmergency = trip.status === 'EMERGENCY';
   return (
     <Paper className={classes.activeTripPanel} radius="md" p="lg">
@@ -368,7 +400,7 @@ function ActiveTripPanel({ onTripCompleted, trip }: Readonly<ActiveTripPanelProp
             La bicicleta quedó bloqueada y el viaje no se cobra mientras Emergencias atiende tu pedido de ayuda.
           </Alert>
         ) : (
-          <ReturnStationFlow onTripCompleted={onTripCompleted} trip={trip} />
+          <ReturnStationFlow initialDestinationStationId={initialDestinationStationId} onTripCompleted={onTripCompleted} trip={trip} />
         )}
       </Stack>
     </Paper>
@@ -377,7 +409,7 @@ function ActiveTripPanel({ onTripCompleted, trip }: Readonly<ActiveTripPanelProp
 
 type ReturnStationFlowProps = Readonly<ActiveTripPanelProps>;
 
-function ReturnStationFlow({ onTripCompleted, trip }: ReturnStationFlowProps) {
+function ReturnStationFlow({ initialDestinationStationId, onTripCompleted, trip }: ReturnStationFlowProps) {
   const [stations, setStations] = useState<Station[]>([]);
   const [isLoadingStations, setIsLoadingStations] = useState(true);
   const [stationsError, setStationsError] = useState(false);
@@ -394,13 +426,25 @@ function ReturnStationFlow({ onTripCompleted, trip }: ReturnStationFlowProps) {
     setStationsError(false);
 
     try {
-      setStations(await stationService.getAll());
+      const loadedStations = await stationService.getAll();
+      setStations(loadedStations);
+      if (initialDestinationStationId !== undefined && loadedStations.some((station) => station.id === initialDestinationStationId)) {
+        setSelectedStationId(initialDestinationStationId);
+        setIsLoadingAvailability(true);
+        try {
+          setAvailability(await stationService.getAvailability(initialDestinationStationId));
+        } catch (error) {
+          setAvailabilityError(availabilityErrorMessage(error));
+        } finally {
+          setIsLoadingAvailability(false);
+        }
+      }
     } catch {
       setStationsError(true);
     } finally {
       setIsLoadingStations(false);
     }
-  }, []);
+  }, [initialDestinationStationId]);
 
   useEffect(() => {
     void Promise.resolve().then(loadStations);

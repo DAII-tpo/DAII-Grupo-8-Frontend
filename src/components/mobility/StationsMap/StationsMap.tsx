@@ -306,6 +306,7 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
   const [obstructions, setObstructions] = useState<CicloviaObstruction[]>([]);
   const [selectedObstruction, setSelectedObstruction] = useState<CicloviaObstruction | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<CulturalDestination | null>(null);
+  const [focusedEventId, setFocusedEventId] = useState<string | null>(null);
   const climateByStation = useStationClimate();
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
   const [dismissedEvents, setDismissedEvents] = useState<Set<string>>(() => new Set());
@@ -410,18 +411,21 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
   };
 
   const handleStationSelection = (station: MapStation) => {
+    setFocusedEventId(null);
     setSelectedEvent(null);
     setSelectedObstruction(null);
     selectStation(station).catch(() => undefined);
   };
 
   const handleEventSelection = (event: CulturalDestination) => {
+    setFocusedEventId(null);
     setSelectedStation(null);
     setSelectedObstruction(null);
     setSelectedEvent(event);
   };
 
   const handleObstructionSelection = (obstruction: CicloviaObstruction) => {
+    setFocusedEventId(null);
     setSelectedStation(null);
     setSelectedEvent(null);
     setSelectedObstruction(obstruction);
@@ -434,7 +438,8 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
   const explicitlyRequestedStationCenter: Coordinates | null = isStationFocusRequested
     ? [requestedLatitude, requestedLongitude]
     : null;
-  const explicitlyRequestedEventCenter: Coordinates | null = !explicitlyRequestedStationCenter && requestedEventId && selectedEvent?.eventId === requestedEventId
+  const explicitlyRequestedEventCenter: Coordinates | null = !explicitlyRequestedStationCenter && selectedEvent
+    && (selectedEvent.eventId === requestedEventId || selectedEvent.eventId === focusedEventId)
     ? [selectedEvent.latitude, selectedEvent.longitude]
     : null;
   const viewportCenter = explicitlyRequestedStationCenter ?? explicitlyRequestedEventCenter ?? mapCenter;
@@ -502,10 +507,18 @@ export function StationsMap({ showHeading = true }: StationsMapProps) {
           title={contextualEvent.status === 'IN_PROGRESS' ? 'Hay un evento en curso cerca' : 'Hay un evento próximo cerca'}
         >
           <Stack gap="xs">
-            <Text size="sm">{contextualEvent.event.title} · {new Date(contextualEvent.event.startsAt).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</Text>
+            <Text size="sm">
+              {contextualEvent.event.title} · {new Date(contextualEvent.event.startsAt).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}
+              {'–'}{new Date(contextualEvent.event.endsAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' })}
+            </Text>
             <Text c="dimmed" size="sm">Consultá la ubicación y planificá tu llegada si vas a asistir.</Text>
             <Group>
-              <Button size="xs" onClick={() => handleEventSelection(contextualEvent.event)}>
+              <Button size="xs" onClick={() => {
+                setFocusedEventId(contextualEvent.event.eventId);
+                setSelectedStation(null);
+                setSelectedObstruction(null);
+                setSelectedEvent(contextualEvent.event);
+              }}>
                 Ver evento
               </Button>
               <Button size="xs" variant="subtle" onClick={() => dismissContextualEvent(contextualEvent.event.eventId)}>

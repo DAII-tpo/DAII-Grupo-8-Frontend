@@ -38,7 +38,7 @@ function mount(initialEntry = '/movilidad/eventos') {
 }
 function LocationProbe() {
   const location = useLocation();
-  return <output data-testid="location">{location.pathname}{location.search}</output>;
+  return <output data-state={JSON.stringify(location.state)} data-testid="location">{location.pathname}{location.search}</output>;
 }
 beforeEach(() => {
   vi.resetAllMocks();
@@ -202,6 +202,21 @@ it('registra y cancela la estación de devolución elegida', async () => {
   expect(confirmation).toHaveTextContent('Festival');
   expect(confirmation).toHaveTextContent('Estación Parque');
   expect(eventMobilityService.registerArrivalIntent).toHaveBeenCalledWith('ev-1', 1, event.startsAt);
+  const startTripButton = screen.getByRole('button', { name: 'Iniciar viaje hacia el evento' });
+  fireEvent.click(startTripButton);
+  expect(screen.getByTestId('location')).toHaveTextContent('/movilidad/bicicletas');
+  expect(screen.getByTestId('location')).toHaveAttribute('data-state', JSON.stringify({
+    tripPlanning: { originStationId: 10, destinationStationId: 1 },
+  }));
+});
+
+it('permite cancelar una intención confirmada', async () => {
+  mount(); fireEvent.click(await screen.findByRole('button', { name: 'Planificá tu llegada' }));
+  await screen.findByText('Podés cambiar la estación desde donde salís.');
+  fireEvent.click(screen.getByRole('button', { name: 'Calcular plan' }));
+  fireEvent.click((await screen.findAllByRole('button', { name: 'Elegir esta estación' }))[0]);
+  fireEvent.click(screen.getByRole('button', { name: 'Confirmar estación' }));
+  await screen.findByRole('alert', { name: 'Intención de llegada registrada' });
   fireEvent.click(screen.getByRole('button', { name: 'Cancelar intención' }));
   await screen.findByRole('button', { name: 'Elegir esta estación' });
   expect(eventMobilityService.cancelArrivalIntent).toHaveBeenCalledWith('ev-1');

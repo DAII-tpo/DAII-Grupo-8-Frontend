@@ -253,26 +253,32 @@ describe('MapPage', () => {
     expect(screen.queryByText('Hay un evento en curso cerca')).not.toBeInTheDocument();
   });
 
-  it('advierte un evento próximo por cercanía al usuario aunque quede fuera del área visible', async () => {
+  it('advierte un evento próximo, muestra cuándo termina y permite enfocarlo en el mapa', async () => {
     mockLocationSuccess();
     mapGetBounds.mockReturnValue({ getNorth: () => -35, getSouth: () => -35.1, getEast: () => -59, getWest: () => -59.1 });
     vi.mocked(stationService.getNearby).mockResolvedValueOnce([]);
     vi.mocked(stationService.getAll).mockResolvedValueOnce([]);
+    const startsAt = new Date(Date.now() + 2 * 60 * 60_000).toISOString();
+    const endsAt = new Date(Date.now() + 4 * 60 * 60_000).toISOString();
     vi.mocked(eventMobilityService.upcoming).mockResolvedValueOnce([{
       eventId: 'event-nearby', title: 'Encuentro barrial', zone: 'Centro', address: 'Plaza',
       latitude: -34.604, longitude: -58.382,
-      startsAt: new Date(Date.now() + 2 * 60 * 60_000).toISOString(),
-      endsAt: new Date(Date.now() + 4 * 60 * 60_000).toISOString(),
+      startsAt,
+      endsAt,
       maxCapacity: 100, registrations: 10, expectedDemand: 10,
     }]);
 
     renderPage();
 
-    expect(await screen.findByText('Hay un evento próximo cerca')).toBeInTheDocument();
+    const eventAlert = await screen.findByRole('alert', { name: 'Hay un evento próximo cerca' });
+    const endTime = new Date(endsAt).toLocaleTimeString('es-AR', {
+      hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires',
+    });
+    expect(eventAlert.textContent?.replaceAll(/\s/g, ' ')).toContain(endTime.replaceAll(/\s/g, ' '));
     mapSetView.mockClear();
     fireEvent.click(screen.getByRole('button', { name: 'Ver evento' }));
     expect(await screen.findByRole('heading', { name: 'Encuentro barrial' })).toBeInTheDocument();
-    expect(mapSetView).not.toHaveBeenCalled();
+    expect(mapSetView).toHaveBeenCalledWith([-34.604, -58.382], 16);
   });
 
   it('usa el área visible para advertir eventos cuando se rechaza la geolocalización', async () => {
