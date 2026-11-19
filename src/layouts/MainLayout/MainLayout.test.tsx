@@ -74,26 +74,28 @@ describe('MainLayout', () => {
 
   it('oculta gestión administrativa para CITIZEN', () => {
     renderLayout(citizen);
-    expect(screen.queryByText('Gestión')).not.toBeInTheDocument();
+    expect(screen.queryByText('Administración')).not.toBeInTheDocument();
     expect(screen.getByText('Ciudadano')).toBeInTheDocument();
   });
 
   it('muestra gestión administrativa para STAFF autorizado', () => {
     renderLayout(staff);
-    expect(screen.getByText('Gestión')).toBeInTheDocument();
+    expect(screen.getByText('Administración')).toBeInTheDocument();
     expect(screen.getByText('Administrador')).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Secciones de administración' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Administración' })).toHaveAttribute('href', '/movilidad/administracion');
+    const sections = screen.getByRole('group', { name: 'Secciones de administración' });
+    expect(sections.children).toHaveLength(7);
+    expect(Array.from(sections.children).every((item) => item.tagName === 'A')).toBe(true);
   });
 
   it('habilita la gestión para STAFF delegado con rol ADMIN', () => {
     renderLayout(delegatedStaff);
-    expect(screen.getByText('Gestión')).toBeInTheDocument();
+    expect(screen.getByText('Administración')).toBeInTheDocument();
   });
 
   it('oculta la gestión para STAFF con rol USER', () => {
     renderLayout(staffWithoutAdministration);
-    expect(screen.queryByText('Gestión')).not.toBeInTheDocument();
+    expect(screen.queryByText('Administración')).not.toBeInTheDocument();
     expect(screen.getByText('Personal municipal')).toBeInTheDocument();
   });
 });

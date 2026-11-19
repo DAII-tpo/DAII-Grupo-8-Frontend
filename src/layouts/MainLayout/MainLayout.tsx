@@ -8,7 +8,7 @@ import {
   UnstyledButton,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { LogOut, Menu, Settings, ShieldCheck, User, X } from 'lucide-react';
+import { LogOut, Menu, Settings, User, X } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
@@ -33,14 +33,6 @@ const accountNavigationItems: NavigationItem[] = [
   { icon: User, label: 'Mi Cuenta', path: '/mi-cuenta' },
   { icon: Settings, label: 'Configuración', path: '/configuracion' },
   { icon: LogOut, label: 'Cerrar Sesión', path: '/login', action: 'logout' },
-];
-
-const managementNavigationItems: NavigationItem[] = [
-  {
-    icon: ShieldCheck,
-    label: 'Administración',
-    path: '/movilidad/administracion',
-  },
 ];
 
 export function MainLayout() {
@@ -130,31 +122,17 @@ export function MainLayout() {
           </div>
           {canAccessAdministration(user) ? (
             <>
-              <Text className={classes.sectionLabel}>Gestión</Text>
-              <div className={classes.managementSection}>
-                {managementNavigationItems.map((item) => (
+              <Text className={classes.sectionLabel}>Administración</Text>
+              <div className={classes.managementSection} role="group" aria-label="Secciones de administración">
+                {administrationNavigationItems.map((item) => (
                   <NavigationLink
-                    key={item.path}
-                    item={item}
+                    key={item.tab}
+                    item={{ ...item, path: `/movilidad/administracion?tab=${item.tab}` }}
                     pathname={location.pathname}
-                    onNavigate={() => {
-                      if (mobileOpened) {
-                        toggleMobile();
-                      }
-                    }}
+                    search={location.search}
+                    onNavigate={() => { if (mobileOpened) toggleMobile(); }}
                   />
                 ))}
-                <div className={classes.adminNavigation} role="group" aria-label="Secciones de administración">
-                  {administrationNavigationItems.map((item) => (
-                    <NavigationLink
-                      key={item.tab}
-                      item={{ ...item, path: `/movilidad/administracion?tab=${item.tab}` }}
-                      pathname={location.pathname}
-                      search={location.search}
-                      onNavigate={() => { if (mobileOpened) toggleMobile(); }}
-                    />
-                  ))}
-                </div>
               </div>
             </>
           ) : null}
